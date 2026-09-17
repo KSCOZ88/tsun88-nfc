@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<!-- saved from url=(0155)file:///C:/Users/86150/xwechat_files/zhangzunyuanking1_c4b1/msg/file/2026-09/%E5%AE%A0%E7%89%A9%E6%A1%A3%E6%A1%88%E8%8B%B1%E6%96%87%E7%89%88.html#emergency -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lucky</title>
+<style>
+  :root{
+    --primary:#ff8a3d;
+    --primary-dark:#e56f1f;
+    --primary-light:#fff3e8;
+    --accent:#4a9e6b;
+    --accent-light:#eaf6ef;
+    --danger:#e05050;
+    --danger-light:#fdeaea;
+    --ink:#3a3226;
+    --muted:#8a7f6f;
+    --card:#ffffff;
+    --bg:#fdf8f1;
+    --shadow:0 8px 24px rgba(90,60,20,.08);
+    --radius:20px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC","Helvetica Neue",Arial,sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    line-height:1.7;
+    padding-bottom:120px;
+  }
+  .wrap{max-width:560px;margin:0 auto;padding:0 16px;}
+
+  /* ---------- Hero ---------- */
+  .hero{
+    background:linear-gradient(160deg,#ffb377,#ff8a3d 55%,#f2702f);
+    border-radius:0 0 36px 36px;
+    padding:38px 20px 64px;
+    text-align:center;
+    color:#fff;
+    position:relative;
+    overflow:hidden;
+  }
+  .hero::before,.hero::after{
+    content:"🐾";position:absolute;font-size:70px;opacity:.14;
+  }
+  .hero::before{top:14px;left:10px;transform:rotate(-20deg);}
+  .hero::after{bottom:30px;right:16px;transform:rotate(25deg);}
+  .badge-qr{
+    display:inline-block;background:rgba(255,255,255,.2);
+    border:1px solid rgba(255,255,255,.45);
+    border-radius:999px;padding:5px 16px;font-size:12.5px;
+    letter-spacing:1px;margin-bottom:16px;
+  }
+  .avatar{
+    width:110px;height:110px;border-radius:50%;
+    background:#fff;margin:0 auto 12px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:62px;box-shadow:0 10px 26px rgba(0,0,0,.18);
+    border:5px solid rgba(255,255,255,.55);
+  }
+  .avatar img{width:100%;height:100%;object-fit:cover;display:none;}
+  .profile-status{display:none;position:fixed;left:16px;right:16px;top:14px;z-index:100;background:#fff;border:1px solid #f2c9a7;border-radius:14px;padding:11px 14px;box-shadow:var(--shadow);text-align:center;font-size:13px;color:var(--primary-dark);}
+  .hero h1{font-size:26px;font-weight:800;letter-spacing:1px;text-shadow:0 2px 6px rgba(0,0,0,.12);}
+  .hero .tags{margin-top:8px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}
+  .tag{
+    background:rgba(255,255,255,.24);border-radius:999px;
+    padding:4px 14px;font-size:14px;font-weight:600;
+  }
+
+  /* ---------- Cards & sections ---------- */
+  .card{
+    background:var(--card);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px;margin-top:-42px;position:relative;
+  }
+  .section{margin-top:22px;}
+  .sec-title{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+  .sec-title .icon{
+    width:34px;height:34px;border-radius:10px;flex:none;
+    display:flex;align-items:center;justify-content:center;font-size:18px;
+  }
+  .sec-title h2{font-size:18px;font-weight:800;}
+  .sec-title .en{font-size:12px;color:var(--muted);font-weight:500;margin-left:auto;}
+  .info-table{width:100%;border-collapse:collapse;}
+  .info-table tr{border-bottom:1px dashed #eee2d2;}
+  .info-table tr:last-child{border-bottom:none;}
+  .info-table th{
+    text-align:left;width:110px;padding:12px 8px 12px 0;
+    color:var(--muted);font-size:14px;font-weight:600;vertical-align:top;
+  }
+  .info-table td{padding:12px 0;font-size:15px;font-weight:600;}
+
+  /* ---------- Lost banner ---------- */
+  .lost-banner{
+    border-radius:16px;padding:16px 18px;margin-bottom:6px;
+    background:var(--danger-light);border:2px dashed var(--danger);
+  }
+  .lost-banner .lb-title{color:var(--danger);font-weight:800;font-size:16px;}
+  .lost-banner .lb-sub{color:#a55;font-size:13px;margin-top:4px;}
+  .lb-btn{
+    display:block;margin-top:10px;width:100%;
+    background:var(--danger);color:#fff;
+    font-size:16px;font-weight:700;padding:13px;border-radius:12px;
+    text-decoration:none;text-align:center;
+    box-shadow:0 6px 14px rgba(224,80,80,.35);
+  }
+
+  .note-box{
+    background:var(--primary-light);border-radius:14px;padding:16px 18px;
+    font-size:14.5px;
+  }
+  .note-box .quote-mark{color:var(--primary);font-size:15px;font-weight:800;}
+
+  .health-grid{display:grid;gap:12px;}
+  .health-item{background:var(--accent-light);border-radius:14px;padding:14px 16px;}
+  .health-item .h-label{font-size:13px;color:var(--accent);font-weight:800;margin-bottom:3px;}
+  .health-item .h-value{font-size:14.5px;font-weight:600;}
+  .health-item.warn{background:#fff6f6;}
+  .health-item.warn .h-label{color:var(--danger);}
+
+  .brand-footer{margin-top:26px;text-align:center;color:var(--muted);font-size:13px;line-height:1.9;}
+  .brand-name{color:var(--primary-dark);font-weight:800;}
+  .cta-btn{
+    display:inline-block;margin-top:12px;padding:13px 34px;
+    background:linear-gradient(135deg,#ffb377,var(--primary));
+    color:#fff;font-weight:800;font-size:16px;border-radius:999px;
+    text-decoration:none;box-shadow:0 8px 18px rgba(255,138,61,.4);
+  }
+
+  @media (max-width:400px){
+    .hero h1{font-size:22px;}
+    .info-table th{width:95px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="badge-qr">📌 Digital ID Filing · QR Code Pet Tag</div>
+  <div class="avatar"><span id="avatarDefault">🐕</span><img id="avatarImage" alt="Pet photo"></div>
+  <h1 id="heroTitle">🐾 Lucky's ID Card</h1>
+  <div class="tags">
+    <span class="tag" id="tagColor">5 Red body parts( mouth, nose, eyelids,&nbsp; claws and anus)</span>
+    <span class="tag" id="tagGender">Boy ♂</span>
+    <span class="tag" id="tagNeutered">Neutered ✂️</span>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ================= LOST BANNER ================= -->
+  <div class="card">
+    <div class="lost-banner">
+      <div class="lb-title">🚨 EMERGENCY: I'm lost!</div>
+      <div class="lb-sub">Tap the button below to contact my owner</div>
+      <a class="lb-btn" href="#emergency">⚠️ I found <span id="bannerName">Lucky</span> — tap here to contact the owner</a>
+    </div>
+  </div>
+
+  <!-- ================= BASIC INFO ================= -->
+  <section class="section">
+    <div class="sec-title">
+      <div class="icon" style="background:var(--primary-light);">📋</div>
+      <h2>Basic Info</h2>
+      <span class="en">Profile</span>
+    </div>
+    <div class="card" style="margin-top:0;">
+      <table class="info-table">
+        <tbody><tr><th>Pet Name</th><td><span data-field="petName">Lucky</span></td></tr>
+        <tr><th>Gender</th><td><span data-field="gender">Boy ♂</span></td></tr>
+        <tr><th>Neutered</th><td><span data-field="neutered">Neutered ✂️</span></td></tr>
+        <tr><th>Breed</th><td><span data-field="breed">Chinese Rural Dog (5 red dog)</span></td></tr>
+        <tr><th>Birth Date</th><td><span data-field="birth">2023-02-01</span></td></tr>
+        <tr><th>Coat &amp; Marks</th><td><span data-field="color">5 Red body parts( mouth, nose, eyelids,&nbsp; claws and anus)</span></td></tr>
+      </tbody></table>
+    </div>
+  </section>
+
+  <!-- ================= EMERGENCY CONTACTS ================= -->
+  <section class="section" id="emergency">
+    <div class="sec-title">
+      <div class="icon" style="background:var(--danger-light);">📞</div>
+      <h2>Emergency Contacts</h2>
+      <span class="en">Owner's Message</span>
+    </div>
+    <div class="card" style="margin-top:0;">
+      <table class="info-table">
+        <tbody><tr><th>Primary</th><td>
+          <span data-field="owner1">Ms. Ann</span><br>
+          <a data-tel="phone1" href="tel:85298449165" style="color:var(--primary-dark);text-decoration:none;font-family:Courier New,monospace;letter-spacing:1px;" data-field="phone1">+852 98449165</a>
+        </td></tr>
+        <tr><th>Backup</th><td>
+          <span data-field="owner2">Mr.CHEUNG</span><br>
+          <a data-tel="phone2" href="tel:85295189171" style="color:var(--primary-dark);text-decoration:none;font-family:Courier New,monospace;letter-spacing:1px;" data-field="phone2">+852 95189171</a>
+        </td></tr>
+        <tr><th>Location</th><td><span data-field="region">Park Road, HK</span></td></tr>
+      </tbody></table>
+      <div class="note-box" style="margin-top:14px;">
+        <span class="quote-mark">💬 A message from the owner</span><br>
+        <span data-field="message">"should you find my dog, please kindly get in touch with me at your earliest convenience. A reward will be offered for your help. Many thanks"</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= HEALTH & CARE ================= -->
+  <section class="section">
+    <div class="sec-title">
+      <div class="icon" style="background:var(--accent-light);">💡</div>
+      <h2>Health &amp; Care</h2>
+      <span class="en">Notes</span>
+    </div>
+    <div class="card" style="margin-top:0;">
+      <div class="health-grid">
+        <div class="health-item warn">
+          <div class="h-label">🍗 Diet &amp; Allergies</div>
+          <div class="h-value"><span data-field="diet">Allergic to chocolate ,etc ; only eats chicken and salmon kibble.</span></div>
+        </div>
+        <div class="health-item">
+          <div class="h-label">🐾 Personality</div>
+          <div class="h-value"><span data-field="personality">Food-loving, scared of thunder and firecrackers, wary of unfamiliar dogs.</span></div>
+        </div>
+        <div class="health-item">
+          <div class="h-label">🏥 Usual Clinic</div>
+          <div class="h-value"><span data-field="clinic">Four Paws Animal Hospital</span><br>
+          <span style="font-family:Courier New,monospace;letter-spacing:1px;" data-field="clinicPhone">+852 92748331</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= BRAND FOOTER ================= -->
+  <footer class="brand-footer">
+    <div>This ID card is proudly powered by <span class="brand-name">TSUN LAB</span> 🏅</div>
+    <a class="cta-btn" href="https://kscoz88.github.io/">🛒 Order a Custom Tag Like This</a>
+    <div style="margin-top:20px;opacity:.7;">
+      Generated by the Pet Tag Advisory Service | Helping pet brands create the ultimate user experience
+    </div>
+  </footer>
+
+</div>
+<div class="profile-status" id="profileStatus"></div>
+<script>
+const SUPABASE_URL='https://zujdfvnhxbalyhjmmmtl.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_w1uZ3XHIO_QhB4bDdZCPfg_48EiAGvl';
+const slug=new URLSearchParams(location.search).get('p')||'';
+const fieldMap={petName:'pet_name',gender:'gender',neutered:'neutered',breed:'breed',birth:'birth_date',color:'coat_marks',owner1:'owner_name',phone1:'owner_phone',owner2:'backup_owner_name',phone2:'backup_phone',region:'location',message:'owner_message',diet:'diet',personality:'personality',clinic:'clinic',clinicPhone:'clinic_phone'};
+function clean(value){return value==null?'':String(value).trim();}
+function showStatus(message){const el=document.getElementById('profileStatus');el.textContent=message;el.style.display='block';}
+function applyProfile(data){
+  document.querySelectorAll('[data-field]').forEach(el=>{const key=fieldMap[el.dataset.field],value=clean(data[key]);el.textContent=value||'Not provided';if(el.dataset.tel){if(value)el.href='tel:'+value.replace(/[^+\d]/g,'');else el.removeAttribute('href');}});
+  const name=clean(data.pet_name)||'Pet';document.getElementById('heroTitle').textContent='🐾 '+name+"'s ID Card";document.getElementById('bannerName').textContent=name;document.getElementById('tagColor').textContent=clean(data.coat_marks)||'Coat details not provided';document.getElementById('tagGender').textContent=clean(data.gender)||'Gender not provided';document.getElementById('tagNeutered').textContent=clean(data.neutered)||'Neutered status not provided';document.title=name+"'s ID Card";
+  if(clean(data.photo_data)){const img=document.getElementById('avatarImage');img.src=data.photo_data;img.style.display='block';document.getElementById('avatarDefault').style.display='none';}
+}
+async function loadLockedProfile(){
+  if(!slug)return;
+  const response=await fetch(SUPABASE_URL+'/rest/v1/rpc/get_pet_profile',{method:'POST',headers:{apikey:SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},body:JSON.stringify({p_slug:slug})});
+  const data=await response.json().catch(()=>null);if(!response.ok||!data)throw new Error('This pet profile could not be found.');applyProfile(data);
+}
+loadLockedProfile().catch(error=>showStatus(error.message));
+</script>
+</body></html>

@@ -1,0 +1,35 @@
+TSUN88 + Lucky88 NFC 锁定版
+
+作用：
+1. 客户在 TSUN88 的 NFC / 背面资料区填写宠物档案。
+2. 付款成功后自动生成 Lucky88 风格的公开网址。
+3. 公开网址和生产 PNG 自动发送到 Tsunlab888@163.com。
+4. 邮件里的网址就是商家写入实体 NFC 的网址。
+5. 客户只得到浏览页，没有编辑入口，档案生成后不能自行更改。
+
+第一次使用必须完成：
+
+一、Supabase
+打开 Supabase → SQL Editor，新建查询，粘贴并运行包内的
+create_locked_pet_profile.sql。
+看到 Success 后即可关闭。
+
+二、Vercel
+1. 把整个文件夹部署到 Vercel。
+2. 在项目 Settings → Environment Variables 添加：
+   名称：RESEND_API_KEY
+   值：你的 Resend API Key
+3. 重新 Deploy。
+
+三、测试
+1. 打开 Vercel 给你的网址。
+2. 选择 NFC，填写完整宠物档案和收货资料。
+3. 进入付款页，点击演示付款成功。
+4. 页面应显示一个 lucky88.html?p=... 的公开网址。
+5. Tsunlab888@163.com 应收到同一个网址和生产 PNG。
+6. 用另一台手机打开邮件里的网址，确认资料正确。
+
+重要：
+- 不要把 index.html 单独放到 GitHub Pages，否则邮件接口不能运行。
+- 本版应以 Vercel 的网址作为商城网址和 NFC 档案网址。
+- Resend 免费测试状态下，收件地址可能受限制；正式使用前请在 Resend 验证发件域名。
