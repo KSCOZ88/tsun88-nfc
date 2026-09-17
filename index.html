@@ -477,10 +477,12 @@
 <section id="info" class="page">
   <div class="section-title"><h2>填写主人和 NFC 宠物档案</h2><p>狗牌背面显示电话；NFC 会写入一个专属网站。主人以后修改网站资料，不需要重写 NFC。</p></div>
   <div class="info-grid"><div class="stage"><span class="label">背面预览</span><div class="stage-box"><div class="board" id="infoBack"></div></div></div><div class="controls">
+    <div class="field"><label>主人电话（必填）</label><input id="ownerPhone" inputmode="tel" placeholder="请输入联系电话"></div>
+    <div class="field"><label>主人姓名 / 主人称呼（选填，显示在背面底部）</label><input id="ownerName" placeholder="例如：张先生 / 王先生 / 李先生"></div>
     <div class="nfc-profile-box"><h3>📱 NFC 里显示的宠物资料</h3><p>客户用手机碰一下名牌，就会打开这份资料。付款成功后会自动生成不可编辑的锁定版公开网址。</p>
       <div class="nfc-fields">
-        <div class="field"><label>主人姓名 / 主人称呼</label><input id="ownerName" placeholder="例如：张先生"></div>
-        <div class="field"><label>主人电话（必填）</label><input id="ownerPhone" inputmode="tel" placeholder="主要联系电话"></div>
+        <div class="field"><label>NFC 主人姓名 / 主人称呼</label><input id="nfcOwnerName" placeholder="与上方主人姓名自动同步"></div>
+        <div class="field"><label>NFC 主人电话（必填）</label><input id="nfcOwnerPhone" inputmode="tel" placeholder="与上方主人电话自动同步"></div>
         <div class="field wide"><label>宠物照片</label><div class="nfc-photo-row"><div class="nfc-photo-preview"><span id="nfcPhotoDefault">🐶</span><img id="nfcPhotoPreview" alt="宠物照片预览"></div><div><input id="nfcPhotoInput" type="file" accept="image/*"><small>建议选择清晰正面照，网页会自动压缩。</small></div></div></div>
         <div class="field"><label>性别 Gender</label><select id="nfcGender"><option value="">请选择</option><option value="Boy ♂">男孩 Boy ♂</option><option value="Girl ♀">女孩 Girl ♀</option></select></div>
         <div class="field"><label>绝育情况 Neutered</label><select id="nfcNeutered"><option value="">请选择</option><option value="Neutered ✂️">已绝育 Neutered ✂️</option><option value="Not neutered">未绝育 Not neutered</option><option value="Unknown">不清楚 Unknown</option></select></div>
@@ -2687,20 +2689,35 @@ function openBaseNudge(){const modal=document.getElementById('baseNudge');if(!mo
 function bindInputs(){
   const firstName=document.getElementById('firstName');
   if(firstName&&!firstName.dataset.bound){firstName.dataset.bound='1';firstName.value=state.petName;firstName.addEventListener('input',e=>{const clean=normalizePetName(e.target.value);e.target.value=clean;state.petName=clean;renderAll();});}
-  const ownerPhone=document.getElementById('ownerPhone');
-  if(ownerPhone&&!ownerPhone.dataset.bound){ownerPhone.dataset.bound='1';ownerPhone.value=state.ownerPhone;ownerPhone.addEventListener('input',e=>{state.ownerPhone=e.target.value.replace(/\D/g,'').slice(0,11);e.target.value=state.ownerPhone;renderAll();});}
-  const ownerName=document.getElementById('ownerName');
-  if(ownerName&&!ownerName.dataset.bound){
+  const ownerPhoneInputs=['ownerPhone','nfcOwnerPhone'].map(id=>document.getElementById(id)).filter(Boolean);
+  ownerPhoneInputs.forEach(ownerPhone=>{
+    if(ownerPhone.dataset.bound)return;
+    ownerPhone.dataset.bound='1';
+    ownerPhone.value=state.ownerPhone;
+    ownerPhone.addEventListener('input',e=>{
+      state.ownerPhone=e.target.value.replace(/\D/g,'').slice(0,11);
+      ownerPhoneInputs.forEach(other=>{if(other.value!==state.ownerPhone)other.value=state.ownerPhone;});
+      renderAll();
+    });
+  });
+  const ownerNameInputs=['ownerName','nfcOwnerName'].map(id=>document.getElementById(id)).filter(Boolean);
+  ownerNameInputs.forEach(ownerName=>{
+    if(ownerName.dataset.bound)return;
     ownerName.dataset.bound='1';
     ownerName.value=state.ownerName;
     let ownerNameComposing=false;
-    const commitOwnerName=target=>{const limited=limitOwnerNameValue(target.value);if(target.value!==limited)target.value=limited;state.ownerName=limited;renderAll();};
+    const commitOwnerName=target=>{
+      const limited=limitOwnerNameValue(target.value);
+      state.ownerName=limited;
+      ownerNameInputs.forEach(other=>{if(other.value!==limited)other.value=limited;});
+      renderAll();
+    };
     ownerName.addEventListener('compositionstart',()=>{ownerNameComposing=true;});
     ownerName.addEventListener('compositionend',e=>{ownerNameComposing=false;commitOwnerName(e.target);});
     ownerName.addEventListener('input',e=>{if(ownerNameComposing||e.isComposing)return;commitOwnerName(e.target);});
     ownerName.addEventListener('change',e=>{if(!ownerNameComposing)commitOwnerName(e.target);});
     ownerName.addEventListener('blur',e=>{ownerNameComposing=false;commitOwnerName(e.target);});
-  }
+  });
   if(!state.nfcProfile.breed){const selected=breedCatalog.find(b=>b.key===state.selectedBreedKey);state.nfcProfile.breed=selected?selected.name:'';}
   const nfcBindings={nfcGender:'gender',nfcNeutered:'neutered',nfcBreed:'breed',nfcBirthDate:'birthDate',nfcCoatMarks:'coatMarks',nfcBackupOwnerName:'backupOwnerName',nfcBackupPhone:'backupPhone',nfcLocation:'location',nfcOwnerMessage:'ownerMessage',nfcDiet:'diet',nfcPersonality:'personality',nfcClinic:'clinic',nfcClinicPhone:'clinicPhone'};
   Object.entries(nfcBindings).forEach(([id,key])=>{const el=document.getElementById(id);if(!el||el.dataset.bound)return;el.dataset.bound='1';el.value=state.nfcProfile[key]||'';el.addEventListener('input',()=>{state.nfcProfile[key]=el.value;});});
