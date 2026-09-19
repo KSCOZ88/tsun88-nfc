@@ -7,7 +7,7 @@ function cors(req,res){res.setHeader('Access-Control-Allow-Origin',req.headers.o
 function pricing(order){
   const items=Array.isArray(order.items)?order.items:[];
   const decorCount=items.reduce((total,item)=>total+['front','back'].reduce((sum,side)=>sum+(Array.isArray(item?.decorItems?.[side])?item.decorItems[side].length:0),0),0);
-  return {itemCount:items.length,decorCount,totalCents:(items.length*99+decorCount*3)*100};
+  return {itemCount:items.length,decorCount,totalCents:(items.length*299+decorCount*3)*100};
 }
 async function stripeSession(sessionId){
   const key=process.env.STRIPE_SECRET_KEY||'';
@@ -15,6 +15,28 @@ async function stripeSession(sessionId){
   if(!/^cs_(test|live)_[A-Za-z0-9_]+$/.test(sessionId||''))throw new Error('Stripe 付款编号无效');
   const response=await fetch('https://api.stripe.com/v1/checkout/sessions/'+encodeURIComponent(sessionId),{headers:{Authorization:'Bearer '+key}});
   const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error?.message||'无法向 Stripe 核对付款');return result;
+}
+async function stripeSessionForOrder(order){
+  const key=process.env.STRIPE_SECRET_KEY||'';
+  if(!/^sk_(test|live)_/.test(key))throw new Error('Stripe 密钥尚未配置');
+  if(!/^[\w-]{1,100}$/.test(order?.id||'')||!emailValid(order?.customerEmail))throw new Error('订单资料无效，无法恢复付款');
+  const now=Math.floor(Date.now()/1000),created=Math.floor(Date.parse(order.createdAt||'')/1000);
+  const createdAfter=Math.max(now-30*24*60*60,Number.isFinite(created)?created-60*60:now-2*24*60*60);
+  let startingAfter='';
+  for(let page=0;page<3;page+=1){
+    const params=new URLSearchParams({limit:'100',status:'complete','created[gte]':String(createdAfter)});
+    if(startingAfter)params.set('starting_after',startingAfter);
+    const response=await fetch('https://api.stripe.com/v1/checkout/sessions?'+params.toString(),{headers:{Authorization:'Bearer '+key}});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(result.error?.message||'无法向 Stripe 恢复付款记录');
+    const sessions=Array.isArray(result.data)?result.data:[];
+    const match=sessions.find(item=>item.client_reference_id===order.id||item.metadata?.order_id===order.id);
+    if(match)return match;
+    if(!result.has_more||!sessions.length)break;
+    startingAfter=String(sessions[sessions.length-1].id||'');
+    if(!startingAfter)break;
+  }
+  throw new Error('暂时没有找到这笔已完成付款');
 }
 function verifyPaidSession(session,order){
   if(session.payment_status!=='paid')throw new Error('Stripe 尚未确认付款');
@@ -51,4 +73,4 @@ async function deliver(stage,order,previews,attachments=[]){
   }
   return {customerSent:customer.sent,merchantSent:merchant.sent,customer,merchant};
 }
-module.exports={cors,pricing,stripeSession,verifyPaidSession,orderToken,verifyOrderToken,deliver};
+module.exports={cors,pricing,stripeSession,stripeSessionForOrder,verifyPaidSession,orderToken,verifyOrderToken,deliver};
