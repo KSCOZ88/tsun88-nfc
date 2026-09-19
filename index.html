@@ -485,6 +485,21 @@
   </div>
 </div>
 
+<script>
+/* Hide the welcome cover immediately while Stripe payment recovery is running. */
+(function(){
+  try{
+    const hasReturn=new URLSearchParams(location.search).has('payment');
+    const orders=JSON.parse(localStorage.getItem('tsun88_orders_v1')||'[]');
+    const recentPending=Array.isArray(orders)&&orders.some(order=>{
+      const age=Date.now()-Date.parse(order&&order.createdAt||'');
+      return order&&order.payMethod==='Stripe'&&['待付款','等待付款'].includes(order.status)&&Number.isFinite(age)&&age>=0&&age<48*60*60*1000;
+    });
+    if(hasReturn||recentPending)document.getElementById('tsunEnterGate')?.remove();
+  }catch(error){}
+})();
+</script>
+
 <div class="app">
 <header class="topbar"><div class="brand"><span class="paw">🐾</span><span class="brand-name">8TSUN8</span></div><nav><button data-go="home">首页</button><button data-go="name">开始定制</button></nav></header>
 <main>
@@ -550,7 +565,7 @@
 
 <section id="confirm" class="page">
   <div class="section-title"><h2>确认信息并付款</h2><p>正面、背面和订单信息都确认无误后，使用 Stripe 安全完成付款。</p></div>
-  <div class="confirm-grid"><div><div class="preview-grid"><div class="preview-card"><span class="label">正面</span><div class="board" id="confirmFront"></div></div><div class="preview-card"><span class="label">背面</span><div class="board" id="confirmBack"></div></div></div><div class="action-row confirm-preview-actions"><button class="secondary" data-go="info">返回修改</button></div></div><div class="summary-card payment-checkout confirm-checkout"><span class="order-number" id="payOrderNumber">订单号生成中</span><div class="checkout-pricing" id="checkoutPricing" aria-live="polite"><div class="checkout-price-head"><div class="checkout-price-title"><span class="checkout-original">原价 HK$129</span><strong class="checkout-sale">限时 HK$99</strong></div><span class="checkout-badge">每枚装饰 HK$3</span></div><div class="checkout-price-rows"><div class="checkout-price-row"><span>狗牌限时价</span><b id="priceBaseSubtotal">HK$99</b></div><div class="checkout-price-row"><span id="priceDecorLabel">装饰 0 枚 × HK$3</span><b id="priceDecorSubtotal">HK$0</b></div><div class="checkout-price-row checkout-price-total"><span>应付总额</span><b id="priceGrandTotal">HK$99</b></div></div><div class="checkout-saving" id="priceSaving">已优惠 HK$30</div></div><div class="field" id="customerEmailField"><label for="customerEmail">订单通知邮箱（必填）</label><input id="customerEmail" type="email" inputmode="email" autocomplete="email" maxlength="254" required placeholder="请输入常用邮箱" aria-describedby="customerEmailHelp"><small id="customerEmailHelp">我们会通过这个邮箱通知你订单、制作及寄送进度，并发送狗牌效果图和宠物档案网址。</small></div><div class="payment-code-box" style="gap:14px"><div aria-hidden="true" style="width:76px;height:76px;border-radius:22px;background:#635bff;color:#fff;display:grid;place-items:center;font-size:38px;font-weight:900">S</div><b style="font-size:22px">Stripe 安全付款</b><small class="payment-scan-note">点击下面按钮后会进入 Stripe 加密付款页。只有 Stripe 确认付款成功，订单才会生效。</small><button type="button" class="primary demo-pay-btn" id="stripePayBtn">使用银行卡 / Apple Pay 付款</button></div></div></div>
+  <div class="confirm-grid"><div><div class="preview-grid"><div class="preview-card"><span class="label">正面</span><div class="board" id="confirmFront"></div></div><div class="preview-card"><span class="label">背面</span><div class="board" id="confirmBack"></div></div></div><div class="action-row confirm-preview-actions"><button class="secondary" data-go="info">返回修改</button></div></div><div class="summary-card payment-checkout confirm-checkout"><span class="order-number" id="payOrderNumber">订单号生成中</span><div class="checkout-pricing" id="checkoutPricing" aria-live="polite"><div class="checkout-price-head"><div class="checkout-price-title"><span class="checkout-original">原价 HK$329</span><strong class="checkout-sale">限时 HK$299</strong></div><span class="checkout-badge">每枚装饰 HK$3</span></div><div class="checkout-price-rows"><div class="checkout-price-row"><span>狗牌限时价</span><b id="priceBaseSubtotal">HK$299</b></div><div class="checkout-price-row"><span id="priceDecorLabel">装饰 0 枚 × HK$3</span><b id="priceDecorSubtotal">HK$0</b></div><div class="checkout-price-row checkout-price-total"><span>应付总额</span><b id="priceGrandTotal">HK$299</b></div></div><div class="checkout-saving" id="priceSaving">已优惠 HK$30</div></div><div class="field" id="customerEmailField"><label for="customerEmail">订单通知邮箱（必填）</label><input id="customerEmail" type="email" inputmode="email" autocomplete="email" maxlength="254" required placeholder="请输入常用邮箱" aria-describedby="customerEmailHelp"><small id="customerEmailHelp">我们会通过这个邮箱通知你订单、制作及寄送进度，并发送狗牌效果图和宠物档案网址。</small></div><div class="payment-code-box" style="gap:14px"><div aria-hidden="true" style="width:76px;height:76px;border-radius:22px;background:#635bff;color:#fff;display:grid;place-items:center;font-size:38px;font-weight:900">S</div><b style="font-size:22px">Stripe 安全付款</b><small class="payment-scan-note">点击下面按钮后会进入 Stripe 加密付款页。只有 Stripe 确认付款成功，订单才会生效。</small><button type="button" class="primary demo-pay-btn" id="stripePayBtn">使用银行卡 / Apple Pay 付款</button></div></div></div>
 </section>
 
 <section id="orderSuccess" class="page">
@@ -741,12 +756,12 @@ function decorAssetMarkup(key,color='yellow'){
 }
 function decorAssetIcon(key,color='yellow'){return `<span class="decor-icon decor-asset-icon">${decorAssetMarkup(key,color)}</span>`;}
 const accessories=[
-  {key:'star',label:'黄油胖星',size:'约 9 × 9mm',price:'¥3 / 个',badge:'厚实 · 少碎件',cls:'star'},
-  {key:'heart',label:'奶油爱心',size:'约 10 × 9mm',price:'¥3 / 个',badge:'厚实 · 少碎件',cls:'heart'},
-  {key:'flower',label:'奶油小花',size:'约 10 × 10mm',price:'¥3 / 个',badge:'厚实 · 少碎件',cls:'flower'},
-  {key:'cloud',label:'奶油云朵',size:'约 10 × 7mm',price:'¥3 / 个',badge:'圆润 · 略小一号',cls:'cloud'},
-  {key:'stud',label:'四角星星',size:'约 7 × 7mm',price:'¥3 / 个',badge:'小亮点',cls:'stud'},
-  {key:'ribbon',label:'黄油蝴蝶结',size:'约 10 × 8mm',price:'¥3 / 个',badge:'一体造型',cls:'ribbon'}
+  {key:'star',label:'黄油胖星',size:'约 9 × 9mm',price:'HK$3 / 个',badge:'厚实 · 少碎件',cls:'star'},
+  {key:'heart',label:'奶油爱心',size:'约 10 × 9mm',price:'HK$3 / 个',badge:'厚实 · 少碎件',cls:'heart'},
+  {key:'flower',label:'奶油小花',size:'约 10 × 10mm',price:'HK$3 / 个',badge:'厚实 · 少碎件',cls:'flower'},
+  {key:'cloud',label:'奶油云朵',size:'约 10 × 7mm',price:'HK$3 / 个',badge:'圆润 · 略小一号',cls:'cloud'},
+  {key:'stud',label:'四角星星',size:'约 7 × 7mm',price:'HK$3 / 个',badge:'小亮点',cls:'stud'},
+  {key:'ribbon',label:'黄油蝴蝶结',size:'约 10 × 8mm',price:'HK$3 / 个',badge:'一体造型',cls:'ribbon'}
 ];
 const FRONT_DECOR_SLOTS=[
   // Fixed front accessory positions. These positions are locked and must not move
@@ -2279,7 +2294,10 @@ let furthestCustomizeStep=0;
 const emptyDecorAdvanceAcknowledged={front:false,back:false};
 function resetEmptyDecorAdvanceAcknowledgement(){emptyDecorAdvanceAcknowledged.front=false;emptyDecorAdvanceAcknowledged.back=false;}
 function toast(msg,duration){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(window.__tt);const visibleFor=Number.isFinite(duration)?duration:(msg.length>26?3800:1600);window.__tt=setTimeout(()=>t.classList.remove('show'),visibleFor)}
-function go(id){pages.forEach(p=>p.classList.toggle('active',p.id===id));window.scrollTo({top:0,behavior:'smooth'});renderAll()}
+function go(id){
+  pages.forEach(p=>p.classList.toggle('active',p.id===id));window.scrollTo({top:0,behavior:'smooth'});
+  try{renderAll();}catch(error){console.error('页面刷新失败，但已继续切换页面',error);}
+}
 document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.go==='customize'&&b.closest('header')){furthestCustomizeStep=0;resetEmptyDecorAdvanceAcknowledgement();setCustomizeStep('face');}go(b.dataset.go)}));
 document.querySelector('[data-scroll-preview]').addEventListener('click',()=>document.getElementById('homePreview').scrollIntoView({behavior:'smooth'}));
 function setCustomizeStep(step){
@@ -2786,7 +2804,7 @@ function renderFrontSlotPage(host,side='front'){
   const noteText=side==='front'?'六个小位置分别住进六款小装饰，按顺序给每个位置挑一款，想留白也可以，让可爱刚刚好。':'在电话号码周围添几枚小配饰，能自然地把视线带到重要信息上，让号码更显眼、更容易被注意到。背面同样有 1–6 六个固定小位置，喜欢几个就挑几个，也可以留空～';
   const frontDecorCount=state.decorItems.front.length;
   const frontDecorStatus=side==='front'?`<div style="padding:12px 14px;border-radius:16px;background:${frontDecorCount>0?'#fff8ec':'#f4fbff'};border:1px solid ${frontDecorCount>0?'#f0d9a8':'#cfe7f4'};color:#4e6978;font-size:13px;line-height:1.7"><b style="color:${frontDecorCount>0?'#8a6f30':'#315a72'}">当前状态：</b>${frontDecorCount>0?`你已选择 <b>${frontDecorCount}</b> 个正面配饰；如需全部删除，请点击页面最下方的“清空装饰”。`:'你目前还没有添加正面配饰，头像会自动放到最大，但仍会避开两边、8 和 TSUN。'}</div>`:'';
-  host.innerHTML=`<div class="front-slot-shell">${pageTitle}<div class="front-slot-note"><span class="front-slot-note-icon" aria-hidden="true">🐾</span><div><b>${noteTitle}</b><p>${noteText}</p></div></div>${frontDecorStatus}<div class="front-slot-price-note"><span>六款装饰</span><b>统一 ¥3 / 个</b></div><div class="front-slot-legend">${legend}</div><div class="front-slot-grid">${slotsForSide(side).map(pos=>{const item=frontItemBySlot(pos.slot,side);const a=item?accessoryByKey(item.key):null;return `<div class="front-slot-card ${item?'filled':''}"><div class="front-slot-head"><span class="front-slot-number">${pos.slot}</span><span class="front-slot-place">${pos.label}</span></div><select data-front-slot="${pos.slot}">${optionHtml}</select><div class="front-slot-preview">${a?`<span style="display:inline-flex;align-items:center;gap:8px">${decorAssetIcon(a.key,item.color||'yellow')}<b>${a.label}</b></span>`:'这个位置目前留空'}</div>${decorColorChoices(item,pos,side)}</div>`}).join('')}</div></div>`;
+  host.innerHTML=`<div class="front-slot-shell">${pageTitle}<div class="front-slot-note"><span class="front-slot-note-icon" aria-hidden="true">🐾</span><div><b>${noteTitle}</b><p>${noteText}</p></div></div>${frontDecorStatus}<div class="front-slot-price-note"><span>六款装饰</span><b>统一 HK$3 / 个</b></div><div class="front-slot-legend">${legend}</div><div class="front-slot-grid">${slotsForSide(side).map(pos=>{const item=frontItemBySlot(pos.slot,side);const a=item?accessoryByKey(item.key):null;return `<div class="front-slot-card ${item?'filled':''}"><div class="front-slot-head"><span class="front-slot-number">${pos.slot}</span><span class="front-slot-place">${pos.label}</span></div><select data-front-slot="${pos.slot}">${optionHtml}</select><div class="front-slot-preview">${a?`<span style="display:inline-flex;align-items:center;gap:8px">${decorAssetIcon(a.key,item.color||'yellow')}<b>${a.label}</b></span>`:'这个位置目前留空'}</div>${decorColorChoices(item,pos,side)}</div>`}).join('')}</div></div>`;
   host.querySelectorAll('[data-front-slot]').forEach(sel=>{const slot=Number(sel.dataset.frontSlot);const current=frontItemBySlot(slot,side);sel.value=current?current.key:'';sel.addEventListener('change',()=>setFrontSlot(slot,sel.value,side));});
   host.querySelectorAll('[data-decor-color]').forEach(btn=>btn.addEventListener('click',()=>setDecorColor(Number(btn.dataset.colorSlot),btn.dataset.decorColor,btn.dataset.colorSide)));
 }
@@ -2917,8 +2935,8 @@ function parseShippingBlob(raw){
   return {name:name.trim(),phone:phone.trim(),address:address.trim()};
 }
 
-const TAG_ORIGINAL_PRICE=129;
-const TAG_PROMO_PRICE=99;
+const TAG_ORIGINAL_PRICE=329;
+const TAG_PROMO_PRICE=299;
 const DECOR_UNIT_PRICE=3;
 function designDecorCount(design){
   const groups=(design&&design.decorItems)||{};
@@ -2983,7 +3001,9 @@ function paymentCodeImage(method){
 }
 function renderPaymentOrder(order){
   document.getElementById('payOrderNumber').textContent='订单号：'+order.id;
-  const pricing=order.pricing||calculateOrderPricing(order.items||[]);order.pricing=pricing;
+  // Always recalculate with the current published price. This prevents an
+  // older cached-price drafts in localStorage from being shown or sent to Stripe.
+  const pricing=calculateOrderPricing(order.items||[]);order.pricing=pricing;
   const baseSubtotal=document.getElementById('priceBaseSubtotal'),decorLabel=document.getElementById('priceDecorLabel'),decorSubtotal=document.getElementById('priceDecorSubtotal'),grandTotal=document.getElementById('priceGrandTotal'),saving=document.getElementById('priceSaving');
   if(baseSubtotal)baseSubtotal.textContent=`${money(pricing.promoUnitPrice)} × ${pricing.itemCount} = ${money(pricing.baseSubtotal)}`;
   if(decorLabel)decorLabel.textContent=`装饰 ${pricing.decorCount} 枚 × ${money(pricing.decorUnitPrice)}`;
@@ -3111,11 +3131,18 @@ async function startStripeCheckout(){
   const button=document.getElementById('stripePayBtn');if(button){button.disabled=true;button.textContent='正在打开 Stripe…';}
   try{
     currentOrder.customerEmail=state.customerEmail;currentOrder.payMethod='Stripe';currentOrder.status='等待付款';updateStoredOrder(currentOrder);
-    const pricing=currentOrder.pricing||calculateOrderPricing(currentOrder.items||[]);
+    // Never trust a cached draft price when money is about to be charged.
+    const pricing=calculateOrderPricing(currentOrder.items||[]);currentOrder.pricing=pricing;updateStoredOrder(currentOrder);
     const response=await fetch(STRIPE_CREATE_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderId:currentOrder.id,customerEmail:currentOrder.customerEmail,itemCount:pricing.itemCount,decorCount:pricing.decorCount})});
-    const result=await response.json().catch(()=>({}));if(!response.ok||!result.url)throw new Error(result.error||'Stripe 暂时无法打开');
+    const result=await response.json().catch(()=>({}));if(!response.ok||!result.url||!result.id)throw new Error(result.error||'Stripe 暂时无法打开');
+    currentOrder.stripeSessionId=result.id;currentOrder.stripeCheckoutPending=true;currentOrder.stripeCheckoutStartedAt=new Date().toISOString();updateStoredOrder(currentOrder);
     location.href=result.url;
   }catch(error){toast(error.message||'Stripe 暂时无法打开，请稍后再试。');if(button){button.disabled=false;renderPaymentOrder(currentOrder);}}
+}
+function recoverableStripeOrder(orders){
+  const cutoff=Date.now()-48*60*60*1000;
+  const checkoutTime=order=>Date.parse(order?.stripeCheckoutStartedAt||order?.createdAt||'');
+  return orders.filter(order=>order&&order.payMethod==='Stripe'&&['待付款','等待付款'].includes(order.status)&&(order.stripeCheckoutPending===true||order.stripeSessionId)&&checkoutTime(order)>=cutoff).sort((a,b)=>checkoutTime(b)-checkoutTime(a))[0]||null;
 }
 function preparePaidOrderScreen(order){
   document.getElementById('successOrderNumber').textContent='订单号：'+order.id;
@@ -3123,19 +3150,22 @@ function preparePaidOrderScreen(order){
   if(shippingForm)shippingForm.hidden=false;if(nfcForm)nfcForm.hidden=false;if(result)result.hidden=true;if(complete)complete.hidden=true;
 }
 async function handleStripeReturn(){
-  const params=new URLSearchParams(location.search),result=params.get('payment');if(!result)return;
+  const params=new URLSearchParams(location.search),result=params.get('payment'),orders=loadOrders(),fallbackOrder=recoverableStripeOrder(orders);if(!result&&!fallbackOrder)return;
   // Stripe returns to a fresh page load. The welcome gate normally sits above
   // every page (z-index:100000), so it must never cover the paid-order flow.
   const enterGate=document.getElementById('tsunEnterGate');if(enterGate)enterGate.remove();
-  const orderId=params.get('order_id')||'',orders=loadOrders(),order=orders.find(item=>item.id===orderId);
+  const orderId=params.get('order_id')||'',order=orders.find(item=>item.id===orderId)||fallbackOrder;
   if(result==='cancelled'){history.replaceState({},document.title,location.pathname+location.hash);if(order){currentOrder=order;applyTagDesign(order.items?.[0]);go('confirm');renderPaymentOrder(order);}toast('付款已取消，没有扣款。你可以修改订单或重新付款。');return;}
-  const sessionId=params.get('session_id');if(result!=='success'||!sessionId||!order){toast('暂时找不到这笔订单，请从原来的浏览器重新打开。');return;}
+  const sessionId=params.get('session_id')||order?.stripeSessionId||'';if(result&&result!=='success'){toast('付款返回状态无法识别，请返回订单重新尝试。');return;}if(!order){toast('暂时找不到这笔订单，请从原来的浏览器重新打开。');return;}
   currentOrder=order;applyTagDesign(order.items?.[0]);toast('正在向 Stripe 核对付款，请稍候…');
   try{
-    const previews=await prepareEmailPreviews(order);
+    // A preview image is useful for the email, but it must never block a paid
+    // customer from reaching the shipping/profile form. The server confirms
+    // Stripe first and reports an email retry separately when previews fail.
+    const previews=await prepareEmailPreviews(order).catch(error=>{console.error('付款邮件效果图生成失败',error);return [];});
     const response=await fetch(STRIPE_CONFIRM_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId,order,previews})});
     const confirmation=await response.json().catch(()=>({}));if(!response.ok||!confirmation.paid)throw new Error(confirmation.error||'Stripe 尚未确认付款');
-    order.isDemo=false;order.status='已付款';order.paymentStatus='paid';order.payMethod='Stripe';order.stripeSessionId=sessionId;order.stripeOrderToken=confirmation.orderToken;order.paymentTransactionId=confirmation.paymentIntentId||sessionId;order.paidAmountCents=confirmation.amountTotal;order.paidAt=new Date().toISOString();order.nfcStatus='等待客户填写';order.customerEmailStatus=confirmation.mailSent?'已发送付款确认':'付款已确认，邮件待重试';
+    order.isDemo=false;order.status='已付款';order.paymentStatus='paid';order.payMethod='Stripe';order.stripeSessionId=confirmation.sessionId||sessionId;order.stripeCheckoutPending=false;order.stripeOrderToken=confirmation.orderToken;order.paymentTransactionId=confirmation.paymentIntentId||sessionId;order.paidAmountCents=confirmation.amountTotal;order.paidAt=new Date().toISOString();order.nfcStatus='等待客户填写';order.customerEmailStatus=confirmation.mailSent?'已发送付款确认':'付款已确认，邮件待重试';
     currentOrder=order;updateStoredOrder(order);preparePaidOrderScreen(order);syncNfcBreedFromSelection();go('orderSuccess');
     // Only clear Stripe's return parameters after the server has confirmed the
     // payment. If confirmation is temporarily unavailable, refresh can retry.
@@ -3146,7 +3176,9 @@ async function handleStripeReturn(){
   }
 }
 async function submitPostPaymentNfc(){
-  if(!currentOrder||currentOrder.status!=='已付款')return;
+  // Allow customers to return, edit and submit the shipping/profile details
+  // again after the first completion.
+  if(!currentOrder||!['已付款','资料已完善'].includes(currentOrder.status))return;
   const required=[
     {name:'收货人姓名',value:state.shipName,el:document.getElementById('shipName')},
     {name:'快递联系电话',value:state.shipPhone,el:document.getElementById('shipPhone')},
@@ -3289,11 +3321,18 @@ function renderAll(){
   renderDecorCards('back');
   renderDecorEditor();
 }
-renderStaticThumbs();
-bindInputs();
-updateCustomizeNav();
-renderAll();
-handleStripeReturn();
+try{
+  renderStaticThumbs();
+  bindInputs();
+  updateCustomizeNav();
+  renderAll();
+}catch(error){
+  console.error('页面初始化失败，继续恢复付款订单',error);
+}finally{
+  // Payment recovery is more important than optional page rendering. Even if
+  // a thumbnail or decorative widget fails, a paid customer can continue.
+  handleStripeReturn();
+}
 </script>
 
 <audio id="tsunBgMusic" loop preload="auto" autoplay>
