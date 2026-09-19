@@ -492,8 +492,10 @@
     const hasReturn=new URLSearchParams(location.search).has('payment');
     const orders=JSON.parse(localStorage.getItem('tsun88_orders_v1')||'[]');
     const recentPending=Array.isArray(orders)&&orders.some(order=>{
-      const age=Date.now()-Date.parse(order&&order.createdAt||'');
-      return order&&order.payMethod==='Stripe'&&['待付款','等待付款'].includes(order.status)&&Number.isFinite(age)&&age>=0&&age<48*60*60*1000;
+      const age=Date.now()-Date.parse(order&&(order.stripeCheckoutStartedAt||order.paidAt||order.createdAt)||'');
+      const waitingForPayment=order&&['待付款','等待付款'].includes(order.status)&&(order.stripeCheckoutPending===true||order.stripeSessionId);
+      const waitingForDetails=order&&order.status==='已付款'&&order.paymentStatus==='paid'&&order.nfcStatus==='等待客户填写'&&order.stripeSessionId;
+      return order&&order.payMethod==='Stripe'&&(waitingForPayment||waitingForDetails)&&Number.isFinite(age)&&age>=0&&age<48*60*60*1000;
     });
     if(hasReturn||recentPending)document.getElementById('tsunEnterGate')?.remove();
   }catch(error){}
@@ -3141,8 +3143,10 @@ async function startStripeCheckout(){
 }
 function recoverableStripeOrder(orders){
   const cutoff=Date.now()-48*60*60*1000;
-  const checkoutTime=order=>Date.parse(order?.stripeCheckoutStartedAt||order?.createdAt||'');
-  return orders.filter(order=>order&&order.payMethod==='Stripe'&&['待付款','等待付款'].includes(order.status)&&(order.stripeCheckoutPending===true||order.stripeSessionId)&&checkoutTime(order)>=cutoff).sort((a,b)=>checkoutTime(b)-checkoutTime(a))[0]||null;
+  const checkoutTime=order=>Date.parse(order?.stripeCheckoutStartedAt||order?.paidAt||order?.createdAt||'');
+  const waitingForPayment=order=>['待付款','等待付款'].includes(order?.status)&&(order?.stripeCheckoutPending===true||order?.stripeSessionId);
+  const waitingForDetails=order=>order?.status==='已付款'&&order?.paymentStatus==='paid'&&order?.nfcStatus==='等待客户填写'&&order?.stripeSessionId;
+  return orders.filter(order=>order&&order.payMethod==='Stripe'&&(waitingForPayment(order)||waitingForDetails(order))&&checkoutTime(order)>=cutoff).sort((a,b)=>checkoutTime(b)-checkoutTime(a))[0]||null;
 }
 function preparePaidOrderScreen(order){
   document.getElementById('successOrderNumber').textContent='订单号：'+order.id;
@@ -3157,19 +3161,21 @@ async function handleStripeReturn(){
   const orderId=params.get('order_id')||'',order=orders.find(item=>item.id===orderId)||fallbackOrder;
   if(result==='cancelled'){history.replaceState({},document.title,location.pathname+location.hash);if(order){currentOrder=order;applyTagDesign(order.items?.[0]);go('confirm');renderPaymentOrder(order);}toast('付款已取消，没有扣款。你可以修改订单或重新付款。');return;}
   const sessionId=params.get('session_id')||order?.stripeSessionId||'';if(result&&result!=='success'){toast('付款返回状态无法识别，请返回订单重新尝试。');return;}if(!order){toast('暂时找不到这笔订单，请从原来的浏览器重新打开。');return;}
-  currentOrder=order;applyTagDesign(order.items?.[0]);toast('正在向 Stripe 核对付款，请稍候…');
+  const wasAlreadyPaid=order.status==='已付款'&&order.paymentStatus==='paid';
+  currentOrder=order;applyTagDesign(order.items?.[0]);go('confirm');renderPaymentOrder(order);toast('付款已完成，正在向 Stripe 核对，请稍候…',7000);
   try{
-    // A preview image is useful for the email, but it must never block a paid
-    // customer from reaching the shipping/profile form. The server confirms
-    // Stripe first and reports an email retry separately when previews fail.
-    const previews=await prepareEmailPreviews(order).catch(error=>{console.error('付款邮件效果图生成失败',error);return [];});
-    const response=await fetch(STRIPE_CONFIRM_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId,order,previews})});
+    // Confirm only the Stripe payment here. Preview generation and email
+    // delivery are deliberately deferred until after the customer sees the
+    // shipping/profile form.
+    const response=await fetch(STRIPE_CONFIRM_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId,order})});
     const confirmation=await response.json().catch(()=>({}));if(!response.ok||!confirmation.paid)throw new Error(confirmation.error||'Stripe 尚未确认付款');
     order.isDemo=false;order.status='已付款';order.paymentStatus='paid';order.payMethod='Stripe';order.stripeSessionId=confirmation.sessionId||sessionId;order.stripeCheckoutPending=false;order.stripeOrderToken=confirmation.orderToken;order.paymentTransactionId=confirmation.paymentIntentId||sessionId;order.paidAmountCents=confirmation.amountTotal;order.paidAt=new Date().toISOString();order.nfcStatus='等待客户填写';order.customerEmailStatus=confirmation.mailSent?'已发送付款确认':'付款已确认，邮件待重试';
     currentOrder=order;updateStoredOrder(order);preparePaidOrderScreen(order);syncNfcBreedFromSelection();go('orderSuccess');
     // Only clear Stripe's return parameters after the server has confirmed the
     // payment. If confirmation is temporarily unavailable, refresh can retry.
     history.replaceState({},document.title,location.pathname+location.hash);openPaymentSuccess();
+    // Never await email work in the payment-return path.
+    if(!wasAlreadyPaid)startPaymentEmail(order);
   }catch(error){
     go('confirm');renderPaymentOrder(order);
     toast((error.message||'付款确认暂时失败')+'。请不要重复付款，刷新页面后会重新核对。',7000);
