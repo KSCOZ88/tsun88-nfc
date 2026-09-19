@@ -1,8 +1,20 @@
 const {cors}=require('../server/stripe-orders');
 const emailValid=value=>typeof value==='string'&&value.length<=254&&/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value);
 function returnBase(req){
-  for(const value of [process.env.TSUN88_SITE_URL,req.headers.origin]){try{const url=new URL(value);if(url.protocol==='https:'||url.hostname==='localhost')return url.href.replace(/\/$/,'');}catch{}}
-  return 'https://tsun88-nfc-l86b.vercel.app';
+  const production='https://tsun88-nfc-l86b.vercel.app';
+  // Stripe freezes the success URL when the Checkout Session is created.
+  // Prefer the real production origin and explicitly reject the retired
+  // ChatGPT preview URL, otherwise a stale Vercel environment variable sends
+  // paid customers to another origin where their saved order cannot be read.
+  try{
+    const origin=new URL(String(req.headers.origin||''));
+    if(origin.origin===production||origin.hostname==='localhost'||origin.hostname==='127.0.0.1')return origin.origin;
+  }catch{}
+  try{
+    const configured=new URL(String(process.env.TSUN88_SITE_URL||''));
+    if((configured.protocol==='https:'||configured.hostname==='localhost')&&!configured.hostname.endsWith('.chatgpt.site'))return configured.href.replace(/\/$/,'');
+  }catch{}
+  return production;
 }
 module.exports=async function handler(req,res){
   cors(req,res);if(req.method==='OPTIONS')return res.status(204).end();if(req.method!=='POST')return res.status(405).json({error:'仅支持 POST 请求'});
