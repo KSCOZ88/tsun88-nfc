@@ -56,7 +56,7 @@ module.exports=async function handler(req,res){
     let merchant={sent:false,skipped:true};
     if(body.type==='order_completed'){
       merchant=await sendEmail({...shared,to:[merchantEmail],subject:'尊八八制作订单｜'+order.id,
-        html:`<h2>已付款，资料已收齐</h2><p>订单号：${escape(order.id)}<br>客户邮箱：${escape(order.customerEmail)}<br>金额：¥${message.total.toFixed(2)}<br>收货人：${escape(order.shipName)}<br>联系电话：${escape(order.shipPhone)}<br>地址：${escape(order.shipAddress)}</p><p>NFC 档案：<a href="${escape(safeUrl(order.cloudProfile?.publicUrl))}">${escape(safeUrl(order.cloudProfile?.publicUrl))}</a></p><p>请将档案网址写入 NFC；生产图片见附件。</p>`,attachments:files},'tsun-merchant-'+identity);
+        html:`<h2>已付款，资料已收齐</h2><p>订单号：${escape(order.id)}<br>客户邮箱：${escape(order.customerEmail)}<br>金额：HK$${message.total.toFixed(2)}<br>收货人：${escape(order.shipName)}<br>联系电话：${escape(order.shipPhone)}<br>地址：${escape(order.shipAddress)}</p><p>NFC 档案：<a href="${escape(safeUrl(order.cloudProfile?.publicUrl))}">${escape(safeUrl(order.cloudProfile?.publicUrl))}</a></p><p>请将档案网址写入 NFC；生产图片见附件。</p>`,attachments:files},'tsun-merchant-'+identity);
     }
     const ok=customer.sent&&(merchant.skipped||merchant.sent);
     return res.status(ok?200:502).json({customerSent:customer.sent,merchantSent:merchant.sent,customer,merchant,error:ok?undefined:'邮件暂未全部发送，请由后台重试'});
