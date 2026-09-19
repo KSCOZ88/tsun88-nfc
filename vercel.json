@@ -2,9 +2,18 @@
   "functions": {
     "api/order-email.js": {
       "maxDuration": 60
+    },
+    "api/confirm-paid-order.js": {
+      "maxDuration": 60
+    },
+    "api/paid-order-email.js": {
+      "maxDuration": 60
     }
   },
   "rewrites": [
     { "source": "/", "destination": "/index.html" }
+  ],
+  "headers": [
+    { "source": "/lucky88.html", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] }
   ]
 }

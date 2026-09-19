@@ -1,0 +1,37 @@
+TSUN88 Stripe 测试版
+===================
+
+一、Vercel 环境变量
+
+必须：
+1. STRIPE_SECRET_KEY = Stripe 测试密钥（sk_test_ 开头）
+2. TSUN88_SITE_URL = 部署后的完整网址，例如 https://tsun88-nfc-l86b.vercel.app
+3. SMTP_APP_PASSWORD = Gmail 的 16 位应用专用密码（不要空格）
+
+建议：
+4. STRIPE_WEBHOOK_SECRET = Stripe Webhook 签名密钥（whsec_ 开头）
+
+二、测试卡
+
+卡号：4242 4242 4242 4242
+有效期：任意未来日期，例如 12/34
+CVC：任意三位数字，例如 123
+姓名、账单地址：可填写测试资料
+
+三、测试成功表现
+
+付款成功后会自动回到网站；网站会再次向 Stripe 核对付款状态。
+只有 Stripe 返回 paid，订单才会显示“付款成功”。
+客户邮箱会收到付款确认；继续完善快递资料和 NFC 宠物档案后，会收到档案网址，商户邮箱会收到制作文件。
+
+四、Webhook 地址
+
+https://你的域名/api/stripe-webhook
+
+在 Stripe 测试模式添加事件：
+- checkout.session.completed
+- checkout.session.async_payment_succeeded
+
+复制 whsec_ 开头的签名密钥，保存为 Vercel 的 STRIPE_WEBHOOK_SECRET，然后重新部署。
+
+注意：测试模式不会扣真钱。正式收款前必须完成 Stripe 账户验证，并将 Vercel 的 sk_test_ 和 whsec_ 测试值替换成正式环境对应的值。
