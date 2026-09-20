@@ -1,0 +1,44 @@
+/* Policy-only styles. Existing customizer and payment selectors are untouched. */
+.ts-policy-links{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 20px;line-height:1.7}
+.ts-policy-links a,.ts-policy-notice a,.ts-policy-footer a{color:#345e74;text-decoration:underline;text-underline-offset:4px}
+.ts-policy-links a:hover,.ts-policy-notice a:hover,.ts-policy-footer a:hover{color:#173e53}
+.ts-policy-links a:focus-visible,.ts-policy-notice a:focus-visible,.ts-policy-footer a:focus-visible{outline:3px solid #5595b5;outline-offset:4px;border-radius:3px}
+#tsunEnterCard .ts-policy-gate{margin-top:24px;font-size:13px;letter-spacing:0;font-weight:500}
+.ts-policy-footer{border-top:1px solid #dce8ee;background:#f5fafc}
+.ts-policy-footer .ts-policy-links{margin:18px 0 12px}
+.ts-policy-footer p{font-size:13px;line-height:1.9;margin:8px 0;color:#536e7d}
+.ts-policy-notice{padding:16px 20px;margin:0 0 22px;border:1px solid #d9e8ef;border-radius:18px;background:#f1f8fc;color:#425e6f;font-size:14px;line-height:1.9;overflow-wrap:anywhere}
+.ts-policy-checkout-links{display:block;margin-top:6px}
+.ts-policy-page{margin:0;background:#f5fafc;color:#213846;font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;line-height:1.85;overflow-wrap:anywhere}
+.ts-policy-page *{box-sizing:border-box}
+.ts-policy-page a{color:#285b75;text-underline-offset:4px}
+.ts-policy-page a:hover{color:#12394e}
+.ts-policy-page a:focus-visible{outline:3px solid #5595b5;outline-offset:4px;border-radius:3px}
+.ts-policy-header{background:#fff;border-bottom:1px solid #dce8ee;padding:20px max(24px,calc((100vw - 1060px)/2));display:flex;align-items:center;justify-content:space-between;gap:20px}
+.ts-policy-brand{font-size:22px;font-weight:850;letter-spacing:.08em;text-decoration:none;white-space:nowrap}
+.ts-policy-home{font-size:14px;white-space:nowrap}
+.ts-policy-main{width:calc(100% - 40px);max-width:960px;margin:42px auto 48px}
+.ts-policy-eyebrow{font-size:12px;font-weight:750;letter-spacing:.16em;color:#527588;margin:0 0 8px}
+.ts-policy-page h1{font-size:clamp(28px,5vw,42px);line-height:1.3;margin:0 0 12px;letter-spacing:-.02em}
+.ts-policy-lead{font-size:17px;color:#536e7d;margin:0 0 12px}
+.ts-policy-date{font-size:13px;color:#5d7583;margin:0 0 26px}
+.ts-policy-nav{justify-content:flex-start;margin:0 0 28px;padding:14px 0;border-top:1px solid #dce8ee;border-bottom:1px solid #dce8ee;font-size:14px}
+.ts-policy-nav a[aria-current=page]{font-weight:800;color:#213846}
+.ts-policy-card{background:#fff;border:1px solid #dce8ee;border-radius:22px;padding:26px 30px;margin:18px 0}
+.ts-policy-card h2{font-size:20px;line-height:1.5;margin:0 0 12px}
+.ts-policy-card h3{font-size:17px;margin:20px 0 8px}
+.ts-policy-card p{margin:10px 0}
+.ts-policy-card ul,.ts-policy-card ol{padding-left:24px;margin:10px 0}
+.ts-policy-card li{padding-left:3px;margin:7px 0}
+.ts-policy-callout{padding:20px 24px;border-left:4px solid #83bdd9;border-radius:0 16px 16px 0;background:#eaf5fb;color:#34586d;margin:22px 0}
+.ts-policy-contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.ts-policy-contact-grid .ts-policy-card{margin:0}
+.ts-policy-contact-grid a{font-size:18px;font-weight:700}
+.ts-policy-page footer{border-top:1px solid #dce8ee;text-align:center;padding:28px 20px 38px;font-size:13px;color:#536e7d}
+.ts-policy-page footer p{margin:6px 0}
+.ts-policy-page footer .ts-policy-links{margin:12px 0}
+.ts-policy-skip{position:absolute;left:16px;top:-100px;padding:10px 16px;background:#fff;z-index:2}
+.ts-policy-skip:focus{top:12px}
+@media(max-width:600px){.ts-policy-header{padding:16px 20px}.ts-policy-main{margin:28px auto 36px}.ts-policy-card{padding:22px 20px;border-radius:18px}.ts-policy-contact-grid{grid-template-columns:1fr}.ts-policy-nav{gap:8px 16px}.ts-policy-notice{padding:14px 16px}#tsunEnterCard .ts-policy-gate{gap:6px 14px;font-size:12px}.ts-policy-footer{padding-bottom:82px}}
+@media(max-height:650px){#tsunEnterGate{overflow-y:auto;align-items:flex-start;padding-top:22px;padding-bottom:22px}}
+@media print{.ts-policy-header,.ts-policy-nav,.ts-policy-skip{display:none}.ts-policy-page{background:white;color:black}.ts-policy-main{width:100%;margin:0}.ts-policy-card{break-inside:avoid;border-color:#aaa}.ts-policy-page a{color:black}}

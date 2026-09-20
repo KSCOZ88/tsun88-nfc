@@ -473,6 +473,7 @@
 #orderDocumentContent .profile-call{display:block;padding:11px 16px;margin-top:16px;text-align:center;background:#e05050;border-radius:12px;color:#fff;font-weight:700}
 #orderDocumentContent footer{text-align:center;color:#8a7f6f;font-size:12px;padding:14px}
 </style>
+<link rel="stylesheet" href="policies.css?v=20260920">
 </head>
 <body>
 
@@ -482,6 +483,13 @@
     <h2 id="tsunEnterTitle">8TSUN8</h2>
     <p id="tsunEnterSub">给狗狗多一个回家的办法<br>点一下，带着音乐进入吧～</p>
     <button id="tsunEnterBtn" type="button">进入 8TSUN8</button>
+    <nav class="ts-policy-links ts-policy-gate" aria-label="商店政策（新窗口打开）">
+      <a href="shipping.html" target="_blank" rel="noopener">配送政策</a>
+      <a href="returns.html" target="_blank" rel="noopener">退款与取消</a>
+      <a href="privacy.html" target="_blank" rel="noopener">隐私政策</a>
+      <a href="terms.html" target="_blank" rel="noopener">服务条款</a>
+      <a href="contact.html" target="_blank" rel="noopener">联系我们</a>
+    </nav>
   </div>
 </div>
 
@@ -558,6 +566,7 @@
 </style>
 <section id="info" class="page">
   <div class="section-title"><h2>填写背面信息</h2><p>这里只需要填写狗牌背面显示的主人电话和主人姓名，NFC 宠物资料将在付款成功后填写。</p></div>
+  <p class="ts-policy-notice">这里的姓名及电话会印在狗牌上。请只填写你同意公开、并有权提供的联系方式。订单资料用途及公开档案说明见 <a href="privacy.html" target="_blank" rel="noopener">隐私政策（新窗口）</a>。</p>
   <div class="info-grid"><div class="stage"><span class="label">背面预览</span><div class="stage-box"><div class="board" id="infoBack"></div></div></div><div class="controls">
     <div class="field"><label>主人电话（必填）</label><input id="ownerPhone" inputmode="tel" placeholder="请输入联系电话"></div>
     <div class="field"><label>主人姓名 / 主人称呼（选填，显示在背面底部）</label><input id="ownerName" placeholder="例如：LEE / Mr. Chan / Mrs. Huang"></div>
@@ -567,6 +576,10 @@
 
 <section id="confirm" class="page">
   <div class="section-title"><h2>确认信息并付款</h2><p>正面、背面和订单信息都确认无误后，使用 Stripe 安全完成付款。</p></div>
+  <aside class="ts-policy-notice" aria-label="付款前须知">
+    <strong>付款前请确认：</strong>目前仅配送香港，标准配送已包含在售价内。付款并确认完整资料后，预计 5–10 个工作日制作，寄出后预计 2–5 个工作日送达。定制开始后不接受无理由退换；质量问题、损坏或错货仍可申请售后。
+    <span class="ts-policy-checkout-links">请先阅读 <a href="shipping.html" target="_blank" rel="noopener">配送政策</a>、<a href="returns.html" target="_blank" rel="noopener">退款与取消政策</a>、<a href="terms.html" target="_blank" rel="noopener">服务条款</a>及<a href="privacy.html" target="_blank" rel="noopener">隐私政策</a>（均在新窗口打开）。</span>
+  </aside>
   <div class="confirm-grid"><div><div class="preview-grid"><div class="preview-card"><span class="label">正面</span><div class="board" id="confirmFront"></div></div><div class="preview-card"><span class="label">背面</span><div class="board" id="confirmBack"></div></div></div><div class="action-row confirm-preview-actions"><button class="secondary" data-go="info">返回修改</button></div></div><div class="summary-card payment-checkout confirm-checkout"><span class="order-number" id="payOrderNumber">订单号生成中</span><div class="checkout-pricing" id="checkoutPricing" aria-live="polite"><div class="checkout-price-head"><div class="checkout-price-title"><span class="checkout-original">原价 HK$329</span><strong class="checkout-sale">限时 HK$299</strong></div><span class="checkout-badge">每枚装饰 HK$3</span></div><div class="checkout-price-rows"><div class="checkout-price-row"><span>狗牌限时价</span><b id="priceBaseSubtotal">HK$299</b></div><div class="checkout-price-row"><span id="priceDecorLabel">装饰 0 枚 × HK$3</span><b id="priceDecorSubtotal">HK$0</b></div><div class="checkout-price-row checkout-price-total"><span>应付总额</span><b id="priceGrandTotal">HK$299</b></div></div><div class="checkout-saving" id="priceSaving">已优惠 HK$30</div></div><div class="field" id="customerEmailField"><label for="customerEmail">订单通知邮箱（必填）</label><input id="customerEmail" type="email" inputmode="email" autocomplete="email" maxlength="254" required placeholder="请输入常用邮箱" aria-describedby="customerEmailHelp"><small id="customerEmailHelp">我们会通过这个邮箱通知你订单、制作及寄送进度，并发送狗牌效果图和宠物档案网址。</small></div><div class="payment-code-box" style="gap:14px"><div aria-hidden="true" style="width:76px;height:76px;border-radius:22px;background:#635bff;color:#fff;display:grid;place-items:center;font-size:38px;font-weight:900">S</div><b style="font-size:22px">Stripe 安全付款</b><small class="payment-scan-note">点击下面按钮后会进入 Stripe 加密付款页。只有 Stripe 确认付款成功，订单才会生效。</small><button type="button" class="primary demo-pay-btn" id="stripePayBtn">使用银行卡 / Apple Pay 付款</button></div></div></div>
 </section>
 
@@ -597,7 +610,18 @@
 </section>
 <div class="export-host" id="exportHost" aria-hidden="true"></div>
 </main>
-<footer class="footer">8TSUN8 · 尊八八 · Hong Kong</footer>
+<footer class="footer ts-policy-footer">
+  <strong>8TSUN8 · 尊八八 · Hong Kong</strong>
+  <nav class="ts-policy-links" aria-label="商店政策（新窗口打开）">
+    <a href="shipping.html" target="_blank" rel="noopener">配送政策</a>
+    <a href="returns.html" target="_blank" rel="noopener">退款与取消</a>
+    <a href="privacy.html" target="_blank" rel="noopener">隐私政策</a>
+    <a href="terms.html" target="_blank" rel="noopener">服务条款</a>
+    <a href="contact.html" target="_blank" rel="noopener">联系我们</a>
+  </nav>
+  <p>客服邮箱：<a href="mailto:tsunlab888@gmail.com">tsunlab888@gmail.com</a><br>客服电话：<a href="tel:+85295189171">+852 9518 9171</a></p>
+  <p>定制 NFC 宠物身份牌 · 港币 HKD 计价 · 香港标准配送已包含</p>
+</footer>
 <div class="payment-success-modal" id="paymentSuccessModal" hidden><div class="payment-success-card" role="dialog" aria-modal="true" aria-labelledby="paymentSuccessTitle"><div class="payment-success-icon" aria-hidden="true">✓</div><span class="payment-success-method" id="paymentSuccessMethod">Stripe 付款成功</span><h3 id="paymentSuccessTitle">付款成功！</h3><p>进一步完善快递信息和宠物档案吧。</p><button type="button" class="primary" id="paymentSuccessContinue">填写快递信息和宠物档案</button></div></div>
 <div class="toast" id="toast"></div>
 </div>
