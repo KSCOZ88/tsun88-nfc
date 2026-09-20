@@ -3,6 +3,9 @@
     "api/order-email.js": {
       "maxDuration": 60
     },
+    "api/fps-order.js": {
+      "maxDuration": 60
+    },
     "api/confirm-paid-order.js": {
       "maxDuration": 60
     },

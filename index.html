@@ -474,6 +474,10 @@
 #orderDocumentContent footer{text-align:center;color:#8a7f6f;font-size:12px;padding:14px}
 </style>
 <link rel="stylesheet" href="policies.css?v=20260920">
+
+<style id="fpsCheckoutStyles">
+.payment-method-picker{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}.payment-method-choice{border:2px solid #dfe7ef;background:#fff;border-radius:18px;padding:14px 12px;font:inherit;font-weight:800;color:#20324a;cursor:pointer}.payment-method-choice.active{border-color:#72a8c7;background:#f2f9fd;box-shadow:0 0 0 3px rgba(114,168,199,.16)}.payment-panel[hidden]{display:none!important}.fps-payment-box{margin-top:14px;padding:18px;border:1px solid #dfe7ef;border-radius:22px;background:#fffafc;display:grid;justify-items:center;gap:12px;text-align:center}.fps-payment-box h3{margin:0;color:#243247}.fps-qr-image{width:min(300px,86vw);height:auto;border-radius:18px;border:1px solid #ead4dc;background:#fff}.fps-amount{font-size:23px;font-weight:900;color:#a50035}.fps-reference{padding:8px 12px;border-radius:12px;background:#f3f6f8;font-weight:800;word-break:break-all}.fps-steps{margin:0;text-align:left;line-height:1.75;color:#45576d}.fps-proof-field{width:100%;padding:14px;border:1px dashed #caa5b2;border-radius:16px;background:#fff;text-align:left}.fps-proof-field label{display:block;font-weight:800;margin-bottom:8px}.fps-proof-preview{display:none;max-width:170px;max-height:170px;margin:10px auto 0;border-radius:12px;border:1px solid #e1e6eb}.fps-proof-preview.visible{display:block}.fps-pending-result{margin:18px 0;padding:20px;border-radius:20px;background:#fff8e9;border:1px solid #efd699;color:#584720}.fps-pending-result h3{margin:0 0 8px}.fps-pending-result p{margin:6px 0}.fps-pay-note{font-size:13px;color:#65758a}@media(max-width:640px){.payment-method-picker{grid-template-columns:1fr}.fps-payment-box{padding:14px}.fps-qr-image{width:min(270px,82vw)}}
+</style>
 </head>
 <body>
 
@@ -580,11 +584,11 @@
     <strong>付款前请确认：</strong>目前仅配送香港，标准配送已包含在售价内。付款并确认完整资料后，预计 5–10 个工作日制作，寄出后预计 2–5 个工作日送达。定制开始后不接受无理由退换；质量问题、损坏或错货仍可申请售后。
     <span class="ts-policy-checkout-links">请先阅读 <a href="shipping.html" target="_blank" rel="noopener">配送政策</a>、<a href="returns.html" target="_blank" rel="noopener">退款与取消政策</a>、<a href="terms.html" target="_blank" rel="noopener">服务条款</a>及<a href="privacy.html" target="_blank" rel="noopener">隐私政策</a>（均在新窗口打开）。</span>
   </aside>
-  <div class="confirm-grid"><div><div class="preview-grid"><div class="preview-card"><span class="label">正面</span><div class="board" id="confirmFront"></div></div><div class="preview-card"><span class="label">背面</span><div class="board" id="confirmBack"></div></div></div><div class="action-row confirm-preview-actions"><button class="secondary" data-go="info">返回修改</button></div></div><div class="summary-card payment-checkout confirm-checkout"><span class="order-number" id="payOrderNumber">订单号生成中</span><div class="checkout-pricing" id="checkoutPricing" aria-live="polite"><div class="checkout-price-head"><div class="checkout-price-title"><span class="checkout-original">原价 HK$329</span><strong class="checkout-sale">限时 HK$299</strong></div><span class="checkout-badge">每枚装饰 HK$3</span></div><div class="checkout-price-rows"><div class="checkout-price-row"><span>狗牌限时价</span><b id="priceBaseSubtotal">HK$299</b></div><div class="checkout-price-row"><span id="priceDecorLabel">装饰 0 枚 × HK$3</span><b id="priceDecorSubtotal">HK$0</b></div><div class="checkout-price-row checkout-price-total"><span>应付总额</span><b id="priceGrandTotal">HK$299</b></div></div><div class="checkout-saving" id="priceSaving">已优惠 HK$30</div></div><div class="field" id="customerEmailField"><label for="customerEmail">订单通知邮箱（必填）</label><input id="customerEmail" type="email" inputmode="email" autocomplete="email" maxlength="254" required placeholder="请输入常用邮箱" aria-describedby="customerEmailHelp"><small id="customerEmailHelp">我们会通过这个邮箱通知你订单、制作及寄送进度，并发送狗牌效果图和宠物档案网址。</small></div><div class="payment-code-box" style="gap:14px"><div aria-hidden="true" style="width:76px;height:76px;border-radius:22px;background:#635bff;color:#fff;display:grid;place-items:center;font-size:38px;font-weight:900">S</div><b style="font-size:22px">Stripe 安全付款</b><small class="payment-scan-note">点击下面按钮后会进入 Stripe 加密付款页。只有 Stripe 确认付款成功，订单才会生效。</small><button type="button" class="primary demo-pay-btn" id="stripePayBtn">使用银行卡 / Apple Pay 付款</button></div></div></div>
+  <div class="confirm-grid"><div><div class="preview-grid"><div class="preview-card"><span class="label">正面</span><div class="board" id="confirmFront"></div></div><div class="preview-card"><span class="label">背面</span><div class="board" id="confirmBack"></div></div></div><div class="action-row confirm-preview-actions"><button class="secondary" data-go="info">返回修改</button></div></div><div class="summary-card payment-checkout confirm-checkout"><span class="order-number" id="payOrderNumber">订单号生成中</span><div class="checkout-pricing" id="checkoutPricing" aria-live="polite"><div class="checkout-price-head"><div class="checkout-price-title"><span class="checkout-original">原价 HK$329</span><strong class="checkout-sale">限时 HK$299</strong></div><span class="checkout-badge">每枚装饰 HK$3</span></div><div class="checkout-price-rows"><div class="checkout-price-row"><span>狗牌限时价</span><b id="priceBaseSubtotal">HK$299</b></div><div class="checkout-price-row"><span id="priceDecorLabel">装饰 0 枚 × HK$3</span><b id="priceDecorSubtotal">HK$0</b></div><div class="checkout-price-row checkout-price-total"><span>应付总额</span><b id="priceGrandTotal">HK$299</b></div></div><div class="checkout-saving" id="priceSaving">已优惠 HK$30</div></div><div class="field" id="customerEmailField"><label for="customerEmail">订单通知邮箱（必填）</label><input id="customerEmail" type="email" inputmode="email" autocomplete="email" maxlength="254" required placeholder="请输入常用邮箱" aria-describedby="customerEmailHelp"><small id="customerEmailHelp">我们会通过这个邮箱通知你订单、制作及寄送进度，并发送狗牌效果图和宠物档案网址。</small></div><div class="payment-method-picker" role="tablist" aria-label="选择支付方式"><button type="button" class="payment-method-choice active" id="chooseStripePayment" role="tab" aria-selected="true" aria-controls="stripePaymentPanel">银行卡 / Apple Pay</button><button type="button" class="payment-method-choice" id="chooseFpsPayment" role="tab" aria-selected="false" aria-controls="fpsPaymentPanel">FPS 转数快</button></div><div class="payment-panel" id="stripePaymentPanel" role="tabpanel"><div class="payment-code-box" style="gap:14px"><div aria-hidden="true" style="width:76px;height:76px;border-radius:22px;background:#635bff;color:#fff;display:grid;place-items:center;font-size:38px;font-weight:900">S</div><b style="font-size:22px">Stripe 安全付款</b><small class="payment-scan-note">点击下面按钮后会进入 Stripe 加密付款页。只有 Stripe 确认付款成功，订单才会生效。</small><button type="button" class="primary demo-pay-btn" id="stripePayBtn">使用银行卡 / Apple Pay 付款</button></div></div><div class="payment-panel" id="fpsPaymentPanel" role="tabpanel" hidden><div class="fps-payment-box"><h3>FPS 转数快付款</h3><div class="fps-amount" id="fpsPaymentAmount">应付 HK$299</div><img class="fps-qr-image" src="fps-qr.jpeg" alt="中银香港 FPS 收款二维码"><div class="fps-reference">付款备注：<span id="fpsOrderReference">订单号生成中</span></div><ol class="fps-steps"><li>打开香港银行 App，扫描上面的二维码。</li><li>输入页面显示的应付金额，并在备注填写订单号。</li><li>付款后截屏，上传付款截图。</li></ol><div class="fps-proof-field"><label for="fpsPaymentProof">上传付款截图（必填）</label><input id="fpsPaymentProof" type="file" accept="image/jpeg,image/png,image/webp"><small class="fps-pay-note">截图会随订单发给商家核对。请勿上传密码、验证码或完整账户资料。</small><img id="fpsProofPreview" class="fps-proof-preview" alt="付款截图预览"></div><button type="button" class="primary demo-pay-btn" id="fpsPaidBtn" disabled>我已付款，继续填写资料</button><small class="fps-pay-note">提交后状态为“等待确认到账”。商家核实银行入账后才会开始制作。</small></div></div></div></div>
 </section>
 
 <section id="orderSuccess" class="page">
-  <div class="section-title"><h2>付款成功！</h2><p>请填写您的快递信息并完善宠物档案，提交后商家才会开始制作和寄送。</p></div>
+  <div class="section-title"><h2 id="orderSuccessTitle">付款成功！</h2><p id="orderSuccessSubtitle">请填写您的快递信息并完善宠物档案，提交后商家才会开始制作和寄送。</p></div>
   <div class="success-card"><span class="order-number" id="successOrderNumber">订单号</span><div class="nfc-profile-box shipping-profile-box" id="postPaymentShippingForm"><h3>📦 填写快递信息</h3><p>快递资料只用于本次订单制作与寄送。</p><div class="field"><label>一键识别收货信息</label><textarea id="smartAddress" rows="3" placeholder="支持整串粘贴，例如：张三 13800138000 广东省深圳市南山区科技园 xx 路 xx 号"></textarea><div class="smart-parse-row"><button type="button" class="secondary small-btn" id="parseAddressBtn">自动识别</button><small>会自动拆分为收货人姓名、联系电话和详细地址。</small></div></div><div class="nfc-fields"><div class="field"><label>收货人姓名（必填）</label><input id="shipName" placeholder="请输入收货人姓名"></div><div class="field"><label>联系电话（必填）</label><input id="shipPhone" inputmode="tel" placeholder="请输入联系电话"></div><div class="field wide"><label>详细地址（必填）</label><textarea id="shipAddress" rows="4" placeholder="请输入省市区、街道、门牌号"></textarea></div></div></div><div class="nfc-profile-box" id="postPaymentNfcForm"><h3>📱 完善订单档案（NFC 宠物资料）</h3><p>主人姓名和主人电话已从狗牌背面信息自动带入，你只需继续补充狗狗资料。</p>
       <div class="nfc-fields">
         <div class="field"><label>NFC 主人姓名 / 主人称呼</label><input id="nfcOwnerName" placeholder="与狗牌主人姓名自动同步"></div>
@@ -606,7 +610,7 @@
       </div>
       <div class="nfc-privacy"><b>公开信息提醒：</b>这些内容会被任何扫描 NFC 的人看到。请不要填写身份证号、支付信息或详细家庭住址。档案生成后会锁定，客户没有编辑入口。</div>
       <div class="action-row"><button type="button" class="primary" id="submitPostPaymentNfc">提交快递信息并完成订单档案</button></div>
-    </div><div class="production-status" id="customerOrderStatus">填写并提交全部资料后，我们会按快递地址制作并寄出。</div><div class="nfc-result" id="nfcLinkResult" hidden><h3>来看看咱家的萌宠档案啦</h3><div class="nfc-link-row"><a id="nfcPublicLink" target="_blank" rel="noopener"></a><button type="button" id="copyPublicLink" aria-label="复制档案网址" aria-describedby="copyProfileTip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M15 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"></path></svg><span id="copyProfileTip" role="tooltip">复制档案网址</span></button></div><button type="button" class="secondary" id="editNfcProfileBtn">回去完善宠物档案</button></div><div class="action-row"><button type="button" class="primary" id="completeOrderBtn" data-go="home" hidden>订单完成，返回首页</button></div></div>
+    </div><div class="production-status" id="customerOrderStatus">填写并提交全部资料后，我们会按快递地址制作并寄出。</div><div class="nfc-result" id="nfcLinkResult" hidden><h3>来看看咱家的萌宠档案啦</h3><div class="nfc-link-row"><a id="nfcPublicLink" target="_blank" rel="noopener"></a><button type="button" id="copyPublicLink" aria-label="复制档案网址" aria-describedby="copyProfileTip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M15 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"></path></svg><span id="copyProfileTip" role="tooltip">复制档案网址</span></button></div><button type="button" class="secondary" id="editNfcProfileBtn">回去完善宠物档案</button></div><div class="fps-pending-result" id="fpsPendingResult" hidden><h3>FPS 订单已提交</h3><p>订单状态：<b>等待商家确认到账</b></p><p>商家核实银行入账后才会开始制作；请保存订单号。</p></div><div class="action-row"><button type="button" class="primary" id="completeOrderBtn" data-go="home" hidden>订单完成，返回首页</button></div></div>
 </section>
 <div class="export-host" id="exportHost" aria-hidden="true"></div>
 </main>
@@ -945,6 +949,8 @@ const PAYMENT_API_ORIGIN=(location.protocol==='file:'||location.hostname.endsWit
 const ORDER_EMAIL_ENDPOINT=PAYMENT_API_ORIGIN+'/api/order-email';
 const STRIPE_CREATE_ENDPOINT=PAYMENT_API_ORIGIN+'/api/create-checkout-session';
 const STRIPE_CONFIRM_ENDPOINT=PAYMENT_API_ORIGIN+'/api/confirm-paid-order';
+const FPS_ORDER_ENDPOINT=PAYMENT_API_ORIGIN+'/api/fps-order';
+let fpsProofData='';
 const EMPTY_NFC_PROFILE={photoData:'',gender:'',neutered:'',breed:'',birthDate:'',coatMarks:'',backupOwnerName:'',backupPhone:'',location:'',ownerMessage:'',diet:'',personality:'',clinic:'',clinicPhone:''};
 const state={petName:'',ownerPhone:'',ownerName:'',nfcText:'NFC宠物档案',nfcProfile:{...EMPTY_NFC_PROFILE},decorItems:{front:[],back:[]},selectedDecorId:null,activeAccessoryKey:'star',shipName:'',shipPhone:'',shipAddress:'',customerEmail:'',payMethod:'Stripe',baseVariant:'green1',faceKey:'corgi',breedCategory:'all',breedSearch:'',selectedBreedKey:'corgi-pembroke',selectedBreedColor:'黄白'};
 let cartDesigns=[];
@@ -3026,7 +3032,7 @@ function paymentCodeImage(method){
   return `<img class="real-payment-code" src="${src}" alt="${isAlipay?'支付宝':'微信'}收款码">`;
 }
 function renderPaymentOrder(order){
-  document.getElementById('payOrderNumber').textContent='订单号：'+order.id;
+  document.getElementById('payOrderNumber').textContent='订单号：'+order.id;const fpsRef=document.getElementById('fpsOrderReference');if(fpsRef)fpsRef.textContent=order.id;const fpsAmount=document.getElementById('fpsPaymentAmount');if(fpsAmount)fpsAmount.textContent='应付 '+money(calculateOrderPricing(order.items||[]).total);
   // Always recalculate with the current published price. This prevents an
   // older cached-price drafts in localStorage from being shown or sent to Stripe.
   const pricing=calculateOrderPricing(order.items||[]);order.pricing=pricing;
@@ -3152,6 +3158,41 @@ function openPaymentSuccess(){
   if(continueButton)continueButton.focus();
 }
 function continueAfterPayment(){const modal=document.getElementById('paymentSuccessModal');if(modal)modal.hidden=true;syncNfcBreedFromSelection();go('orderSuccess');}
+function selectPaymentMethod(method){
+  const fps=method==='FPS';state.payMethod=fps?'FPS':'Stripe';
+  const stripeChoice=document.getElementById('chooseStripePayment'),fpsChoice=document.getElementById('chooseFpsPayment'),stripePanel=document.getElementById('stripePaymentPanel'),fpsPanel=document.getElementById('fpsPaymentPanel');
+  if(stripeChoice){stripeChoice.classList.toggle('active',!fps);stripeChoice.setAttribute('aria-selected',String(!fps));}
+  if(fpsChoice){fpsChoice.classList.toggle('active',fps);fpsChoice.setAttribute('aria-selected',String(fps));}
+  if(stripePanel)stripePanel.hidden=fps;if(fpsPanel)fpsPanel.hidden=!fps;
+}
+function compressFpsProof(file){
+  return new Promise((resolve,reject)=>{
+    if(!file||!/^image\/(jpeg|png|webp)$/.test(file.type||''))return reject(new Error('请选择 JPG、PNG 或 WebP 图片'));
+    if(file.size>12*1024*1024)return reject(new Error('付款截图不能超过 12MB'));
+    const reader=new FileReader();reader.onerror=()=>reject(new Error('付款截图读取失败'));reader.onload=()=>{
+      const img=new Image();img.onerror=()=>reject(new Error('付款截图无法识别'));img.onload=()=>{
+        const max=1200,scale=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL('image/jpeg',.72));
+      };img.src=reader.result;
+    };reader.readAsDataURL(file);
+  });
+}
+function prepareFpsDetailsScreen(order){
+  const title=document.getElementById('orderSuccessTitle'),subtitle=document.getElementById('orderSuccessSubtitle'),status=document.getElementById('customerOrderStatus'),pending=document.getElementById('fpsPendingResult');
+  if(title)title.textContent='FPS 付款资料待核实';if(subtitle)subtitle.textContent='请填写快递信息和宠物档案。商家确认银行到账后才会开始制作。';if(status)status.textContent='订单正在等待商家核实 FPS 入账。';if(pending)pending.hidden=true;
+  preparePaidOrderScreen(order);
+}
+async function startFpsReview(){
+  if(!currentOrder||!validateCustomerEmail())return;if(!fpsProofData){toast('请先上传付款截图。');return;}
+  const button=document.getElementById('fpsPaidBtn');if(button){button.disabled=true;button.textContent='正在保存付款资料…';}
+  currentOrder.customerEmail=state.customerEmail;currentOrder.payMethod='FPS';currentOrder.status='待核实付款';currentOrder.paymentStatus='awaiting_manual_review';currentOrder.fpsSubmittedAt=new Date().toISOString();currentOrder.nfcStatus='等待客户填写';updateStoredOrder(currentOrder);
+  prepareFpsDetailsScreen(currentOrder);syncNfcBreedFromSelection();go('orderSuccess');
+  if(button){button.disabled=false;button.textContent='我已付款，继续填写资料';}
+}
+async function submitFpsOrderForReview(order){
+  const files=await prepareProductionFiles(order),attachments=await Promise.all(Object.values(files).map(async file=>({name:file.name,data:await blobToDataUrl(file.blob)}))),previews=await prepareEmailPreviews(order);
+  const response=await fetch(FPS_ORDER_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order,proof:fpsProofData,previews,attachments})});
+  const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||'FPS 订单暂时无法提交');return result;
+}
 async function startStripeCheckout(){
   if(!currentOrder||!validateCustomerEmail())return;
   const button=document.getElementById('stripePayBtn');if(button){button.disabled=true;button.textContent='正在打开 Stripe…';}
@@ -3174,6 +3215,7 @@ function recoverableStripeOrder(orders){
 }
 function preparePaidOrderScreen(order){
   document.getElementById('successOrderNumber').textContent='订单号：'+order.id;
+  const pageTitle=document.getElementById('orderSuccessTitle'),pageSubtitle=document.getElementById('orderSuccessSubtitle'),pendingResult=document.getElementById('fpsPendingResult');if(order.payMethod!=='FPS'){if(pageTitle)pageTitle.textContent='付款成功！';if(pageSubtitle)pageSubtitle.textContent='请填写您的快递信息并完善宠物档案，提交后商家才会开始制作和寄送。';if(pendingResult)pendingResult.hidden=true;}
   const shippingForm=document.getElementById('postPaymentShippingForm'),nfcForm=document.getElementById('postPaymentNfcForm'),result=document.getElementById('nfcLinkResult'),complete=document.getElementById('completeOrderBtn');
   if(shippingForm)shippingForm.hidden=false;if(nfcForm)nfcForm.hidden=false;if(result)result.hidden=true;if(complete)complete.hidden=true;
 }
@@ -3208,7 +3250,7 @@ async function handleStripeReturn(){
 async function submitPostPaymentNfc(){
   // Allow customers to return, edit and submit the shipping/profile details
   // again after the first completion.
-  if(!currentOrder||!['已付款','资料已完善'].includes(currentOrder.status))return;
+  if(!currentOrder||!['已付款','资料已完善','待核实付款'].includes(currentOrder.status))return;
   const required=[
     {name:'收货人姓名',value:state.shipName,el:document.getElementById('shipName')},
     {name:'快递联系电话',value:state.shipPhone,el:document.getElementById('shipPhone')},
@@ -3222,6 +3264,16 @@ async function submitPostPaymentNfc(){
   if(missing.length){toast('请填写：'+missing.map(item=>item.name).join('、'));const first=missing[0].el;if(first){first.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>first.focus(),250);}return;}
   const button=document.getElementById('submitPostPaymentNfc');if(button){button.disabled=true;button.textContent='正在提交完整订单…';}
   currentOrder.shipName=state.shipName;currentOrder.shipPhone=state.shipPhone;currentOrder.shipAddress=state.shipAddress;currentOrder.ownerPhone=state.ownerPhone;currentOrder.ownerName=state.ownerName;currentOrder.nfcProfile=cloneNfcProfile(state.nfcProfile);currentOrder.nfcStatus='生成中';updateStoredOrder(currentOrder);
+  if(currentOrder.payMethod==='FPS'){
+    try{
+      if(!currentOrder.cloudProfile||currentOrder.profileNeedsReplacement)currentOrder.cloudProfile=await createCloudPetProfile(currentOrder);
+      currentOrder.profileNeedsReplacement=false;currentOrder.nfcStatus='资料已提交，等待核款';currentOrder.status='FPS资料已提交';updateStoredOrder(currentOrder);
+      await submitFpsOrderForReview(currentOrder);
+      const shippingForm=document.getElementById('postPaymentShippingForm'),form=document.getElementById('postPaymentNfcForm'),pending=document.getElementById('fpsPendingResult'),complete=document.getElementById('completeOrderBtn'),status=document.getElementById('customerOrderStatus');
+      if(shippingForm)shippingForm.hidden=true;if(form)form.hidden=true;if(pending)pending.hidden=false;if(complete){complete.hidden=false;complete.textContent='返回首页';}if(status)status.textContent='资料已提交，等待商家核实 FPS 入账。';
+      if(button){button.disabled=false;button.textContent='提交快递信息并完成订单档案';}toast('FPS 订单资料已提交，等待商家确认到账。',7000);return;
+    }catch(error){currentOrder.status='待核实付款';currentOrder.nfcStatus='提交失败，请重试';updateStoredOrder(currentOrder);if(button){button.disabled=false;button.textContent='重新提交 FPS 订单资料';}toast(error.message||'FPS 订单暂时无法提交，请稍后重试。',7000);return;}
+  }
   try{
     if(!currentOrder.cloudProfile||currentOrder.profileNeedsReplacement)currentOrder.cloudProfile=await createCloudPetProfile(currentOrder);
     currentOrder.profileNeedsReplacement=false;
@@ -3238,6 +3290,10 @@ async function submitPostPaymentNfc(){
 function bindInputs(){
   const email=document.getElementById('customerEmail');
   if(email&&!email.dataset.bound){email.dataset.bound='1';email.value=state.customerEmail||'';email.addEventListener('input',()=>{state.customerEmail=email.value.trim();if(currentOrder){currentOrder.customerEmail=state.customerEmail;updateStoredOrder(currentOrder);}});}
+  const stripeChoice=document.getElementById('chooseStripePayment'),fpsChoice=document.getElementById('chooseFpsPayment'),fpsProof=document.getElementById('fpsPaymentProof');
+  if(stripeChoice&&!stripeChoice.dataset.bound){stripeChoice.dataset.bound='1';stripeChoice.addEventListener('click',()=>selectPaymentMethod('Stripe'));}
+  if(fpsChoice&&!fpsChoice.dataset.bound){fpsChoice.dataset.bound='1';fpsChoice.addEventListener('click',()=>selectPaymentMethod('FPS'));}
+  if(fpsProof&&!fpsProof.dataset.bound){fpsProof.dataset.bound='1';fpsProof.addEventListener('change',async()=>{const file=fpsProof.files&&fpsProof.files[0],preview=document.getElementById('fpsProofPreview'),button=document.getElementById('fpsPaidBtn');fpsProofData='';if(button)button.disabled=true;if(preview){preview.classList.remove('visible');preview.removeAttribute('src');}if(!file)return;try{fpsProofData=await compressFpsProof(file);if(preview){preview.src=fpsProofData;preview.classList.add('visible');}if(button)button.disabled=false;}catch(error){fpsProof.value='';toast(error.message||'付款截图读取失败');}});}
   const profileLink=document.getElementById('nfcPublicLink');if(profileLink&&!profileLink.dataset.bound){profileLink.dataset.bound='1';profileLink.addEventListener('click',event=>{if(currentOrder?.cloudProfile){event.preventDefault();openChineseProfile();}});}
   const editProfile=document.getElementById('editNfcProfileBtn');if(editProfile&&!editProfile.dataset.bound){editProfile.dataset.bound='1';editProfile.addEventListener('click',editNfcProfile);}
   const closeDocument=document.getElementById('orderDocumentClose');if(closeDocument&&!closeDocument.dataset.bound){closeDocument.dataset.bound='1';closeDocument.addEventListener('click',()=>document.getElementById('orderDocumentDialog').close());}
@@ -3319,6 +3375,7 @@ function bindInputs(){
     beginPayment();
   });}
   const stripePayBtn=document.getElementById('stripePayBtn');if(stripePayBtn&&!stripePayBtn.dataset.bound){stripePayBtn.dataset.bound='1';stripePayBtn.addEventListener('click',startStripeCheckout);}
+  const fpsPaidBtn=document.getElementById('fpsPaidBtn');if(fpsPaidBtn&&!fpsPaidBtn.dataset.bound){fpsPaidBtn.dataset.bound='1';fpsPaidBtn.addEventListener('click',startFpsReview);}
   const paymentSuccessContinue=document.getElementById('paymentSuccessContinue');if(paymentSuccessContinue&&!paymentSuccessContinue.dataset.bound){paymentSuccessContinue.dataset.bound='1';paymentSuccessContinue.addEventListener('click',continueAfterPayment);}
   const submitPostPaymentNfcBtn=document.getElementById('submitPostPaymentNfc');if(submitPostPaymentNfcBtn&&!submitPostPaymentNfcBtn.dataset.bound){submitPostPaymentNfcBtn.dataset.bound='1';submitPostPaymentNfcBtn.addEventListener('click',submitPostPaymentNfc);}
   const copyPublicLink=document.getElementById('copyPublicLink');if(copyPublicLink&&!copyPublicLink.dataset.bound){copyPublicLink.dataset.bound='1';copyPublicLink.addEventListener('click',copyProfileUrl);}
