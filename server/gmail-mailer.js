@@ -18,7 +18,7 @@ async function sendGmail(mail,eventId){
       messageId:'<'+eventId+'@gmail.com>',
       attachments:(mail.attachments||[]).map(file=>({
         filename:file.filename,content:Buffer.from(file.content,'base64'),
-        contentType:'image/png',...(file.content_id?{cid:file.content_id}:{})
+        contentType:file.content_type||'image/png',...(file.content_id?{cid:file.content_id}:{})
       }))
     });
     const accepted=(result.accepted||[]).map(address=>String(address).toLowerCase());
