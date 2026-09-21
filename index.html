@@ -2318,8 +2318,8 @@ const MILK_FROST_BACK_INKS={
   white6:'#dcdddd',
   white7:'#f39820'
 };
-// White lower bands use the exact colour of the middle body for the owner name.
-const WHITE_BAND_OWNER_INKS={
+// Pet and owner names on white lower bands use the exact middle-body colour.
+const WHITE_BAND_NAME_INKS={
   green3:'#16ae67',
   grey1:'#dcdddd',
   orange3:'#f39820',
@@ -2329,9 +2329,10 @@ const WHITE_BAND_OWNER_INKS={
   red4:'#e83328',
   yellow5:'#f5ca24'
 };
-// Phone and NFC sit on the upper base; the owner name sits on the lower band.
+// Phone and NFC sit on the upper base; both names sit on the lower band.
 function currentBackInk(){return MILK_FROST_BACK_INKS[state.baseVariant]||'#ffffff'}
-function currentOwnerNameInk(){return WHITE_BAND_OWNER_INKS[state.baseVariant]||'#ffffff'}
+function currentNameInk(){return WHITE_BAND_NAME_INKS[state.baseVariant]||'#ffffff'}
+function currentOwnerNameInk(){return currentNameInk()}
 const FRONT_ALLOWED={minX:12,maxX:88,minY:13,maxY:58,dog:{cx:50,cy:37,rx:23,ry:20},hole:{cx:50,cy:15,rx:9,ry:7}};
 let decorSeq=1;
 const pages=[...document.querySelectorAll('.page')];
@@ -2812,7 +2813,7 @@ function renderBoard(el,side,displayName,nameMode='front'){
     const nameLetterSpacing=hasChinese?'0px':`${tunedLatinSpacing.toFixed(2)}px`;
     const nameStrokeWidth=hasChinese?'0':'1.5';
     const nameFontSize=isReferenceFront?31:(hasChinese?19:tunedLatinFont);
-    const nameTextAttrs=isReferenceFront?' textLength="88" lengthAdjust="spacingAndGlyphs"':''; const dynamicNameColor='#ffffff';
+    const nameTextAttrs=isReferenceFront?' textLength="88" lengthAdjust="spacingAndGlyphs"':''; const dynamicNameColor=currentNameInk();
     const nameSvgStyle=isReferenceFront?'':` style="left:50%;top:auto;bottom:4.7%;width:90%;height:16%;transform:translateX(-50%);translate:none;visibility:hidden" data-name-max-font="${nameFontSize}" data-name-max-spacing="${hasChinese?0:tunedLatinSpacing}" data-name-role="${isBackOwnerName?'owner':'pet'}"`;
     const selectedBreed=breedByKey(state.selectedBreedKey);const selectedBreedSrc=breedAvatar(selectedBreed,state.selectedBreedColor);const activeBreedKey=state.selectedBreedKey||'';const activeBreedColor=state.selectedBreedColor||'';const frontDecorSelected=state.decorItems.front.length>0;const dogClasses=[];if(activeBreedKey.startsWith('corgi-')||(!activeBreedKey&&currentFace().key==='corgi'))dogClasses.push('board-dog-corgi');if(activeBreedKey==='bichon-frise'||(!activeBreedKey&&currentFace().key==='bichon'))dogClasses.push('board-dog-bichon');if(PORTRAIT_SCALE_110_KEYS.has(activeBreedKey)||(!activeBreedKey&&currentFace().key==='corgi'))dogClasses.push('board-dog-scale-110');if(activeBreedKey==='papillon')dogClasses.push('board-dog-papillon');if(activeBreedKey==='yorkshire')dogClasses.push('board-dog-yorkie');if(activeBreedKey==='shih-tzu')dogClasses.push('board-dog-shihtzu');if(activeBreedKey==='westie')dogClasses.push('board-dog-westie');if(activeBreedKey==='chihuahua'&&activeBreedColor==='黄')dogClasses.push('board-dog-chi-yellow');if(activeBreedKey==='tu-song'){dogClasses.push('board-dog-tusong');if(activeBreedColor==='雪白')dogClasses.push('board-dog-tusong-snow');if(activeBreedColor==='奶油黄')dogClasses.push('board-dog-tusong-creamyellow');if(activeBreedColor==='土棕')dogClasses.push('board-dog-tusong-brown');if(activeBreedColor==='纯黑')dogClasses.push('board-dog-tusong-black');if(activeBreedColor==='浅棕')dogClasses.push('board-dog-tusong-lightbrown');}if(activeBreedKey==='akita')dogClasses.push('board-dog-akita');if(activeBreedKey==='border-collie'&&activeBreedColor==='蓝白')dogClasses.push('board-dog-border-bluewhite');if(activeBreedKey==='border-collie'&&activeBreedColor==='陨石')dogClasses.push('board-dog-border-merle');if(activeBreedKey==='corgi-pembroke'&&activeBreedColor&&activeBreedColor!=='黄白')dogClasses.push('board-dog-corgi-match-yellow');if(activeBreedKey==='french-bulldog'&&activeBreedColor==='奶油白')dogClasses.push('board-dog-french-cream');if(activeBreedKey==='french-bulldog'&&activeBreedColor==='黑白')dogClasses.push('board-dog-french-pied');const dogPositionClass=dogClasses.length?' '+dogClasses.join(' '):'';const dogLayer=state.selectedBreedKey?(selectedBreedSrc?`<img class="board-dog${dogPositionClass}" data-front-decor="${frontDecorSelected?'1':'0'}" src="${selectedBreedSrc}" alt="${escapeHtml(selectedBreed?.name||'狗狗头像')}">`:`<div class="board-dog-placeholder">${escapeHtml((selectedBreed||{}).name||'头像待上传')}<br>头像待上传</div>`):`<img class="board-dog${dogPositionClass}" data-front-decor="${frontDecorSelected?'1':'0'}" src="${currentFace().src}">`;
     el.innerHTML=`<img class="board-bg" src="${boardFrontSrc()}">${dogLayer}<svg class="board-name-svg"${nameSvgStyle} viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true"><path id="${arcId}" d="${arcPath}"></path><text${nameTextAttrs} style="font-size:${nameFontSize}px;letter-spacing:${nameLetterSpacing};fill:${isReferenceFront?'#ffffff':dynamicNameColor};font-family:${nameFontFamily};font-weight:${nameFontWeight};stroke:${isReferenceFront?'#ffffff':dynamicNameColor};stroke-width:${nameStrokeWidth}px;stroke-linejoin:round;paint-order:stroke fill"><textPath href="#${arcId}" startOffset="50%" text-anchor="middle">${escapedName}</textPath></text></svg><div class="decor-layer"></div>`;
@@ -3101,7 +3102,7 @@ async function fitProductionName(svgNode,side){
   }finally{colourBandResize.unobserve(board);board.remove();}
 }
 async function boardLayerBlob(side){
-  const ink=side==='back'?currentBackInk():'#ffffff',base=escapeHtml(boardFrontSrc()),decor=productionDecorSvg(side);let content='';
+  const ink=side==='back'?currentBackInk():currentNameInk(),base=escapeHtml(boardFrontSrc()),decor=productionDecorSvg(side);let content='';
   if(side==='front'){
     const name=escapeHtml((state.petName||'Lucky').toUpperCase());
     const productionHasChinese=/[\u3400-\u9fff]/.test(name);const productionFont=productionHasChinese?"YouYuan,幼圆,'Microsoft YaHei UI','Microsoft YaHei',sans-serif":"Arial,sans-serif";const productionSpacing=productionHasChinese?0.5:3;const productionStroke=productionHasChinese?1.25:1;content=`<path id="productionNameArc" d="M 25 358 Q 175 395 325 358" fill="none"/><text data-production-name="1" data-max-font="46" data-max-spacing="${productionSpacing}" fill="${ink}" stroke="${ink}" stroke-width="${productionStroke}" paint-order="stroke fill" stroke-linejoin="round" font-family="${productionFont}" font-size="46" font-weight="400" letter-spacing="${productionSpacing}"><textPath href="#productionNameArc" startOffset="50%" text-anchor="middle">${name}</textPath></text>${decor}`;
