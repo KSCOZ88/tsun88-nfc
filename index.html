@@ -2455,8 +2455,10 @@ function ensureTabSelection(key){
 }
 function renderDecor(layer,side){
   if(!layer)return;layer.innerHTML='';
+  // Frozen homepage images already include their accessories.
+  if(layer.closest('#home'))return;
   state.decorItems[side].forEach(item=>{const a=accessoryByKey(item.key);if(!a)return;const e=document.createElement('span');e.className='decor '+a.cls+(side==='back'&&item.id===state.selectedDecorId?' selected':'');e.style.left=item.x+'%';e.style.top=item.y+'%';e.dataset.decorId=item.id;
-    if(layer.closest('#home')){if(a.cls==='star')e.textContent='★';if(a.cls==='heart')e.textContent='♥';if(a.cls==='flower')e.textContent='✿';if(a.cls==='stud')e.textContent='✦';}else{e.className='decor decor-asset decor-asset-'+a.key+(side==='back'&&item.id===state.selectedDecorId?' selected':'');e.innerHTML=decorAssetMarkup(a.key,item.color||'yellow');}
+    e.className='decor decor-asset decor-asset-'+a.key+(side==='back'&&item.id===state.selectedDecorId?' selected':'');e.innerHTML=decorAssetMarkup(a.key,item.color||'yellow');
     if(side==='front'||side==='back'){e.title='固定位置 '+item.slot;e.style.cursor='default';}
     else{e.title='点击后可调整位置';e.addEventListener('click',ev=>{ev.stopPropagation();state.selectedDecorId=item.id;state.activeAccessoryKey=item.key;renderAll()});}
     layer.appendChild(e)
