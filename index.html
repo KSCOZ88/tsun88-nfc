@@ -2317,7 +2317,8 @@ const MILK_FROST_BACK_INKS={
   white6:'#5f666b',
   white7:'#b95716'
 };
-function currentBackInk(){return '#ffffff'}
+// Phone and NFC sit on the upper base; the owner name sits on the lower band.
+function currentBackInk(){return MILK_FROST_BACK_INKS[state.baseVariant]||'#ffffff'}
 const FRONT_ALLOWED={minX:12,maxX:88,minY:13,maxY:58,dog:{cx:50,cy:37,rx:23,ry:20},hole:{cx:50,cy:15,rx:9,ry:7}};
 let decorSeq=1;
 const pages=[...document.querySelectorAll('.page')];
@@ -2741,7 +2742,7 @@ function renderBoard(el,side,displayName,nameMode='front'){
       const ownerText=nameSvg.querySelector('text');
       if(ownerDisplay){
         if(textPath)textPath.textContent=ownerDisplay.toUpperCase();
-        if(ownerText){ownerText.style.fill=backInkRaw;ownerText.style.stroke=backInkRaw;}
+        if(ownerText){ownerText.style.fill='#ffffff';ownerText.style.stroke='#ffffff';}
         queueNameBandCenter(el);
       }else{
         nameSvg.remove();
@@ -3087,7 +3088,7 @@ async function fitProductionName(svgNode,side){
   }finally{colourBandResize.unobserve(board);board.remove();}
 }
 async function boardLayerBlob(side){
-  const ink='#ffffff',base=escapeHtml(boardFrontSrc()),decor=productionDecorSvg(side);let content='';
+  const ink=side==='back'?currentBackInk():'#ffffff',base=escapeHtml(boardFrontSrc()),decor=productionDecorSvg(side);let content='';
   if(side==='front'){
     const name=escapeHtml((state.petName||'Lucky').toUpperCase());
     const productionHasChinese=/[\u3400-\u9fff]/.test(name);const productionFont=productionHasChinese?"YouYuan,幼圆,'Microsoft YaHei UI','Microsoft YaHei',sans-serif":"Arial,sans-serif";const productionSpacing=productionHasChinese?0.5:3;const productionStroke=productionHasChinese?1.25:1;content=`<path id="productionNameArc" d="M 25 358 Q 175 395 325 358" fill="none"/><text data-production-name="1" data-max-font="46" data-max-spacing="${productionSpacing}" fill="${ink}" stroke="${ink}" stroke-width="${productionStroke}" paint-order="stroke fill" stroke-linejoin="round" font-family="${productionFont}" font-size="46" font-weight="400" letter-spacing="${productionSpacing}"><textPath href="#productionNameArc" startOffset="50%" text-anchor="middle">${name}</textPath></text>${decor}`;
