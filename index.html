@@ -2318,8 +2318,20 @@ const MILK_FROST_BACK_INKS={
   white6:'#dcdddd',
   white7:'#f39820'
 };
+// White lower bands use the exact colour of the middle body for the owner name.
+const WHITE_BAND_OWNER_INKS={
+  green3:'#16ae67',
+  grey1:'#dcdddd',
+  orange3:'#f39820',
+  pink2:'#e886b4',
+  pink4:'#e886b4',
+  red1:'#e83328',
+  red4:'#e83328',
+  yellow5:'#f5ca24'
+};
 // Phone and NFC sit on the upper base; the owner name sits on the lower band.
 function currentBackInk(){return MILK_FROST_BACK_INKS[state.baseVariant]||'#ffffff'}
+function currentOwnerNameInk(){return WHITE_BAND_OWNER_INKS[state.baseVariant]||'#ffffff'}
 const FRONT_ALLOWED={minX:12,maxX:88,minY:13,maxY:58,dog:{cx:50,cy:37,rx:23,ry:20},hole:{cx:50,cy:15,rx:9,ry:7}};
 let decorSeq=1;
 const pages=[...document.querySelectorAll('.page')];
@@ -2743,7 +2755,7 @@ function renderBoard(el,side,displayName,nameMode='front'){
       const ownerText=nameSvg.querySelector('text');
       if(ownerDisplay){
         if(textPath)textPath.textContent=ownerDisplay.toUpperCase();
-        if(ownerText){ownerText.style.fill='#ffffff';ownerText.style.stroke='#ffffff';}
+        if(ownerText){const ownerInk=currentOwnerNameInk();ownerText.style.fill=ownerInk;ownerText.style.stroke=ownerInk;}
         queueNameBandCenter(el);
       }else{
         nameSvg.remove();
@@ -3094,8 +3106,8 @@ async function boardLayerBlob(side){
     const name=escapeHtml((state.petName||'Lucky').toUpperCase());
     const productionHasChinese=/[\u3400-\u9fff]/.test(name);const productionFont=productionHasChinese?"YouYuan,幼圆,'Microsoft YaHei UI','Microsoft YaHei',sans-serif":"Arial,sans-serif";const productionSpacing=productionHasChinese?0.5:3;const productionStroke=productionHasChinese?1.25:1;content=`<path id="productionNameArc" d="M 25 358 Q 175 395 325 358" fill="none"/><text data-production-name="1" data-max-font="46" data-max-spacing="${productionSpacing}" fill="${ink}" stroke="${ink}" stroke-width="${productionStroke}" paint-order="stroke fill" stroke-linejoin="round" font-family="${productionFont}" font-size="46" font-weight="400" letter-spacing="${productionSpacing}"><textPath href="#productionNameArc" startOffset="50%" text-anchor="middle">${name}</textPath></text>${decor}`;
   }else{
-    const digits=(state.ownerPhone||'').replace(/\D/g,'');const lines=digits?(digits.length<=3?[digits]:digits.length<=7?[digits.slice(0,3),digits.slice(3)]:[digits.slice(0,3),digits.slice(3,7),digits.slice(7,11)]):['XXX','XXXX','XXXX'];const phone=lines.map((line,index)=>`<text x="175" y="${224+index*39}" text-anchor="middle" fill="${ink}" font-family="Arial,sans-serif" font-size="37" font-weight="700">${escapeHtml(line)}</text>`).join('');const ownerRaw=(state.ownerName||'').trim();const owner=escapeHtml(ownerRaw);const ownerHasChinese=/[㐀-鿿]/.test(ownerRaw);const ownerFontFamily=ownerHasChinese?"'YouYuan','幼圆','Microsoft YaHei UI','Microsoft YaHei',sans-serif":"Arial,'Microsoft YaHei',sans-serif";const ownerFontSize=34;const ownerLetterSpacing=ownerHasChinese?'0.5':'2';const ownerStrokeAttr=ownerHasChinese?` stroke="${ink}" stroke-width="0.75" paint-order="stroke fill" stroke-linejoin="round"`:'';
-    content=`<text x="175" y="174" text-anchor="middle" fill="${ink}" font-family="Arial,sans-serif" font-size="38" font-weight="700">NFC</text>${phone}<path id="productionOwnerArc" d="M 34 358 Q 175 392 316 358" fill="none"/>${ownerRaw?`<text data-production-name="1" data-max-font="${ownerFontSize}" data-max-spacing="${ownerLetterSpacing}" fill="${ink}" font-family="${ownerFontFamily}" font-size="${ownerFontSize}" font-weight="400" letter-spacing="${ownerLetterSpacing}"${ownerStrokeAttr}><textPath href="#productionOwnerArc" startOffset="50%" text-anchor="middle">${owner}</textPath></text>`:''}${decor}`;
+    const digits=(state.ownerPhone||'').replace(/\D/g,'');const lines=digits?(digits.length<=3?[digits]:digits.length<=7?[digits.slice(0,3),digits.slice(3)]:[digits.slice(0,3),digits.slice(3,7),digits.slice(7,11)]):['XXX','XXXX','XXXX'];const phone=lines.map((line,index)=>`<text x="175" y="${224+index*39}" text-anchor="middle" fill="${ink}" font-family="Arial,sans-serif" font-size="37" font-weight="700">${escapeHtml(line)}</text>`).join('');const ownerInk=currentOwnerNameInk();const ownerRaw=(state.ownerName||'').trim();const owner=escapeHtml(ownerRaw);const ownerHasChinese=/[㐀-鿿]/.test(ownerRaw);const ownerFontFamily=ownerHasChinese?"'YouYuan','幼圆','Microsoft YaHei UI','Microsoft YaHei',sans-serif":"Arial,'Microsoft YaHei',sans-serif";const ownerFontSize=34;const ownerLetterSpacing=ownerHasChinese?'0.5':'2';const ownerStrokeAttr=ownerHasChinese?` stroke="${ownerInk}" stroke-width="0.75" paint-order="stroke fill" stroke-linejoin="round"`:'';
+    content=`<text x="175" y="174" text-anchor="middle" fill="${ink}" font-family="Arial,sans-serif" font-size="38" font-weight="700">NFC</text>${phone}<path id="productionOwnerArc" d="M 34 358 Q 175 392 316 358" fill="none"/>${ownerRaw?`<text data-production-name="1" data-max-font="${ownerFontSize}" data-max-spacing="${ownerLetterSpacing}" fill="${ownerInk}" font-family="${ownerFontFamily}" font-size="${ownerFontSize}" font-weight="400" letter-spacing="${ownerLetterSpacing}"${ownerStrokeAttr}><textPath href="#productionOwnerArc" startOffset="50%" text-anchor="middle">${owner}</textPath></text>`:''}${decor}`;
   }
   const svgMarkup=`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="350" height="399" viewBox="0 0 350 399"><image href="${base}" x="0" y="0" width="350" height="399" preserveAspectRatio="xMidYMid meet"/>${content}</svg>`;
   const svgNode=new DOMParser().parseFromString(svgMarkup,'image/svg+xml').documentElement;
