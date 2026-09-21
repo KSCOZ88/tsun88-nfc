@@ -2308,14 +2308,15 @@ Object.assign(baseVariants,{
 function currentBaseVariant(){return baseVariants[state.baseVariant]||baseVariants['green1']}
 function boardFrontSrc(){return currentBaseVariant().front}
 function boardBackSrc(){return currentBaseVariant().back}
+// Exact solid colours sampled from the lower bands of the white-base artwork.
 const MILK_FROST_BACK_INKS={
-  white1:'#1477c8',
-  white2:'#087a48',
-  white3:'#b83f78',
-  white4:'#765600',
-  white5:'#b33b2e',
-  white6:'#5f666b',
-  white7:'#b95716'
+  white1:'#26a7e1',
+  white2:'#16ae67',
+  white3:'#e886b4',
+  white4:'#f5ca24',
+  white5:'#e83328',
+  white6:'#dcdddd',
+  white7:'#f39820'
 };
 // Phone and NFC sit on the upper base; the owner name sits on the lower band.
 function currentBackInk(){return MILK_FROST_BACK_INKS[state.baseVariant]||'#ffffff'}
