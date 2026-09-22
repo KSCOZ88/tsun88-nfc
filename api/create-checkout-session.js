@@ -19,7 +19,7 @@ function returnBase(req){
 module.exports=async function handler(req,res){
   cors(req,res);if(req.method==='OPTIONS')return res.status(204).end();if(req.method!=='POST')return res.status(405).json({error:'仅支持 POST 请求'});
   try{
-    const key=process.env.STRIPE_SECRET_KEY||'';if(!/^sk_(test|live)_/.test(key))return res.status(503).json({error:'Stripe 密钥尚未配置'});
+    const key=process.env.STRIPE_SECRET_KEY||'';if(!/^(sk|rk)_(test|live)_/.test(key))return res.status(503).json({error:'Stripe 密钥尚未配置'});
     const body=typeof req.body==='string'?JSON.parse(req.body):req.body||{},orderId=String(body.orderId||''),customerEmail=String(body.customerEmail||'').trim();
     const itemCount=Number(body.itemCount),decorCount=Number(body.decorCount);
     if(!/^[\w-]{1,100}$/.test(orderId))return res.status(422).json({error:'订单号无效'});if(!emailValid(customerEmail))return res.status(422).json({error:'请填写有效邮箱'});
