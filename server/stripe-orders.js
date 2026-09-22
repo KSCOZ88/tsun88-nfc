@@ -11,14 +11,14 @@ function pricing(order){
 }
 async function stripeSession(sessionId){
   const key=process.env.STRIPE_SECRET_KEY||'';
-  if(!/^sk_(test|live)_/.test(key))throw new Error('Stripe 密钥尚未配置');
+  if(!/^(sk|rk)_(test|live)_/.test(key))throw new Error('Stripe 密钥尚未配置');
   if(!/^cs_(test|live)_[A-Za-z0-9_]+$/.test(sessionId||''))throw new Error('Stripe 付款编号无效');
   const response=await fetch('https://api.stripe.com/v1/checkout/sessions/'+encodeURIComponent(sessionId),{headers:{Authorization:'Bearer '+key}});
   const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error?.message||'无法向 Stripe 核对付款');return result;
 }
 async function stripeSessionForOrder(order){
   const key=process.env.STRIPE_SECRET_KEY||'';
-  if(!/^sk_(test|live)_/.test(key))throw new Error('Stripe 密钥尚未配置');
+  if(!/^(sk|rk)_(test|live)_/.test(key))throw new Error('Stripe 密钥尚未配置');
   if(!/^[\w-]{1,100}$/.test(order?.id||'')||!emailValid(order?.customerEmail))throw new Error('订单资料无效，无法恢复付款');
   const now=Math.floor(Date.now()/1000),created=Math.floor(Date.parse(order.createdAt||'')/1000);
   const createdAfter=Math.max(now-30*24*60*60,Number.isFinite(created)?created-60*60:now-2*24*60*60);
