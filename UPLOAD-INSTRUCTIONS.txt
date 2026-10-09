@@ -1,0 +1,23 @@
+TSUN88 R70 更新包 — 2026-10-09
+
+這是網站更新包，並非完整網站備份。
+解壓後，將以下 8 個檔案一起上傳至現有 GitHub 倉庫根目錄，覆蓋同名檔案：
+
+index.html
+shipping.html
+returns.html
+privacy.html
+terms.html
+contact.html
+policies.css
+policies.js
+
+不要只上傳 ZIP，也不要把檔案放進另一層資料夾。
+index.html 請保留這個名稱，不要改成 index.html.html。
+保留倉庫內原有的 api、lucky88.html 和其他檔案。
+
+更新內容：頁腳 TSUN88；五個政策頁的英文與繁體中文；語言跟隨主站；
+製作及配送各 1–3 天，與付款前須知一致。原有政策的主要安排保留。
+
+上傳並提交後，等待现有託管平台完成部署，再重新開啟網站。
+首頁版本標記為 R70。只下載或預覽此更新包不會更新線上網站。

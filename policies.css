@@ -42,3 +42,37 @@
 @media(max-width:600px){.ts-policy-header{padding:16px 20px}.ts-policy-main{margin:28px auto 36px}.ts-policy-card{padding:22px 20px;border-radius:18px}.ts-policy-contact-grid{grid-template-columns:1fr}.ts-policy-nav{gap:8px 16px}.ts-policy-notice{padding:14px 16px}#tsunEnterCard .ts-policy-gate{gap:6px 14px;font-size:12px}.ts-policy-footer{padding-bottom:82px}}
 @media(max-height:650px){#tsunEnterGate{overflow-y:auto;align-items:flex-start;padding-top:22px;padding-bottom:22px}}
 @media print{.ts-policy-header,.ts-policy-nav,.ts-policy-skip{display:none}.ts-policy-page{background:white;color:black}.ts-policy-main{width:100%;margin:0}.ts-policy-card{break-inside:avoid;border-color:#aaa}.ts-policy-page a{color:black}}
+
+/* R70: two languages, compact touch controls and no external font downloads. */
+.ts-policy-page{font-family:ui-rounded,"Arial Rounded MT Bold","PingFang HK","Microsoft JhengHei",system-ui,sans-serif}
+.ts-policy-page [hidden]{display:none!important}
+.ts-policy-header{flex-wrap:wrap;gap:12px 20px}
+.ts-policy-brand{letter-spacing:.04em;font-size:25px}
+.ts-policy-header-actions{display:flex;align-items:center;gap:22px}
+.ts-policy-language{display:flex;padding:4px;border:1px solid #d9e8ef;background:#fff;border-radius:999px;gap:4px}
+.ts-policy-language button{min-height:40px;padding:8px 14px;border:0;border-radius:999px;background:transparent;color:#567180;font:inherit;font-size:13px;line-height:1.25;font-weight:750;cursor:pointer}
+.ts-policy-language button[aria-pressed="true"]{background:#dff2fb;color:#234e62}
+.ts-policy-language button:focus-visible{outline:3px solid #5595b5;outline-offset:2px}
+.ts-policy-announcement{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.ts-policy-links a{display:inline-flex;align-items:center;min-height:36px}
+.ts-policy-nav a{text-decoration:none;padding:3px 10px;border-radius:999px}
+.ts-policy-nav a[aria-current="page"]{background:#dff2fb}
+.ts-policy-card a{text-decoration:underline}
+.ts-policy-card{min-width:0}
+.ts-policy-contact-grid a{font-size:clamp(15px,2.6vw,18px)}
+.ts-policy-page footer a{min-height:36px;display:inline-flex;align-items:center}
+@media(max-width:600px){
+ .ts-policy-header{padding:14px 20px;gap:10px}
+ .ts-policy-header-actions{display:contents}
+ .ts-policy-home{order:2;font-size:12px}
+ .ts-policy-language{order:3;width:100%;justify-content:center}
+ .ts-policy-language button{flex:1;max-width:170px}
+ .ts-policy-main{width:calc(100% - 32px)}
+ .ts-policy-page h1{font-size:29px}
+ .ts-policy-card{padding:20px 18px}
+ .ts-policy-nav{gap:5px 7px;font-size:12px}
+ .ts-policy-nav a{padding:3px 8px}
+ .ts-policy-callout{padding:18px}
+ .ts-policy-card h2{font-size:18px}
+}
+@media print{.ts-policy-language,.ts-policy-announcement{display:none}}
