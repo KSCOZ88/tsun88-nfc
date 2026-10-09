@@ -351,19 +351,19 @@
 </style>
 <style>
 /* Checkout price summary: intentionally scoped to the merged confirmation/payment page. */
-#confirm .checkout-pricing{margin:18px 0;padding:16px 18px;border:1px solid #dce8ee;border-radius:20px;background:#fbfdfe}
-#confirm .checkout-price-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;padding-bottom:12px;border-bottom:1px solid #e6eef2}
-#confirm .checkout-price-title{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
-#confirm .checkout-original{color:#95a5ae;text-decoration:line-through;font-weight:800}
-#confirm .checkout-sale{color:#4f6876;font-size:18px;font-weight:900}
-#confirm .checkout-badge{padding:6px 10px;border-radius:999px;background:#fff0cc;color:#8a6415;font-size:12px;font-weight:900;white-space:nowrap}
-#confirm .checkout-price-rows{display:grid;gap:9px;padding-top:12px}
-#confirm .checkout-price-row{display:flex;justify-content:space-between;gap:14px;color:#607985;font-size:14px}
-#confirm .checkout-price-row b{color:#294b5e;text-align:right}
-#confirm .checkout-price-total{margin-top:4px;padding-top:12px;border-top:1px solid #e6eef2;align-items:baseline;font-size:16px;font-weight:900}
-#confirm .checkout-price-total b{color:#294b5e;font-size:18px}
-#confirm .checkout-saving{margin-top:10px;color:#a06e13;font-size:13px;font-weight:800;text-align:right}
-@media(max-width:600px){#confirm .checkout-price-head{align-items:flex-start;flex-direction:column}#confirm .checkout-price-row{font-size:13px}}
+:is(#confirm,#checkout) .checkout-pricing{margin:18px 0;padding:16px 18px;border:1px solid #dce8ee;border-radius:20px;background:#fbfdfe}
+:is(#confirm,#checkout) .checkout-price-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;padding-bottom:12px;border-bottom:1px solid #e6eef2}
+:is(#confirm,#checkout) .checkout-price-title{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+:is(#confirm,#checkout) .checkout-original{color:#95a5ae;text-decoration:line-through;font-weight:800}
+:is(#confirm,#checkout) .checkout-sale{color:#4f6876;font-size:18px;font-weight:900}
+:is(#confirm,#checkout) .checkout-badge{padding:6px 10px;border-radius:999px;background:#fff0cc;color:#8a6415;font-size:12px;font-weight:900;white-space:nowrap}
+:is(#confirm,#checkout) .checkout-price-rows{display:grid;gap:9px;padding-top:12px}
+:is(#confirm,#checkout) .checkout-price-row{display:flex;justify-content:space-between;gap:14px;color:#607985;font-size:14px}
+:is(#confirm,#checkout) .checkout-price-row b{color:#294b5e;text-align:right}
+:is(#confirm,#checkout) .checkout-price-total{margin-top:4px;padding-top:12px;border-top:1px solid #e6eef2;align-items:baseline;font-size:16px;font-weight:900}
+:is(#confirm,#checkout) .checkout-price-total b{color:#294b5e;font-size:18px}
+:is(#confirm,#checkout) .checkout-saving{margin-top:10px;color:#a06e13;font-size:13px;font-weight:800;text-align:right}
+@media(max-width:600px){:is(#confirm,#checkout) .checkout-price-head{align-items:flex-start;flex-direction:column}:is(#confirm,#checkout) .checkout-price-row{font-size:13px}}
 </style>
 <style>
 .base-series{margin-top:22px}.base-series-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.base-series-head b{font-size:18px;color:#294b5e}.base-series-head span{padding:8px 14px;border:1px solid #d9e9f0;border-radius:999px;background:linear-gradient(135deg,#fff4c9,#eaf7fd);color:#294f63;font-size:15px;line-height:1;font-weight:950;letter-spacing:.03em;box-shadow:0 5px 12px rgba(70,120,145,.12)}.base-series-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.base-series .base-card{position:relative;min-width:0;padding:11px;gap:11px}.base-thumb-wrap{position:relative;display:block;flex:0 0 92px}.base-series .base-card img{width:92px;height:118px;padding:4px;border-radius:15px}.base-card-copy{display:block;min-width:0}.base-series .base-card b{font-size:16px;line-height:1.35}.base-series .base-card small{display:block;font-size:12px}.base-recommend{position:absolute;right:12px;top:12px;padding:6px 11px;border-radius:999px;background:#ffd15c;color:#714f00;font-size:14px;line-height:1;font-style:normal;font-weight:900;box-shadow:0 4px 10px rgba(113,79,0,.15);z-index:2}@media(max-width:760px){.base-series-grid{grid-template-columns:1fr}.base-thumb-wrap{flex-basis:84px}.base-series .base-card img{width:84px;height:108px}.base-series-head span{font-size:14px;padding:7px 11px}}
@@ -1448,7 +1448,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 .finale-sources{position:absolute;left:-10000px;top:0;width:350px;visibility:hidden;pointer-events:none;contain:layout style;}
 #confirm .finale-sources .board{width:350px!important;height:399px!important;transform:none!important;}
 </style>
-<meta name="tsun-build" content="2026-10-09-preview-nfc-payment-R76"><style id="tsun-v49-visibility">
+<meta name="tsun-build" content="2026-10-09-mobile-payment-last-R77"><style id="tsun-v49-visibility">
 .tsun-build-label{font-size:10px;font-weight:600;letter-spacing:.02em;border:1px solid #dcebf0;border-radius:20px;padding:5px 8px;color:#66838f;white-space:nowrap}
 .tsun-preview-reaction-hint{margin:12px 0 0;text-align:center;color:#5b7c8d;font-size:12px;line-height:1.5}
 .tsun-preview-reaction-hint[hidden]{display:none}
@@ -2272,7 +2272,19 @@ html[lang=en] #tsunEnterTitle{font-family:'TsunNunito','Arial Rounded MT Bold',A
  #confirm .review-next-actions p{display:none}#confirm .review-next-actions button{font-size:14px;padding:13px}
  body.tsun-review-open #tsunMusicBtn{bottom:94px!important}body.tsun-review-open .toast{bottom:94px}
 }
-</style></head>
+</style>
+<style id="tsun-mobile-payment-last-R77">
+#mobileCheckoutPricing{display:none}
+@media(max-width:760px){
+ #confirm #reviewPricingSlot{display:none}
+ #mobileCheckoutPricing{display:block}
+ #checkout .has-order-pricing>.checkout-final-total,
+ #checkout .has-order-pricing>.checkout-final-reference{display:none}
+ #checkout #payOrderNumber{max-width:100%;overflow-wrap:anywhere;font-size:14px}
+ #checkout #checkoutPricing{margin-top:16px}
+}
+</style>
+</head>
 <body>
 <!-- R68: discover and start music before the customizer assets. -->
 <audio id="tsunBgMusic" loop preload="auto" autoplay playsinline>
@@ -2572,7 +2584,7 @@ background:#ffffff;box-shadow:0 8px 22px rgba(50,90,110,.18);font-size:23px;disp
 </div>
 
 <div class="finale-sources" aria-hidden="true" inert><div class="board" id="confirmFront"></div><div class="board" id="confirmBack"></div></div>
-<div class="action-row confirm-preview-actions"><button class="secondary" data-go="info">返回修改</button></div></div><div class="summary-card payment-checkout confirm-checkout"><span class="order-number" id="payOrderNumber">订单号生成中</span><div class="checkout-pricing" id="checkoutPricing" aria-live="polite"><div class="checkout-price-head"><div class="checkout-price-title"><span class="checkout-original">原价 HK$329</span><strong class="checkout-sale">限时 HK$299</strong></div><span class="checkout-badge">每枚装饰 HK$3</span></div><div class="checkout-price-rows"><div class="checkout-price-row"><span>狗牌限时价</span><b id="priceBaseSubtotal">HK$299</b></div><div class="checkout-price-row"><span id="priceDecorLabel">装饰 0 枚 × HK$3</span><b id="priceDecorSubtotal">HK$0</b></div><div class="checkout-price-row checkout-price-total"><span>应付总额</span><b id="priceGrandTotal">HK$299</b></div></div><div class="checkout-saving" id="priceSaving">已优惠 HK$30</div></div><section class="phone-proof" aria-labelledby="phoneProofTitle"><h3 id="phoneProofTitle">打印号码核对</h3><div id="phoneProofList"></div><p>请打开正反面效果图，核对名字、电话号码和配饰。号码一旦打印便无法修改；如需更改，请返回修改并重新确认。</p></section><div class="review-next-actions"><p>看好正反面后，下一步填写宠物资料和上传照片。</p><button type="button" class="primary" id="reviewToNfc">下一步：建立 NFC 档案</button></div></div></div>
+<div class="action-row confirm-preview-actions"><button class="secondary" data-go="info">返回修改</button></div></div><div class="summary-card payment-checkout confirm-checkout"><div id="reviewPricingSlot"><div id="orderPricingDetails"><span class="order-number" id="payOrderNumber">订单号生成中</span><div class="checkout-pricing" id="checkoutPricing" aria-live="polite"><div class="checkout-price-head"><div class="checkout-price-title"><span class="checkout-original">原价 HK$329</span><strong class="checkout-sale">限时 HK$299</strong></div><span class="checkout-badge">每枚装饰 HK$3</span></div><div class="checkout-price-rows"><div class="checkout-price-row"><span>狗牌限时价</span><b id="priceBaseSubtotal">HK$299</b></div><div class="checkout-price-row"><span id="priceDecorLabel">装饰 0 枚 × HK$3</span><b id="priceDecorSubtotal">HK$0</b></div><div class="checkout-price-row checkout-price-total"><span>应付总额</span><b id="priceGrandTotal">HK$299</b></div></div><div class="checkout-saving" id="priceSaving">已优惠 HK$30</div></div></div></div><section class="phone-proof" aria-labelledby="phoneProofTitle"><h3 id="phoneProofTitle">打印号码核对</h3><div id="phoneProofList"></div><p>请打开正反面效果图，核对名字、电话号码和配饰。号码一旦打印便无法修改；如需更改，请返回修改并重新确认。</p></section><div class="review-next-actions"><p>看好正反面后，下一步填写宠物资料和上传照片。</p><button type="button" class="primary" id="reviewToNfc">下一步：建立 NFC 档案</button></div></div></div>
 </section>
 <section id="checkout" class="page">
  <div class="section-title"><h2>最后一步，确认付款</h2><p>正反面和 NFC 档案已准备好，完成付款后填写配送资料。</p></div>
@@ -2591,7 +2603,7 @@ background:#ffffff;box-shadow:0 8px 22px rgba(50,90,110,.18);font-size:23px;disp
       <a href="privacy.html" target="_blank" rel="noopener">隐私</a>
     </nav>
   </aside>
- <div class="summary-card payment-checkout"><div class="checkout-final-total"><span>应付总额</span><b id="checkoutFinalTotal"></b></div><p class="checkout-final-reference" id="checkoutFinalReference" translate="no"></p><div class="field" id="customerEmailField"><label for="customerEmail">订单通知邮箱（必填）</label><input id="customerEmail" type="email" inputmode="email" autocomplete="email" maxlength="254" required placeholder="请输入常用邮箱" aria-describedby="customerEmailHelp"><small id="customerEmailHelp">我们会通过这个邮箱通知你订单、制作及寄送进度，并发送狗牌效果图和宠物档案网址。</small></div><div class="nfc-profile-checkout" id="checkoutNfcSummary"><img alt="宠物照片预览" hidden><div><b translate="no" data-nfc-name></b><p>NFC 档案已准备好</p></div><button type="button" class="secondary small-btn" id="editCheckoutNfc">查看或修改宠物资料</button></div><a id="localPostPaymentPreview" class="local-post-payment-preview" hidden target="_blank" rel="noopener">预览配送资料页（无需付款） ↗</a><div class="payment-method-picker" role="tablist" aria-label="选择支付方式"><button type="button" class="payment-method-choice active" id="chooseStripePayment" role="tab" aria-selected="true" aria-controls="stripePaymentPanel">银行卡 / Apple Pay</button><button type="button" class="payment-method-choice" id="chooseFpsPayment" role="tab" aria-selected="false" aria-controls="fpsPaymentPanel">FPS 转数快</button></div><div class="payment-panel" id="stripePaymentPanel" role="tabpanel"><div class="payment-code-box" style="gap:14px"><div aria-hidden="true" style="width:76px;height:76px;border-radius:22px;background:#635bff;color:#fff;display:grid;place-items:center;font-size:38px;font-weight:900">S</div><b style="font-size:22px">Stripe 安全付款</b><small class="payment-scan-note">点击下面按钮后会进入 Stripe 加密付款页。只有 Stripe 确认付款成功，订单才会生效。</small><button type="button" class="primary demo-pay-btn" id="stripePayBtn">使用银行卡 / Apple Pay 付款</button></div></div><div class="payment-panel" id="fpsPaymentPanel" role="tabpanel" hidden><div class="fps-payment-box"><h3>FPS 转数快付款</h3><div class="fps-amount" id="fpsPaymentAmount">应付 HK$299</div><img class="fps-qr-image" src="fps-qr.jpeg" alt="中银香港 FPS 收款二维码"><div class="fps-reference">付款备注：<span id="fpsOrderReference">订单号生成中</span></div><ol class="fps-steps"><li>打开香港银行 App，扫描上面的二维码。</li><li>输入页面显示的应付金额，并在备注填写订单号。</li><li>付款后截屏，上传付款截图。</li></ol><div class="fps-proof-field"><label for="fpsPaymentProof">上传付款截图（必填）</label><input id="fpsPaymentProof" type="file" accept="image/jpeg,image/png,image/webp"><small class="fps-pay-note">截图会随订单发给商家核对。请勿上传密码、验证码或完整账户资料。</small><img id="fpsProofPreview" class="fps-proof-preview" alt="付款截图预览"></div><button type="button" class="primary demo-pay-btn" id="fpsPaidBtn" disabled>我已付款，继续填写资料</button><small class="fps-pay-note">提交后状态为“等待确认到账”。商家核实银行入账后才会开始制作。</small></div></div>
+ <div class="summary-card payment-checkout"><div id="mobileCheckoutPricing"></div><div class="checkout-final-total"><span>应付总额</span><b id="checkoutFinalTotal"></b></div><p class="checkout-final-reference" id="checkoutFinalReference" translate="no"></p><div class="field" id="customerEmailField"><label for="customerEmail">订单通知邮箱（必填）</label><input id="customerEmail" type="email" inputmode="email" autocomplete="email" maxlength="254" required placeholder="请输入常用邮箱" aria-describedby="customerEmailHelp"><small id="customerEmailHelp">我们会通过这个邮箱通知你订单、制作及寄送进度，并发送狗牌效果图和宠物档案网址。</small></div><div class="nfc-profile-checkout" id="checkoutNfcSummary"><img alt="宠物照片预览" hidden><div><b translate="no" data-nfc-name></b><p>NFC 档案已准备好</p></div><button type="button" class="secondary small-btn" id="editCheckoutNfc">查看或修改宠物资料</button></div><a id="localPostPaymentPreview" class="local-post-payment-preview" hidden target="_blank" rel="noopener">预览配送资料页（无需付款） ↗</a><div class="payment-method-picker" role="tablist" aria-label="选择支付方式"><button type="button" class="payment-method-choice active" id="chooseStripePayment" role="tab" aria-selected="true" aria-controls="stripePaymentPanel">银行卡 / Apple Pay</button><button type="button" class="payment-method-choice" id="chooseFpsPayment" role="tab" aria-selected="false" aria-controls="fpsPaymentPanel">FPS 转数快</button></div><div class="payment-panel" id="stripePaymentPanel" role="tabpanel"><div class="payment-code-box" style="gap:14px"><div aria-hidden="true" style="width:76px;height:76px;border-radius:22px;background:#635bff;color:#fff;display:grid;place-items:center;font-size:38px;font-weight:900">S</div><b style="font-size:22px">Stripe 安全付款</b><small class="payment-scan-note">点击下面按钮后会进入 Stripe 加密付款页。只有 Stripe 确认付款成功，订单才会生效。</small><button type="button" class="primary demo-pay-btn" id="stripePayBtn">使用银行卡 / Apple Pay 付款</button></div></div><div class="payment-panel" id="fpsPaymentPanel" role="tabpanel" hidden><div class="fps-payment-box"><h3>FPS 转数快付款</h3><div class="fps-amount" id="fpsPaymentAmount">应付 HK$299</div><img class="fps-qr-image" src="fps-qr.jpeg" alt="中银香港 FPS 收款二维码"><div class="fps-reference">付款备注：<span id="fpsOrderReference">订单号生成中</span></div><ol class="fps-steps"><li>打开香港银行 App，扫描上面的二维码。</li><li>输入页面显示的应付金额，并在备注填写订单号。</li><li>付款后截屏，上传付款截图。</li></ol><div class="fps-proof-field"><label for="fpsPaymentProof">上传付款截图（必填）</label><input id="fpsPaymentProof" type="file" accept="image/jpeg,image/png,image/webp"><small class="fps-pay-note">截图会随订单发给商家核对。请勿上传密码、验证码或完整账户资料。</small><img id="fpsProofPreview" class="fps-proof-preview" alt="付款截图预览"></div><button type="button" class="primary demo-pay-btn" id="fpsPaidBtn" disabled>我已付款，继续填写资料</button><small class="fps-pay-note">提交后状态为“等待确认到账”。商家核实银行入账后才会开始制作。</small></div></div>
  <div class="action-row"><button type="button" class="secondary" data-go="petProfile">返回宠物档案</button><button type="button" class="secondary" data-go="confirm">再看狗牌正反面</button></div></div></div>
 </section>
 
@@ -7746,4 +7758,22 @@ if(LOCAL_FILE_REVIEW){
  window.addEventListener('tsun-language-change',sync);
  sync();
 })();
-</script></body></html>
+</script>
+<script id="tsun-mobile-payment-location-R77">
+(()=>{
+ const details=document.getElementById('orderPricingDetails');
+ const reviewSlot=document.getElementById('reviewPricingSlot');
+ const checkoutSlot=document.getElementById('mobileCheckoutPricing');
+ if(!details||!reviewSlot||!checkoutSlot)return;
+ const media=matchMedia('(max-width:760px)');
+ const sync=()=>{
+  const slot=media.matches?checkoutSlot:reviewSlot;
+  if(details.parentElement!==slot)slot.appendChild(details);
+  checkoutSlot.parentElement.classList.toggle('has-order-pricing',media.matches);
+ };
+ if(media.addEventListener)media.addEventListener('change',sync);
+ else media.addListener(sync);
+ sync();
+})();
+</script>
+</body></html>
