@@ -1448,7 +1448,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 .finale-sources{position:absolute;left:-10000px;top:0;width:350px;visibility:hidden;pointer-events:none;contain:layout style;}
 #confirm .finale-sources .board{width:350px!important;height:399px!important;transform:none!important;}
 </style>
-<meta name="tsun-build" content="2026-10-09-contained-profile-avatar-R82"><style id="tsun-v49-visibility">
+<meta name="tsun-build" content="2026-10-10-mobile-guidance-R84"><style id="tsun-v49-visibility">
 .tsun-build-label{font-size:10px;font-weight:600;letter-spacing:.02em;border:1px solid #dcebf0;border-radius:20px;padding:5px 8px;color:#66838f;white-space:nowrap}
 .tsun-preview-reaction-hint{margin:12px 0 0;text-align:center;color:#5b7c8d;font-size:12px;line-height:1.5}
 .tsun-preview-reaction-hint[hidden]{display:none}
@@ -2237,14 +2237,11 @@ html[lang=en] #tsunEnterTitle{font-family:'TsunNunito','Arial Rounded MT Bold',A
 #petProfile .nfc-profile-box{margin:0;min-width:0;background:#fff}
 #petProfile .nfc-fields{min-width:0}
 #petProfile input,#petProfile textarea,#petProfile select{max-width:100%;min-width:0}
-#nfcTagSelectField[hidden],.nfc-profile-checkout img[hidden]{display:none!important}
+#nfcTagSelectField[hidden]{display:none!important}
 #nfcTagSelect{width:100%;padding:12px;border:1px solid #d9e7ee;border-radius:16px;font:inherit;background:white}
 #petProfile input[readonly]{background:#f1f7fa;color:#577482}
 #petProfile input[aria-invalid="true"]{border-color:#c94747}
 .nfc-draft-actions{grid-column:1/-1;display:flex;justify-content:space-between;gap:12px;margin:2px 0 0;padding:15px 0}
-.nfc-profile-checkout{padding:16px;border:1px solid #d9e9f1;border-radius:20px;background:#f3faff;margin:16px 0;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.nfc-profile-checkout img{width:58px;height:58px;object-fit:contain;border-radius:14px;background:white}
-.nfc-profile-checkout p{margin:3px 0;font-size:14px}.nfc-profile-checkout button{margin-left:auto}
 #postPaymentNfcForm .nfc-photo-row{align-items:center}#nfcPhotoStatus{display:block;font-size:13px;color:#597888;margin-top:8px}
 #postPaymentNfcForm .nfc-photo-row>div{min-width:0}#postPaymentNfcForm input[type=file]{display:block;width:100%;margin-bottom:8px}
 @media(max-width:760px){
@@ -2315,6 +2312,40 @@ html[lang=en] #tsunEnterTitle{font-family:'TsunNunito','Arial Rounded MT Bold',A
 .nfc-photo-heading{display:flex;align-items:baseline;flex-wrap:wrap;column-gap:10px;row-gap:4px;margin-bottom:10px;min-width:0}
 #petProfile .nfc-photo-heading>label{margin:0;flex:0 0 auto}
 #petProfile .nfc-photo-heading>small{flex:1 1 180px;font-size:13px;font-weight:400;line-height:1.5;color:#698492;margin:0}
+</style>
+<style id="tsun-mobile-guidance-R84">
+/* R84: keep choices visible and show their hierarchy on phones. */
+@media(max-width:760px){
+ #customize .mobile-builder-nav .mobile-builder-submenu{margin:9px 0 0 8px;padding:9px 7px 7px;border-left:3px solid #aecfdf;border-radius:0 12px 12px 0;background:#f3f8fa}
+ #customize .mobile-builder-submenu .mobile-submenu-title{display:block;margin:0 0 7px;font-size:11px;font-weight:750;color:#557484;line-height:1.35;letter-spacing:0}
+ #customize .mobile-builder-nav .breed-category-tabs{padding:0;gap:3px}
+ #customize .mobile-builder-nav .breed-category-btn{border:1px solid transparent;background:transparent;border-radius:9px;min-height:40px;padding:6px 1px;font-size:10px;line-height:1.3;letter-spacing:0;font-weight:650;color:#526c79}
+ #customize .mobile-builder-nav .breed-category-btn.active{background:#315c70;border-color:#315c70;color:#fff}
+ #customize .mobile-builder-nav .base-color-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));width:100%;max-width:100%;padding:0;margin:0;gap:5px;border:0;border-radius:0;overflow:visible;background:transparent;box-shadow:none}
+ #customize .mobile-builder-nav .base-color-tab{display:flex;align-items:center;justify-content:center;min-width:0;min-height:44px;padding:7px 3px;font-size:11px;line-height:1.3;white-space:normal;overflow-wrap:normal;word-break:normal;font-weight:700;border:1px solid #d9e6ec;border-radius:10px;background:#fff;color:#486574;box-shadow:none}
+ #customize .mobile-builder-nav .base-color-tab.active{border-color:#315c70;background:#315c70;color:white;box-shadow:none}
+}
+/* A clear photo-upload invitation, linked to the real file chooser. */
+#petProfile .nfc-photo-heading{align-items:stretch;gap:10px;margin-bottom:16px}
+#petProfile .nfc-photo-heading>#nfcOwnPhotoHint{display:flex;align-items:center;gap:12px;flex:1 0 100%;width:100%;margin:0;padding:15px 16px;border:2px solid #b7dfee;border-radius:16px;background:#eaf7fd;color:#21495e;font-size:17px;font-weight:850;line-height:1.5;cursor:pointer}
+#nfcOwnPhotoHint svg{width:26px;height:26px;flex:none}
+#nfcOwnPhotoHint:hover{background:#dff2fb}
+/* A required review action, with a restrained, accessible blocked Next state. */
+#nfcPreviewAction{padding:19px;border:2px solid #a4d2e5;border-radius:22px;background:#eaf7fc;margin-top:18px;scroll-margin-block:100px 120px}
+#nfcPreviewAction .nfc-preview-required{display:inline-block;padding:5px 10px;border-radius:999px;background:#fff0bb;color:#645222;font-size:12px;font-weight:800;margin-bottom:12px}
+#nfcPreviewAction>button,#nfcPreviewBottomSlot #nfcPreviewAction>button{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;margin:0;min-height:64px;padding:17px 14px;border:2px solid #244f66;border-radius:16px;background:#244f66;color:white;font-size:20px;font-weight:900;line-height:1.35;white-space:normal;box-shadow:0 5px 12px #244f661a}
+#nfcPreviewAction>button:hover{background:#173e53}
+#nfcPreviewAction>button:focus-visible{outline:3px solid #d7aa39;outline-offset:4px}
+#nfcPreviewAction>button svg{width:25px;height:25px;flex:none}
+#nfcPreviewAction .nfc-draft-note{font-size:14px;font-weight:650;line-height:1.6;color:#31586c;margin:12px 0 0;text-align:left}
+#nfcPreviewAction[data-reviewed="true"] .nfc-preview-required{background:#e0f1e4;color:#2c6946}
+#petProfile #nfcContinueBtn[aria-disabled="true"]{background:#e6edf0;color:#697e89;border-color:#d4e0e6;box-shadow:none;cursor:pointer}
+@media(max-width:760px){
+ #nfcPreviewBottomSlot #nfcPreviewAction{margin-top:0;padding:16px}
+ #nfcPreviewBottomSlot #nfcPreviewAction>button{font-size:19px;min-height:66px}
+ #petProfile .nfc-photo-heading>#nfcOwnPhotoHint{font-size:16px}
+}
+
 </style>
 </head>
 <body>
@@ -2566,16 +2597,16 @@ background:#ffffff;box-shadow:0 8px 22px rgba(50,90,110,.18);font-size:23px;disp
  <div class="section-title"><h2>先看看它的专属档案</h2><p>正反面预览 → NFC 档案 → 付款</p></div>
  <div class="field" id="nfcTagSelectField" hidden><label for="nfcTagSelect">选择要填写档案的狗牌</label><select id="nfcTagSelect" translate="no"></select></div>
  <div class="nfc-draft-layout">
- <aside class="nfc-draft-preview"><div id="nfcDraftCard"><div class="nfc-draft-photo"><img id="nfcDraftPhoto" alt="宠物照片预览" hidden><span id="nfcDraftFallback" aria-hidden="true"><img id="nfcDraftSelectedAvatar" alt=""></span></div><h3 id="nfcDraftName" translate="no"></h3><p id="nfcDraftBreed" translate="no"></p><p id="nfcDraftLocation" translate="no"></p><p id="nfcDraftPhone" translate="no"></p><p id="nfcDraftMessage" translate="no"></p></div><div id="nfcPreviewAction"><button type="button" class="secondary" data-nfc-draft-preview>预览完整 NFC 档案</button><p class="nfc-draft-note">先预览它的小世界，再决定付款。</p></div></aside>
+ <aside class="nfc-draft-preview"><div id="nfcDraftCard"><div class="nfc-draft-photo"><img id="nfcDraftPhoto" alt="宠物照片预览" hidden><span id="nfcDraftFallback" aria-hidden="true"><img id="nfcDraftSelectedAvatar" alt=""></span></div><h3 id="nfcDraftName" translate="no"></h3><p id="nfcDraftBreed" translate="no"></p><p id="nfcDraftLocation" translate="no"></p><p id="nfcDraftPhone" translate="no"></p><p id="nfcDraftMessage" translate="no"></p></div><div id="nfcPreviewAction" data-reviewed="false"><span id="nfcPreviewRequired" class="nfc-preview-required" translate="no">Required preview</span><button type="button" class="secondary" data-nfc-draft-preview aria-describedby="nfcPreviewGateNote"><span>预览完整 NFC 档案</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg></button><p id="nfcPreviewGateNote" class="nfc-draft-note" translate="no" role="status">Open the full preview before continuing.</p></div></aside>
  <div class="nfc-profile-box" id="postPaymentNfcForm"><h3>建立它的 NFC 档案</h3><p>主人资料和犬种已自动带入。上传照片，写下它的小故事。</p>
-      <div class="nfc-fields">        <div class="field wide"><div class="nfc-photo-heading"><label for="nfcPhotoInput">宠物照片</label><small id="nfcOwnPhotoHint">也可以上传自己狗狗的照片哦。</small></div><div class="nfc-photo-row"><div class="nfc-photo-preview"><span id="nfcPhotoDefault"><img id="nfcUploadSelectedAvatar" alt="已选择的狗狗头像"></span><img id="nfcPhotoPreview" alt="宠物照片预览"></div><div><input id="nfcPhotoInput" type="file" accept="image/*"><small>建议选择清晰正面照，网页会自动压缩。</small><small id="nfcPhotoStatus" role="status" aria-live="polite"></small></div></div></div>
+      <div class="nfc-fields">        <div class="field wide"><div class="nfc-photo-heading"><label for="nfcPhotoInput">宠物照片</label><label id="nfcOwnPhotoHint" for="nfcPhotoInput"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 5l1.5-2h5L16 5h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><circle cx="12" cy="13" r="4"/></svg><span>也可以上传自己狗狗的照片哦。</span></label></div><div class="nfc-photo-row"><div class="nfc-photo-preview"><span id="nfcPhotoDefault"><img id="nfcUploadSelectedAvatar" alt="已选择的狗狗头像"></span><img id="nfcPhotoPreview" alt="宠物照片预览"></div><div><input id="nfcPhotoInput" type="file" accept="image/*"><small>建议选择清晰正面照，网页会自动压缩。</small><small id="nfcPhotoStatus" role="status" aria-live="polite"></small></div></div></div>
         <div class="field"><label for="nfcOwnerName">NFC 主人姓名 / 主人称呼</label><input id="nfcOwnerName" readonly placeholder="与狗牌主人姓名自动同步"></div>
         <div class="field"><label for="nfcOwnerPhone">NFC 主人电话（必填）</label><input id="nfcOwnerPhone" readonly inputmode="tel" autocomplete="tel" maxlength="40" placeholder="例如：+852 9123 4567"></div>
 
         <div class="field"><label for="nfcGender">性别</label><input id="nfcGender" type="hidden"><div class="nfc-choice-group" role="radiogroup" aria-label="宠物性别"><label class="nfc-choice"><input type="radio" name="nfcGenderChoice" value="Boy ♂">男孩 ♂</label><label class="nfc-choice"><input type="radio" name="nfcGenderChoice" value="Girl ♀">女孩 ♀</label></div></div>
         <div class="field"><label for="nfcNeutered">绝育情况</label><input id="nfcNeutered" type="hidden"><div class="nfc-choice-group" role="radiogroup" aria-label="宠物绝育情况"><label class="nfc-choice"><input type="radio" name="nfcNeuteredChoice" value="Neutered ✂️">已绝育 ✂️</label><label class="nfc-choice"><input type="radio" name="nfcNeuteredChoice" value="Not neutered">未绝育</label><label class="nfc-choice"><input type="radio" name="nfcNeuteredChoice" value="Unknown">不清楚</label></div></div>
         <div class="field"><label for="nfcBreed">品种（必填）</label><input id="nfcBreed" placeholder="例如：柯基"></div>
-        <div class="field"><label for="nfcBirthDate">出生日期</label><input id="nfcBirthDate" type="date"></div>
+        <div class="field"><label id="nfcBirthDateLabel" for="nfcBirthDateButton">出生日期</label><input id="nfcBirthDate" type="hidden"><button type="button" id="nfcBirthDateButton" translate="no" aria-haspopup="dialog" aria-controls="nfcBirthDateDialog" aria-expanded="false" aria-labelledby="nfcBirthDateLabel nfcBirthDateValue"><span id="nfcBirthDateValue">Select date</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18M8 15h2m4 0h2m-8 3h2"/></svg></button></div>
         <div class="field wide"><label for="nfcCoatMarks">毛色与明显特征</label><input id="nfcCoatMarks" placeholder="例如：黄白色，左耳有黑点"></div>
         <div class="field"><label for="nfcBackupOwnerName">备用联系人（必填）</label><input id="nfcBackupOwnerName" placeholder="姓名或称呼"></div>
         <div class="field"><label for="nfcBackupPhone">备用联系电话（必填）</label><input id="nfcBackupPhone" inputmode="tel" placeholder="备用号码"></div>
@@ -2636,7 +2667,7 @@ background:#ffffff;box-shadow:0 8px 22px rgba(50,90,110,.18);font-size:23px;disp
       <a href="privacy.html" target="_blank" rel="noopener">隐私</a>
     </nav>
   </aside>
- <div class="summary-card payment-checkout"><div id="mobileCheckoutPricing"></div><div class="checkout-final-total"><span>应付总额</span><b id="checkoutFinalTotal"></b></div><p class="checkout-final-reference" id="checkoutFinalReference" translate="no"></p><div class="field" id="customerEmailField"><label for="customerEmail">订单通知邮箱（必填）</label><input id="customerEmail" type="email" inputmode="email" autocomplete="email" maxlength="254" required placeholder="请输入常用邮箱" aria-describedby="customerEmailHelp"><small id="customerEmailHelp">我们会通过这个邮箱通知你订单、制作及寄送进度，并发送狗牌效果图和宠物档案网址。</small></div><div class="nfc-profile-checkout" id="checkoutNfcSummary"><img alt="宠物照片预览" hidden><div><b translate="no" data-nfc-name></b><p>NFC 档案已准备好</p></div><button type="button" class="secondary small-btn" id="editCheckoutNfc">查看或修改宠物资料</button></div><a id="localPostPaymentPreview" class="local-post-payment-preview" hidden target="_blank" rel="noopener">预览配送资料页（无需付款） ↗</a><div class="payment-method-picker" role="tablist" aria-label="选择支付方式"><button type="button" class="payment-method-choice active" id="chooseStripePayment" role="tab" aria-selected="true" aria-controls="stripePaymentPanel">银行卡 / Apple Pay</button><button type="button" class="payment-method-choice" id="chooseFpsPayment" role="tab" aria-selected="false" aria-controls="fpsPaymentPanel">FPS 转数快</button></div><div class="payment-panel" id="stripePaymentPanel" role="tabpanel"><div class="payment-code-box" style="gap:14px"><div aria-hidden="true" style="width:76px;height:76px;border-radius:22px;background:#635bff;color:#fff;display:grid;place-items:center;font-size:38px;font-weight:900">S</div><b style="font-size:22px">Stripe 安全付款</b><small class="payment-scan-note">点击下面按钮后会进入 Stripe 加密付款页。只有 Stripe 确认付款成功，订单才会生效。</small><button type="button" class="primary demo-pay-btn" id="stripePayBtn">使用银行卡 / Apple Pay 付款</button></div></div><div class="payment-panel" id="fpsPaymentPanel" role="tabpanel" hidden><div class="fps-payment-box"><h3>FPS 转数快付款</h3><div class="fps-amount" id="fpsPaymentAmount">应付 HK$299</div><img class="fps-qr-image" src="fps-qr.jpeg" alt="中银香港 FPS 收款二维码"><div class="fps-reference">付款备注：<span id="fpsOrderReference">订单号生成中</span></div><ol class="fps-steps"><li>打开香港银行 App，扫描上面的二维码。</li><li>输入页面显示的应付金额，并在备注填写订单号。</li><li>付款后截屏，上传付款截图。</li></ol><div class="fps-proof-field"><label for="fpsPaymentProof">上传付款截图（必填）</label><input id="fpsPaymentProof" type="file" accept="image/jpeg,image/png,image/webp"><small class="fps-pay-note">截图会随订单发给商家核对。请勿上传密码、验证码或完整账户资料。</small><img id="fpsProofPreview" class="fps-proof-preview" alt="付款截图预览"></div><button type="button" class="primary demo-pay-btn" id="fpsPaidBtn" disabled>我已付款，继续填写资料</button><small class="fps-pay-note">提交后状态为“等待确认到账”。商家核实银行入账后才会开始制作。</small></div></div>
+ <div class="summary-card payment-checkout"><div id="mobileCheckoutPricing"></div><div class="checkout-final-total"><span>应付总额</span><b id="checkoutFinalTotal"></b></div><p class="checkout-final-reference" id="checkoutFinalReference" translate="no"></p><div class="field" id="customerEmailField"><label for="customerEmail">订单通知邮箱（必填）</label><input id="customerEmail" type="email" inputmode="email" autocomplete="email" maxlength="254" required placeholder="请输入常用邮箱" aria-describedby="customerEmailHelp"><small id="customerEmailHelp">我们会通过这个邮箱通知你订单、制作及寄送进度，并发送狗牌效果图和宠物档案网址。</small></div><a id="localPostPaymentPreview" class="local-post-payment-preview" hidden target="_blank" rel="noopener">预览配送资料页（无需付款） ↗</a><div class="payment-method-picker" role="tablist" aria-label="选择支付方式"><button type="button" class="payment-method-choice active" id="chooseStripePayment" role="tab" aria-selected="true" aria-controls="stripePaymentPanel">银行卡 / Apple Pay</button><button type="button" class="payment-method-choice" id="chooseFpsPayment" role="tab" aria-selected="false" aria-controls="fpsPaymentPanel">FPS 转数快</button></div><div class="payment-panel" id="stripePaymentPanel" role="tabpanel"><div class="payment-code-box" style="gap:14px"><div aria-hidden="true" style="width:76px;height:76px;border-radius:22px;background:#635bff;color:#fff;display:grid;place-items:center;font-size:38px;font-weight:900">S</div><b style="font-size:22px">Stripe 安全付款</b><small class="payment-scan-note">点击下面按钮后会进入 Stripe 加密付款页。只有 Stripe 确认付款成功，订单才会生效。</small><button type="button" class="primary demo-pay-btn" id="stripePayBtn">使用银行卡 / Apple Pay 付款</button></div></div><div class="payment-panel" id="fpsPaymentPanel" role="tabpanel" hidden><div class="fps-payment-box"><h3>FPS 转数快付款</h3><div class="fps-amount" id="fpsPaymentAmount">应付 HK$299</div><img class="fps-qr-image" src="fps-qr.jpeg" alt="中银香港 FPS 收款二维码"><div class="fps-reference">付款备注：<span id="fpsOrderReference">订单号生成中</span></div><ol class="fps-steps"><li>打开香港银行 App，扫描上面的二维码。</li><li>输入页面显示的应付金额，并在备注填写订单号。</li><li>付款后截屏，上传付款截图。</li></ol><div class="fps-proof-field"><label for="fpsPaymentProof">上传付款截图（必填）</label><input id="fpsPaymentProof" type="file" accept="image/jpeg,image/png,image/webp"><small class="fps-pay-note">截图会随订单发给商家核对。请勿上传密码、验证码或完整账户资料。</small><img id="fpsProofPreview" class="fps-proof-preview" alt="付款截图预览"></div><button type="button" class="primary demo-pay-btn" id="fpsPaidBtn" disabled>我已付款，继续填写资料</button><small class="fps-pay-note">提交后状态为“等待确认到账”。商家核实银行入账后才会开始制作。</small></div></div>
  <div class="action-row"><button type="button" class="secondary" data-go="petProfile">返回宠物档案</button><button type="button" class="secondary" data-go="confirm">再看狗牌正反面</button></div></div></div>
 </section>
 
@@ -4568,6 +4599,7 @@ function createOrderFromState(existingOrder=null){
 let currentOrder=null;
 let stripeReturnAttempt=0;
 function resetHomeCustomization(){
+  nfcPreviewReviewed.clear();nfcPreviewPhotoIds.clear();
   nfcPhotoSequence++;nfcPhotoTask=Promise.resolve();nfcEditingPaidOrder=false;document.getElementById("nfcContinueBtn").disabled=false;
   // Cancel pending navigation without deleting paid or unfinished orders.
   stripeReturnAttempt++;
@@ -4615,7 +4647,6 @@ function paymentCodeImage(method){
   return `<img class="real-payment-code" src="${src}" alt="${isAlipay?'支付宝':'微信'}收款码">`;
 }
 function renderPaymentOrder(order){
-  renderCheckoutProfileSummary();
   document.getElementById('checkoutFinalTotal').textContent=money(calculateOrderPricing(order.items||[]).total);
   document.getElementById('checkoutFinalReference').textContent=order.id;
   renderPhoneProof(order);
@@ -5183,9 +5214,37 @@ function renderNfcSelectedPortrait(){
     fitNfcCircularPortrait(image);
   }
 }
+// Review receipts are tied to the exact profile contents, so edits require a new preview.
+const nfcPreviewReviewed=new Set(),nfcPreviewPhotoIds=new Map();
+function nfcPreviewSignature(design=state){
+  const p=cloneNfcProfile(design.nfcProfile),photo=p.photoData||'';
+  if(photo&&!nfcPreviewPhotoIds.has(photo))nfcPreviewPhotoIds.set(photo,nfcPreviewPhotoIds.size+1);
+  p.photoData=photo?nfcPreviewPhotoIds.get(photo):0;
+  const breed=breedByKey(design.selectedBreedKey);
+  if(breed&&[breed.name,TsunI18n.english(breed.name),TsunI18n.traditional(breed.name)].includes(p.breed))p.breed=breed.key;
+  return JSON.stringify([design.petName,design.ownerName,design.ownerPhone,design.baseVariant,design.selectedBreedKey,design.selectedBreedColor,p]);
+}
+function hasViewedNfcPreview(design=state){return nfcPreviewReviewed.has(nfcPreviewSignature(design));}
+function syncNfcPreviewGate(){
+  const action=document.getElementById('nfcPreviewAction'),button=document.getElementById('nfcContinueBtn');if(!action||!button)return;
+  const ready=hasViewedNfcPreview(),en=TsunI18n.locale==='en';
+  action.dataset.reviewed=String(ready);
+  document.getElementById('nfcPreviewRequired').textContent=ready?(en?'Preview viewed':'已查看預覽'):(en?'Required preview':'請先查看預覽');
+  document.getElementById('nfcPreviewGateNote').textContent=ready?(en?'Preview viewed. You can now continue.':'已查看完整檔案，可以繼續下一步。'):(en?'Open the full preview to check your pet’s profile before continuing. If you edit any details, preview again.':'請先打開完整預覽，查看寶貝的檔案，再繼續下一步。修改資料後，請重新預覽。');
+  button.setAttribute('aria-disabled',String(!ready));button.setAttribute('translate','no');
+  button.textContent=ready?TsunI18n.t(nfcEditingPaidOrder?'保存并返回配送资料':'下一步：付款'):(en?'Preview first':'先查看預覽');
+}
+function requestNfcPreview(){
+  syncNfcPreviewGate();
+  const action=document.getElementById('nfcPreviewAction'),button=action.querySelector('[data-nfc-draft-preview]');
+  action.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth',block:'center'});
+  button.focus({preventScroll:true});
+  toast(TsunI18n.locale==='en'?'Please open the full NFC preview before continuing.':'請先查看完整 NFC 檔案預覽，再繼續下一步。',4500);
+}
+
 function nfcDraftOrder(){return {...captureTagDesign(),id:'PREVIEW'};}
 function renderNfcDraftCard(){
-  renderNfcSelectedPortrait();
+  renderNfcSelectedPortrait();syncNfcPreviewGate();
   const p=state.nfcProfile,card=document.getElementById('nfcDraftCard');if(!card)return;
   TsunProfileTheme.apply(card,state.baseVariant);
   const photo=document.getElementById('nfcDraftPhoto'),fallback=document.getElementById('nfcDraftFallback');
@@ -5200,6 +5259,7 @@ function renderNfcDraftCard(){
 function hydrateNfcInputs(){
   if(!state.nfcProfile.breed)syncNfcBreedFromSelection();
   for(const [id,key]of Object.entries(NFC_FIELD_KEYS)){const el=document.getElementById(id);if(el)el.value=state.nfcProfile[key]||'';}
+  window.TsunBirthDate?.sync();
   document.getElementById('nfcOwnerName').value=state.ownerName||'';syncOwnerPhoneControls();
   for(const [name,key,id]of [['nfcGenderChoice','gender','nfcGender'],['nfcNeuteredChoice','neutered','nfcNeutered']]){
     document.getElementById(id).value=state.nfcProfile[key]||'';
@@ -5245,6 +5305,7 @@ async function finishNfcDraft(){
   try{
     await nfcPhotoTask;
     if(!validateNfcProfile())return;
+    if(!hasViewedNfcPreview()){requestNfcPreview();return;}
     if(nfcEditingPaidOrder&&currentOrder){
       currentOrder.nfcProfile=cloneNfcProfile(state.nfcProfile);
       if(currentOrder.items?.[0])currentOrder.items[0].nfcProfile=cloneNfcProfile(state.nfcProfile);
@@ -5255,20 +5316,14 @@ async function finishNfcDraft(){
     commitCurrentDesign();
     const missing=cartDesigns.findIndex(item=>nfcProfileMissing(item.nfcProfile).length);
     if(missing>=0){currentCartIndex=missing;applyTagDesign(cartDesigns[missing]);hydrateNfcInputs();validateNfcProfile();return;}
+    const unreviewed=cartDesigns.findIndex(item=>!hasViewedNfcPreview(item));
+    if(unreviewed>=0){currentCartIndex=unreviewed;applyTagDesign(cartDesigns[unreviewed]);hydrateNfcInputs();requestNfcPreview();return;}
     if(!validateOrderPhoneConfirmations(cartDesigns))return;
     const reusable=currentOrder&&['待付款','等待付款'].includes(currentOrder.status)?currentOrder:null;
     currentOrder=createOrderFromState(reusable);currentOrder.nfcPreparedBeforePayment=true;updateStoredOrder(currentOrder);
     go('checkout');renderPaymentOrder(currentOrder);
   }catch(error){console.error('NFC draft could not be saved',error);toast('资料未能保存，请稍后重试。',5000);}
-  finally{button.disabled=false;}
-}
-function renderCheckoutProfileSummary(){
-  const box=document.getElementById('checkoutNfcSummary');if(!box)return;
-  const p=currentOrder?.nfcProfile||state.nfcProfile;
-  const name=box.querySelector('[data-nfc-name]');name.textContent=currentOrder?.petName||state.petName||'LUCKY';
-  const src=p.photoData||selectedNfcPortrait(currentOrder||state);
-  const image=box.querySelector('img');image.hidden=!src;
-  if(src)image.src=src;else image.removeAttribute('src');
+  finally{button.disabled=false;syncNfcPreviewGate();}
 }
 function renderPaidProfileSummary(){
   const p=currentOrder?.nfcProfile||state.nfcProfile;
@@ -5298,13 +5353,12 @@ function bindNfcDraftFlow(){
   document.getElementById('nfcContinueBtn').addEventListener('click',finishNfcDraft);
   document.getElementById('nfcDraftBack').addEventListener('click',async()=>{await nfcPhotoTask;if(nfcEditingPaidOrder){go('orderSuccess');return;}commitCurrentDesign();go('confirm');renderPaymentOrder(currentOrder);});
   document.getElementById('nfcTagSelect').addEventListener('change',async e=>{const index=Number(e.target.value);await nfcPhotoTask;commitCurrentDesign();currentCartIndex=index;applyTagDesign(cartDesigns[index]);document.getElementById('nfcPhotoInput').value='';hydrateNfcInputs();});
-  document.querySelectorAll('[data-nfc-draft-preview]').forEach(button=>button.addEventListener('click',async()=>{await nfcPhotoTask;openChineseProfile(nfcDraftOrder());}));
+  document.querySelectorAll('[data-nfc-draft-preview]').forEach(button=>button.addEventListener('click',async()=>{
+    await nfcPhotoTask;const signature=nfcPreviewSignature();openChineseProfile(nfcDraftOrder());
+    if(document.getElementById('orderDocumentDialog').open){nfcPreviewReviewed.add(signature);syncNfcPreviewGate();}
+  }));
   document.getElementById('postPaymentNfcForm').addEventListener('input',event=>{if(event.target.value?.trim())event.target.removeAttribute('aria-invalid');renderNfcDraftCard();});
   document.getElementById('postPaymentNfcForm').addEventListener('change',renderNfcDraftCard);
-  document.getElementById('editCheckoutNfc').addEventListener('click',()=>{
-    if(currentOrder?.items?.length&&!cartDesigns.length){cartDesigns=currentOrder.items.map(item=>({...item,nfcProfile:cloneNfcProfile(item.nfcProfile)}));currentCartIndex=0;applyTagDesign(cartDesigns[0]);}
-    openNfcDraft();
-  });
   document.getElementById('editPaidNfc').addEventListener('click',()=>openNfcDraft(true));
   window.addEventListener('tsun-language-change',()=>{renderNfcDraftCard();});
 }
@@ -7772,9 +7826,13 @@ if(LOCAL_FILE_REVIEW){
  dock.className='mobile-builder-nav';
  const tabHome=document.createComment('mobile steps home');tabs.before(tabHome);
  const slots=[
-  {selector:'#breedCategoryTabs',panel:document.getElementById('panel-face')},
-  {selector:'.base-color-tabs',panel:document.getElementById('panel-base')}
+  {selector:'#breedCategoryTabs',kind:'breed',panel:document.getElementById('panel-face')},
+  {selector:'.base-color-tabs',kind:'colours',panel:document.getElementById('panel-base')}
  ];
+ const updateSubmenuLabels=()=>{
+  const en=window.TsunI18n?.locale!=='zh-Hant';
+  for(const slot of slots)if(slot.title)slot.title.textContent=slot.kind==='breed'?(en?'Dog portrait · Filter by size':'狗狗頭像 · 按體型篩選'):(en?'Tag colours · All 7 collections':'底板配色 · 全部 7 個系列');
+ };
  const measure=()=>{
   if(!media.matches||!dock.isConnected||!page.classList.contains('active'))return;
   const height=Math.ceil(dock.getBoundingClientRect().height)+'px';
@@ -7791,8 +7849,15 @@ if(LOCAL_FILE_REVIEW){
    if(!dock.isConnected){tabHome.after(dock);dock.append(tabs);}
    for(const slot of slots){
     if(!slot.node)continue;
-    if(slot.node.parentElement!==dock)dock.append(slot.node);
-    slot.node.hidden=!slot.panel.classList.contains('active');
+    if(!slot.group){
+     slot.group=document.createElement('section');slot.group.className='mobile-builder-submenu';slot.group.dataset.kind=slot.kind;
+     slot.title=document.createElement('span');slot.title.className='mobile-submenu-title';slot.title.id='mobile-'+slot.kind+'-heading';slot.title.setAttribute('translate','no');
+     slot.group.setAttribute('aria-labelledby',slot.title.id);slot.group.append(slot.title);
+    }
+    if(slot.group.parentElement!==dock)dock.append(slot.group);
+    if(slot.node.parentElement!==slot.group)slot.group.append(slot.node);
+    slot.node.hidden=false;slot.group.hidden=!slot.panel.classList.contains('active');
+    updateSubmenuLabels();
    }
   }else{
    if(tabs.parentElement===dock)tabHome.after(tabs);
@@ -7807,6 +7872,7 @@ if(LOCAL_FILE_REVIEW){
  if('ResizeObserver'in window)new ResizeObserver(measure).observe(dock);
  media.addEventListener('change',sync);
  window.addEventListener('tsun-base-library-ready',sync);
+ window.addEventListener('tsun-language-change',updateSubmenuLabels);
  sync();
 })();
 </script><script id="tsun-policy-language-links">/* Keep policy links usable both in a downloaded preview and on the website. */
@@ -7923,4 +7989,135 @@ if(LOCAL_FILE_REVIEW){
  document.addEventListener('DOMContentLoaded',()=>refreshers.forEach(sync=>sync()));
 })();
 </script>
+<style id="tsun-birthday-calendar-R83">
+#nfcBirthDateButton{width:100%;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 17px;border:1px solid #d9e7ee;border-radius:18px;background:#fbfdfe;color:#24485a;font:inherit;font-size:16px;text-align:left;cursor:pointer}
+#nfcBirthDateButton svg{width:21px;height:21px;flex:none;color:#668596}
+#nfcBirthDateButton[data-empty="true"] #nfcBirthDateValue{color:#8297a2}
+#nfcBirthDateButton:focus-visible,#nfcBirthDateDialog button:focus-visible{outline:3px solid #3985a5;outline-offset:3px}
+#nfcBirthDateDialog{box-sizing:border-box;width:min(368px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);padding:20px;margin:auto;border:1px solid #d5e5eb;border-radius:24px;background:#fff;color:#24485a;box-shadow:0 20px 65px #153d5033;font-family:inherit;overflow:auto}
+#nfcBirthDateDialog::backdrop{background:rgb(19 42 54 / .32)}
+#nfcBirthDateDialog [hidden]{display:none!important}
+#nfcBirthDateDialog button{box-sizing:border-box;font-family:inherit;font-size:15px;font-weight:650;color:#24485a;cursor:pointer;box-shadow:none;line-height:1.25;letter-spacing:normal}
+#nfcBirthDateDialog .date-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+#nfcBirthDateDialog h3{font-size:19px;line-height:1.4;margin:0;font-weight:750;color:#24485a}
+#nfcBirthDateDialog .date-icon-button{display:grid;place-items:center;width:40px;height:40px;min-width:40px;padding:0;border:0;border-radius:50%;background:#f1f7fa;font-size:25px;flex:none}
+#nfcBirthDateDialog .date-toolbar{display:flex;align-items:center;gap:5px;margin-bottom:16px}
+#nfcBirthDateDialog .date-period{display:flex;justify-content:center;flex:1;min-width:0;gap:2px}
+#nfcBirthDateDialog .date-period button{border:0;background:transparent;padding:10px 4px;font-size:16px;min-height:44px;border-radius:10px}
+#nfcBirthDateDialog .date-weekdays,#nfcBirthDateDialog .date-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+#nfcBirthDateDialog .date-weekdays{margin-bottom:5px}
+#nfcBirthDateDialog .date-weekdays span{font-size:11px;font-weight:650;text-align:center;padding:7px 0;color:#718792}
+#nfcBirthDateDialog .date-days button,#nfcBirthDateDialog .date-days>span{height:42px;min-width:0;border:0;border-radius:50%;padding:0;display:grid;place-items:center;background:transparent}
+#nfcBirthDateDialog .date-days button:hover:not(:disabled){background:#eaf5fa}
+#nfcBirthDateDialog .date-days button[aria-current="date"]{box-shadow:inset 0 0 0 1px #b5d9e9}
+#nfcBirthDateDialog .date-days button[aria-pressed="true"]{background:#bfe5f5;color:#173f51}
+#nfcBirthDateDialog button:disabled{opacity:.35;cursor:default}
+#nfcBirthDateDialog .date-months,#nfcBirthDateDialog .date-years{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;max-height:288px;overflow:auto;overscroll-behavior:contain;padding:4px}
+#nfcBirthDateDialog .date-months button,#nfcBirthDateDialog .date-years button{min-height:48px;padding:8px 3px;border:1px solid #e1ecf1;border-radius:13px;background:#f8fbfd;font-size:13px}
+#nfcBirthDateDialog .date-months button[aria-pressed="true"],#nfcBirthDateDialog .date-years button[aria-pressed="true"]{background:#bfe5f5;border-color:#a7d9ed}
+#nfcBirthDateDialog .date-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid #e2edf2;margin-top:18px;padding-top:14px}
+#nfcBirthDateDialog .date-actions button{min-height:44px;padding:11px 24px;border:1px solid #d4e5ec;background:white;border-radius:999px}
+#nfcBirthDateDialog .date-actions #nfcDateDone{background:#bfe5f5;border-color:#bfe5f5}
+@media(max-width:360px){#nfcBirthDateDialog{padding:16px}#nfcBirthDateDialog .date-period button{font-size:15px}}
+</style>
+<dialog id="nfcBirthDateDialog" aria-labelledby="nfcDateTitle" translate="no">
+ <div class="date-heading"><h3 id="nfcDateTitle">Date of birth</h3><button type="button" class="date-icon-button" id="nfcDateClose" aria-label="Close">×</button></div>
+ <div class="date-toolbar">
+  <button type="button" class="date-icon-button" id="nfcDatePrevious" aria-label="Previous month">‹</button>
+  <div class="date-period"><button type="button" id="nfcDateMonth" aria-expanded="false"></button><button type="button" id="nfcDateYear" aria-expanded="false"></button></div>
+  <button type="button" class="date-icon-button" id="nfcDateNext" aria-label="Next month">›</button>
+ </div>
+ <div id="nfcDateCalendar"><div id="nfcDateWeekdays" class="date-weekdays" aria-hidden="true"></div><div id="nfcDateDays" class="date-days" role="group" aria-label="Choose a day"></div></div>
+ <div id="nfcDateMonths" class="date-months" hidden></div>
+ <div id="nfcDateYears" class="date-years" hidden></div>
+ <div class="date-actions"><button type="button" id="nfcDateClear">Clear</button><button type="button" id="nfcDateDone">Done</button></div>
+</dialog>
+<script id="tsun-birthday-calendar-script-R83">
+(()=>{
+ 'use strict';
+ const input=document.getElementById('nfcBirthDate'),trigger=document.getElementById('nfcBirthDateButton'),dialog=document.getElementById('nfcBirthDateDialog');
+ const $=id=>document.getElementById(id),englishMonths=['January','February','March','April','May','June','July','August','September','October','November','December'];
+ const strings={en:{title:'Date of birth',empty:'Select date',close:'Close',previous:'Previous month',next:'Next month',clear:'Clear',done:'Done',day:'Choose a day',month:'Choose month',year:'Choose year',weekdays:['Sun','Mon','Tue','Wed','Thu','Fri','Sat']},zh:{title:'出生日期',empty:'選擇日期',close:'關閉',previous:'上一個月',next:'下一個月',clear:'清除',done:'完成',day:'選擇日期',month:'選擇月份',year:'選擇年份',weekdays:['日','一','二','三','四','五','六']}};
+ const isEnglish=()=>window.TsunI18n?.locale!=='zh-Hant';
+ const copy=()=>strings[isEnglish()?'en':'zh'];
+ const today=()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth(),d.getDate());};
+ const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+ function parse(value){
+  const parts=/^(\d{4})-(\d{2})-(\d{2})$/.exec(value||'');if(!parts)return null;
+  const d=new Date(+parts[1],+parts[2]-1,+parts[3]);return iso(d)===value?d:null;
+ }
+ const months=()=>isEnglish()?englishMonths:Array.from({length:12},(_,i)=>`${i+1}月`);
+ const fullDate=d=>isEnglish()?`${d.getDate()} ${englishMonths[d.getMonth()]} ${d.getFullYear()}`:`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+ let draft='',view=today(),panel='days';
+ function sync(){
+  const d=parse(input.value);trigger.dataset.empty=String(!d);trigger.lang=isEnglish()?'en':'zh-Hant';
+  $('nfcBirthDateValue').textContent=d?(isEnglish()?`${String(d.getDate()).padStart(2,'0')} ${englishMonths[d.getMonth()].slice(0,3)} ${d.getFullYear()}`:fullDate(d)):copy().empty;
+ }
+ function dayButton(d){
+  const button=document.createElement('button');button.type='button';button.dataset.date=iso(d);button.textContent=d.getDate();
+  button.setAttribute('aria-label',fullDate(d));button.setAttribute('aria-pressed',String(iso(d)===draft));
+  if(iso(d)===iso(today()))button.setAttribute('aria-current','date');
+  button.disabled=d>today();return button;
+ }
+ function render(){
+  const t=copy(),year=view.getFullYear(),month=view.getMonth();dialog.lang=isEnglish()?'en':'zh-Hant';
+  $('nfcDateTitle').textContent=t.title;$('nfcDateClose').setAttribute('aria-label',t.close);
+  $('nfcDateClear').textContent=t.clear;$('nfcDateDone').textContent=t.done;$('nfcDateDone').disabled=!parse(draft);
+  $('nfcDatePrevious').setAttribute('aria-label',t.previous);$('nfcDateNext').setAttribute('aria-label',t.next);
+  $('nfcDatePrevious').disabled=year<=1900&&month===0;
+  $('nfcDateNext').disabled=year===today().getFullYear()&&month>=today().getMonth();
+  $('nfcDatePrevious').hidden=$('nfcDateNext').hidden=panel!=='days';
+  $('nfcDateMonth').textContent=months()[month];$('nfcDateYear').textContent=String(year);
+  for(const [id,key]of [['nfcDateMonth','month'],['nfcDateYear','year']]){
+   $(id).setAttribute('aria-label',t[key]+': '+$(id).textContent);$(id).setAttribute('aria-expanded',String(panel===key+'s'));
+  }
+  $('nfcDateCalendar').hidden=panel!=='days';$('nfcDateMonths').hidden=panel!=='months';$('nfcDateYears').hidden=panel!=='years';
+  if(panel==='months'){
+   $('nfcDateMonths').replaceChildren(...months().map((name,i)=>{const b=document.createElement('button');b.type='button';b.textContent=name;b.dataset.month=i;b.setAttribute('aria-pressed',String(i===month));b.disabled=year===today().getFullYear()&&i>today().getMonth();return b;}));
+  }else if(panel==='years'){
+   const start=Math.max(today().getFullYear(),year),years=[];
+   for(let y=start;y>=1900;y--){const b=document.createElement('button');b.type='button';b.textContent=y;b.dataset.year=y;b.setAttribute('aria-pressed',String(y===year));years.push(b);}
+   $('nfcDateYears').replaceChildren(...years);
+  }else{
+   $('nfcDateWeekdays').replaceChildren(...t.weekdays.map(name=>{const s=document.createElement('span');s.textContent=name;return s;}));
+   $('nfcDateDays').setAttribute('aria-label',t.day);const cells=[];
+   const first=new Date(year,month,1),count=new Date(year,month+1,0).getDate();
+   for(let i=0;i<first.getDay();i++){const s=document.createElement('span');s.setAttribute('aria-hidden','true');cells.push(s);}
+   for(let day=1;day<=count;day++)cells.push(dayButton(new Date(year,month,day)));
+   $('nfcDateDays').replaceChildren(...cells);
+  }
+ }
+ function focusDay(value=draft){const b=dialog.querySelector(`[data-date="${value}"]`);(b&&!b.disabled?b:$('nfcDateDays').querySelector('button:not(:disabled)'))?.focus({preventScroll:true});}
+ function close(){dialog.close();}
+ function commit(value){input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));sync();close();}
+ trigger.addEventListener('click',()=>{
+  draft=input.value;view=parse(draft)||today();view=new Date(view.getFullYear(),view.getMonth(),1);panel='days';render();
+  trigger.setAttribute('aria-expanded','true');dialog.showModal();focusDay(draft||iso(today()));
+ });
+ $('nfcDateClose').addEventListener('click',close);
+ dialog.addEventListener('close',()=>{trigger.setAttribute('aria-expanded','false');trigger.focus({preventScroll:true});});
+ dialog.addEventListener('click',e=>{if(e.target!==dialog)return;const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)close();});
+ $('nfcDateClear').addEventListener('click',()=>commit(''));
+ $('nfcDateDone').addEventListener('click',()=>{if(parse(draft))commit(draft);});
+ $('nfcDatePrevious').addEventListener('click',()=>{view=new Date(view.getFullYear(),view.getMonth()-1,1);render();});
+ $('nfcDateNext').addEventListener('click',()=>{view=new Date(view.getFullYear(),view.getMonth()+1,1);render();});
+ $('nfcDateMonth').addEventListener('click',()=>{panel=panel==='months'?'days':'months';render();if(panel==='months')$('nfcDateMonths').querySelector('[aria-pressed="true"]')?.focus({preventScroll:true});});
+ $('nfcDateYear').addEventListener('click',()=>{panel=panel==='years'?'days':'years';render();if(panel==='years'){const b=$('nfcDateYears').querySelector('[aria-pressed="true"]');b?.scrollIntoView({block:'nearest'});b?.focus({preventScroll:true});}});
+ $('nfcDateMonths').addEventListener('click',e=>{const b=e.target.closest('[data-month]');if(!b||b.disabled)return;view=new Date(view.getFullYear(),Number(b.dataset.month),1);panel='days';render();focusDay();});
+ $('nfcDateYears').addEventListener('click',e=>{const b=e.target.closest('[data-year]');if(!b)return;const y=Number(b.dataset.year),m=y===today().getFullYear()?Math.min(view.getMonth(),today().getMonth()):view.getMonth();view=new Date(y,m,1);panel='days';render();focusDay();});
+ $('nfcDateDays').addEventListener('click',e=>{const b=e.target.closest('[data-date]');if(!b||b.disabled)return;draft=b.dataset.date;render();focusDay();});
+ $('nfcDateDays').addEventListener('keydown',e=>{
+  const b=e.target.closest('[data-date]');if(!b)return;const d=parse(b.dataset.date);let next;
+  const steps={ArrowLeft:-1,ArrowRight:1,ArrowUp:-7,ArrowDown:7,Home:-d.getDay(),End:6-d.getDay()};
+  if(e.key in steps){next=new Date(d);next.setDate(next.getDate()+steps[e.key]);}
+  else if(e.key==='PageUp'||e.key==='PageDown'){const m=d.getMonth()+(e.key==='PageUp'?-1:1);next=new Date(d.getFullYear(),m,Math.min(d.getDate(),new Date(d.getFullYear(),m+1,0).getDate()));}
+  else return;
+  e.preventDefault();if(next>today()||next.getFullYear()<1900)return;view=new Date(next.getFullYear(),next.getMonth(),1);render();focusDay(iso(next));
+ });
+ input.addEventListener('input',sync);input.addEventListener('change',sync);
+ window.addEventListener('tsun-language-change',()=>{sync();if(dialog.open)render();});
+ window.TsunBirthDate={sync};sync();
+})();
+</script>
+
 </body></html>
