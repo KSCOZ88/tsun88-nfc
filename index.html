@@ -1448,7 +1448,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 .finale-sources{position:absolute;left:-10000px;top:0;width:350px;visibility:hidden;pointer-events:none;contain:layout style;}
 #confirm .finale-sources .board{width:350px!important;height:399px!important;transform:none!important;}
 </style>
-<meta name="tsun-build" content="2026-10-10-swipe-guidance-R85"><style id="tsun-v49-visibility">
+<meta name="tsun-build" content="2026-10-10-clean-guidance-R86"><style id="tsun-v49-visibility">
 .tsun-build-label{font-size:10px;font-weight:600;letter-spacing:.02em;border:1px solid #dcebf0;border-radius:20px;padding:5px 8px;color:#66838f;white-space:nowrap}
 .tsun-preview-reaction-hint{margin:12px 0 0;text-align:center;color:#5b7c8d;font-size:12px;line-height:1.5}
 .tsun-preview-reaction-hint[hidden]{display:none}
@@ -2317,7 +2317,6 @@ html[lang=en] #tsunEnterTitle{font-family:'TsunNunito','Arial Rounded MT Bold',A
 /* R84: keep choices visible and show their hierarchy on phones. */
 @media(max-width:760px){
  #customize .mobile-builder-nav .mobile-builder-submenu{margin:9px 0 0 8px;padding:9px 7px 7px;border-left:3px solid #aecfdf;border-radius:0 12px 12px 0;background:#f3f8fa}
- #customize .mobile-builder-submenu .mobile-submenu-title{display:block;margin:0 0 7px;font-size:11px;font-weight:750;color:#557484;line-height:1.35;letter-spacing:0}
  #customize .mobile-builder-nav .breed-category-tabs{padding:0;gap:3px}
  #customize .mobile-builder-nav .breed-category-btn{border:1px solid transparent;background:transparent;border-radius:9px;min-height:40px;padding:6px 1px;font-size:10px;line-height:1.3;letter-spacing:0;font-weight:650;color:#526c79}
  #customize .mobile-builder-nav .breed-category-btn.active{background:#315c70;border-color:#315c70;color:#fff}
@@ -2352,8 +2351,6 @@ html[lang=en] #tsunEnterTitle{font-family:'TsunNunito','Arial Rounded MT Bold',A
 #tsunIntroScene.ts-journey-wave{pointer-events:auto;touch-action:pan-y pinch-zoom;cursor:grab;user-select:none;-webkit-user-select:none}
 #tsunIntroScene.is-dragging{cursor:grabbing}
 #tsunIntroScene .ts-wave-tag{pointer-events:none}
-.ts-tag-swipe-hint{display:flex;align-items:center;justify-content:center;gap:8px;color:#547483;font-size:11px;font-weight:750;line-height:1.45;margin:13px 0 0}
-.ts-tag-swipe-hint svg{width:24px;height:16px;flex:none}
 #tsunScrollProfile{display:inline-flex;align-items:center;justify-content:center;gap:7px;margin:9px 0 0;padding:8px 12px;min-height:40px;background:#edf7fc;border:1px solid #d2e7f0;border-radius:999px;color:#355d70;font-family:inherit;font-weight:750;font-size:11px;line-height:1.4;letter-spacing:0;cursor:pointer;pointer-events:auto}
 #tsunScrollProfile svg{width:18px;height:18px;flex:none}
 #tsunScrollProfile:hover{background:#deeff7}
@@ -2369,7 +2366,6 @@ html[lang=en] #tsunEnterTitle{font-family:'TsunNunito','Arial Rounded MT Bold',A
  #customize .mobile-builder-nav .builder-step-number{width:19px;height:19px;font-size:10px}
  #customize .mobile-builder-nav>.tabs>.tab:not(:last-child)::after{right:-13px;width:11px;font-size:16px}
  #customize .mobile-builder-nav>.tabs>.tab>span:last-child{min-height:25px;display:flex;align-items:center;justify-content:center}
- .ts-tag-swipe-hint{font-size:10px;margin-top:12px}
  #tsunScrollProfile{font-size:10px;padding:8px 10px}
 }
 
@@ -2482,7 +2478,6 @@ background:#ffffff;box-shadow:0 8px 22px rgba(50,90,110,.18);font-size:23px;disp
       <p class="ts-journey-eyebrow">3D PRINTED · MADE FOR YOUR PET</p>
       <h1 id="tsunEnterTitle">DIY你的狗牌</h1>
       <p class="ts-journey-description">选一个颜色，写下它的名字。<br>一枚专属狗牌，一份随身宠物档案。</p>
-      <p class="ts-tag-swipe-hint" translate="no"><svg viewBox="0 0 28 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 8h24M7 3 2 8l5 5m14-10 5 5-5 5"/></svg><span id="tsunSwipeHintText">Swipe tags left or right</span></p>
       <button id="tsunScrollProfile" type="button" translate="no"><span id="tsunScrollProfileText">Scroll down to explore NFC profiles</span><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M10 3v14M4 11l6 6 6-6"/></svg></button>
     </div>
     <button id="tsunWaveToggle" class="ts-wave-toggle" type="button" aria-pressed="false">暂停动画 <span aria-hidden="true">Ⅱ</span></button>
@@ -6465,7 +6460,6 @@ window.addEventListener('pageshow',event=>{
   document.addEventListener('visibilitychange',()=>{if(document.hidden)endWaveDrag();});
   function updateWaveGuidance(){
     const en=window.TsunI18n?.locale!=='zh-Hant';
-    document.getElementById('tsunSwipeHintText').textContent=en?'Swipe tags left or right':'左右滑動，看看不同狗牌';
     document.getElementById('tsunScrollProfileText').textContent=en?'Scroll down to explore NFC profiles':'向下滑動，探索 NFC 檔案';
     document.getElementById('tsunScrollProfile').setAttribute('aria-label',en?'Scroll down to explore NFC pet profiles':'向下查看 NFC 寵物檔案');
     scene.setAttribute('aria-label',en?'Two moving rows of pet tags. Swipe either row left or right, or scroll down to explore NFC profiles.':'上下兩排狗牌，可分別左右滑動；向下滑動可探索 NFC 檔案。');
@@ -7911,7 +7905,7 @@ if(LOCAL_FILE_REVIEW){
  ];
  const updateSubmenuLabels=()=>{
   const en=window.TsunI18n?.locale!=='zh-Hant';
-  for(const slot of slots)if(slot.title)slot.title.textContent=slot.kind==='breed'?(en?'Dog portrait · Filter by size':'狗狗頭像 · 按體型篩選'):(en?'Tag colours · All 7 collections':'底板配色 · 全部 7 個系列');
+  for(const slot of slots)if(slot.group)slot.group.setAttribute('aria-label',slot.kind==='breed'?(en?'Dog sizes':'狗狗體型'):(en?'Colour collections':'配色系列'));
  };
  const measure=()=>{
   if(!media.matches||!dock.isConnected||!page.classList.contains('active'))return;
@@ -7931,8 +7925,6 @@ if(LOCAL_FILE_REVIEW){
     if(!slot.node)continue;
     if(!slot.group){
      slot.group=document.createElement('section');slot.group.className='mobile-builder-submenu';slot.group.dataset.kind=slot.kind;
-     slot.title=document.createElement('span');slot.title.className='mobile-submenu-title';slot.title.id='mobile-'+slot.kind+'-heading';slot.title.setAttribute('translate','no');
-     slot.group.setAttribute('aria-labelledby',slot.title.id);slot.group.append(slot.title);
     }
     if(slot.group.parentElement!==dock)dock.append(slot.group);
     if(slot.node.parentElement!==slot.group)slot.group.append(slot.node);
