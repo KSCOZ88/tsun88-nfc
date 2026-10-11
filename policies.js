@@ -1,4 +1,4 @@
-/* TSUN88 policy pages share the storefront's language preference. */
+/* 8TSUN8 policy pages share the storefront's language preference. */
 (()=>{
  'use strict';
  const params=new URLSearchParams(location.search);
@@ -13,7 +13,7 @@
   for(const panel of document.querySelectorAll('[data-policy-language]'))panel.hidden=panel.dataset.policyLanguage!==locale;
   for(const button of document.querySelectorAll('[data-set-language]'))button.setAttribute('aria-pressed',String(button.dataset.setLanguage===locale));
   const current=document.querySelector('[data-policy-language="'+locale+'"]');
-  document.title=current.dataset.title+' | TSUN88';
+  document.title=current.dataset.title+' | 8TSUN8';
   document.querySelector('meta[name="description"]').content=current.dataset.description;
   document.querySelector('.ts-policy-home').textContent=chinese?'返回網站 →':'Back to the shop →';
   const skip=document.querySelector('.ts-policy-skip');skip.textContent=chinese?'跳至正文':'Skip to content';skip.href='#content-'+locale;
