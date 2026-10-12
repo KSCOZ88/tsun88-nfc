@@ -1448,7 +1448,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 .finale-sources{position:absolute;left:-10000px;top:0;width:350px;visibility:hidden;pointer-events:none;contain:layout style;}
 #confirm .finale-sources .board{width:350px!important;height:399px!important;transform:none!important;}
 </style>
-<meta name="tsun-build" content="2026-10-11-independent-accessory-sound-R89"><style id="tsun-v49-visibility">
+<meta name="tsun-build" content="2026-10-12-unique-accessory-colours-R90"><style id="tsun-v49-visibility">
 .tsun-build-label{font-size:10px;font-weight:600;letter-spacing:.02em;border:1px solid #dcebf0;border-radius:20px;padding:5px 8px;color:#66838f;white-space:nowrap}
 .tsun-preview-reaction-hint{margin:12px 0 0;text-align:center;color:#5b7c8d;font-size:12px;line-height:1.5}
 .tsun-preview-reaction-hint[hidden]{display:none}
@@ -2873,9 +2873,12 @@ function decorBoardPalette(variant=state.baseVariant){
 }
 function decorColourPalette(variant=state.baseVariant){
   const base=decorBoardPalette(variant);
-  // Preserve the two original accessory shades. Only the new option follows the band.
-  const yellow=DECOR_COLORS.yellow.hex,pink=DECOR_COLORS.pink.hex;
-  return {yellow:{label:'黄色',hex:yellow},pink:{label:'粉色',hex:pink},band:{label:DECOR_BAND_LABELS[base.accent]||'底板色',hex:base.accent,band:true}};
+  // R90: one choice per colour family. Keep the lower-band shade when it is
+  // yellow or pink; legacy colour keys resolve to it for previews and printing.
+  const band={label:DECOR_BAND_LABELS[base.accent]||'底板色',hex:base.accent,band:true};
+  const yellow=band.label===DECOR_COLORS.yellow.label?band.hex:DECOR_COLORS.yellow.hex;
+  const pink=band.label===DECOR_COLORS.pink.label?band.hex:DECOR_COLORS.pink.hex;
+  return {yellow:{label:'黄色',hex:yellow},pink:{label:'粉色',hex:pink},band};
 }
 function validDecorColour(color){return color==='band'||Object.prototype.hasOwnProperty.call(DECOR_COLORS,color);}
 function decorColourTone(color,variant=state.baseVariant){
@@ -2883,7 +2886,7 @@ function decorColourTone(color,variant=state.baseVariant){
 }
 function decorColourOptions(variant=state.baseVariant){
   const colours=decorColourPalette(variant);
-  // Deduplicate only exact colours, never treat two different shades as one material.
+  // The matching family now uses the same material; show its band choice once.
   return Object.entries(colours).filter(([key,tone])=>key==='band'||tone.hex!==colours.band.hex);
 }
 function decorPrintColours(items,variant=state.baseVariant){
