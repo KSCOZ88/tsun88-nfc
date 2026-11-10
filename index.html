@@ -588,6 +588,7 @@
 
 <style id="fpsCheckoutStyles">
 .payment-method-picker{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}.payment-method-choice{border:2px solid #dfe7ef;background:#fff;border-radius:18px;padding:14px 12px;font:inherit;font-weight:800;color:#20324a;cursor:pointer}.payment-method-choice.active{border-color:#72a8c7;background:#f2f9fd;box-shadow:0 0 0 3px rgba(114,168,199,.16)}.payment-panel[hidden]{display:none!important}.fps-payment-box{margin-top:14px;padding:18px;border:1px solid #dfe7ef;border-radius:22px;background:#fffafc;display:grid;justify-items:center;gap:12px;text-align:center}.fps-payment-box h3{margin:0;color:#243247}.fps-qr-image{width:min(300px,86vw);height:auto;border-radius:18px;border:1px solid #ead4dc;background:#fff}.fps-amount{font-size:23px;font-weight:900;color:#a50035}.fps-reference{padding:8px 12px;border-radius:12px;background:#f3f6f8;font-weight:800;word-break:break-all}.fps-steps{margin:0;text-align:left;line-height:1.75;color:#45576d}.fps-proof-field{width:100%;padding:14px;border:1px dashed #caa5b2;border-radius:16px;background:#fff;text-align:left}.fps-proof-field label{display:block;font-weight:800;margin-bottom:8px}.fps-proof-preview{display:none;max-width:170px;max-height:170px;margin:10px auto 0;border-radius:12px;border:1px solid #e1e6eb}.fps-proof-preview.visible{display:block}.fps-pending-result{margin:18px 0;padding:20px;border-radius:20px;background:#fff8e9;border:1px solid #efd699;color:#584720}.fps-pending-result h3{margin:0 0 8px}.fps-pending-result p{margin:6px 0}.fps-pay-note{font-size:13px;color:#65758a}@media(max-width:640px){.payment-method-picker{grid-template-columns:1fr}.fps-payment-box{padding:14px}.fps-qr-image{width:min(270px,82vw)}}
+.payment-method-picker.paypal-ready{grid-template-columns:repeat(3,minmax(0,1fr))}.payment-method-picker .payment-method-choice[hidden]{display:none!important}#paypalButtonContainer>div{max-width:100%}@media(max-width:530px){.payment-method-picker.paypal-ready{grid-template-columns:1fr 1fr}.payment-method-picker.paypal-ready #choosePaypalPayment{grid-column:1/-1}}
 </style>
 <style>
 #shippingAddressHint{display:block;margin-top:8px;color:#567385;font-size:13px;line-height:1.7}
@@ -2690,7 +2691,7 @@ background:#ffffff;box-shadow:0 8px 22px rgba(50,90,110,.18);font-size:23px;disp
       <a href="privacy.html" target="_blank" rel="noopener">隐私</a>
     </nav>
   </aside>
- <div class="summary-card payment-checkout"><div id="mobileCheckoutPricing"></div><div class="checkout-final-total"><span>应付总额</span><b id="checkoutFinalTotal"></b></div><p class="checkout-final-reference" id="checkoutFinalReference" translate="no"></p><div class="field" id="customerEmailField"><label for="customerEmail">订单通知邮箱（必填）</label><input id="customerEmail" type="email" inputmode="email" autocomplete="email" maxlength="254" required placeholder="请输入常用邮箱" aria-describedby="customerEmailHelp"><small id="customerEmailHelp">我们会通过这个邮箱通知你订单、制作及寄送进度，并发送狗牌效果图和宠物档案网址。</small></div><a id="localPostPaymentPreview" class="local-post-payment-preview" hidden target="_blank" rel="noopener">预览配送资料页（无需付款） ↗</a><div class="payment-method-picker" role="tablist" aria-label="选择支付方式"><button type="button" class="payment-method-choice active" id="chooseStripePayment" role="tab" aria-selected="true" aria-controls="stripePaymentPanel">银行卡 / Apple Pay</button><button type="button" class="payment-method-choice" id="chooseFpsPayment" role="tab" aria-selected="false" aria-controls="fpsPaymentPanel">FPS 转数快</button></div><div class="payment-panel" id="stripePaymentPanel" role="tabpanel"><div class="payment-code-box" style="gap:14px"><div aria-hidden="true" style="width:76px;height:76px;border-radius:22px;background:#635bff;color:#fff;display:grid;place-items:center;font-size:38px;font-weight:900">S</div><b style="font-size:22px">Stripe 安全付款</b><small class="payment-scan-note">点击下面按钮后会进入 Stripe 加密付款页。只有 Stripe 确认付款成功，订单才会生效。</small><button type="button" class="primary demo-pay-btn" id="stripePayBtn">使用银行卡 / Apple Pay 付款</button></div></div><div class="payment-panel" id="fpsPaymentPanel" role="tabpanel" hidden><div class="fps-payment-box"><h3>FPS 转数快付款</h3><div class="fps-amount" id="fpsPaymentAmount">应付 HK$299</div><img class="fps-qr-image" src="fps-qr.jpeg" alt="中银香港 FPS 收款二维码"><div class="fps-reference">付款备注：<span id="fpsOrderReference">订单号生成中</span></div><ol class="fps-steps"><li>打开香港银行 App，扫描上面的二维码。</li><li>输入页面显示的应付金额，并在备注填写订单号。</li><li>付款后截屏，上传付款截图。</li></ol><div class="fps-proof-field"><label for="fpsPaymentProof">上传付款截图（必填）</label><input id="fpsPaymentProof" type="file" accept="image/jpeg,image/png,image/webp"><small class="fps-pay-note">截图会随订单发给商家核对。请勿上传密码、验证码或完整账户资料。</small><img id="fpsProofPreview" class="fps-proof-preview" alt="付款截图预览"></div><button type="button" class="primary demo-pay-btn" id="fpsPaidBtn" disabled>我已付款，继续填写资料</button><small class="fps-pay-note">提交后状态为“等待确认到账”。商家核实银行入账后才会开始制作。</small></div></div>
+ <div class="summary-card payment-checkout"><div id="mobileCheckoutPricing"></div><div class="checkout-final-total"><span>应付总额</span><b id="checkoutFinalTotal"></b></div><p class="checkout-final-reference" id="checkoutFinalReference" translate="no"></p><div class="field" id="customerEmailField"><label for="customerEmail">订单通知邮箱（必填）</label><input id="customerEmail" type="email" inputmode="email" autocomplete="email" maxlength="254" required placeholder="请输入常用邮箱" aria-describedby="customerEmailHelp"><small id="customerEmailHelp">我们会通过这个邮箱通知你订单、制作及寄送进度，并发送狗牌效果图和宠物档案网址。</small></div><a id="localPostPaymentPreview" class="local-post-payment-preview" hidden target="_blank" rel="noopener">预览配送资料页（无需付款） ↗</a><div class="payment-method-picker" role="tablist" aria-label="选择支付方式"><button type="button" class="payment-method-choice active" id="chooseStripePayment" role="tab" aria-selected="true" aria-controls="stripePaymentPanel">银行卡 / Apple Pay</button><button type="button" class="payment-method-choice" id="chooseFpsPayment" role="tab" aria-selected="false" aria-controls="fpsPaymentPanel">FPS 转数快</button><button type="button" class="payment-method-choice" id="choosePaypalPayment" role="tab" aria-selected="false" aria-controls="paypalPaymentPanel" hidden>PayPal（测试）</button></div><div class="payment-panel" id="stripePaymentPanel" role="tabpanel"><div class="payment-code-box" style="gap:14px"><div aria-hidden="true" style="width:76px;height:76px;border-radius:22px;background:#635bff;color:#fff;display:grid;place-items:center;font-size:38px;font-weight:900">S</div><b style="font-size:22px">Stripe 安全付款</b><small class="payment-scan-note">点击下面按钮后会进入 Stripe 加密付款页。只有 Stripe 确认付款成功，订单才会生效。</small><button type="button" class="primary demo-pay-btn" id="stripePayBtn">使用银行卡 / Apple Pay 付款</button></div></div><div class="payment-panel" id="paypalPaymentPanel" role="tabpanel" hidden><div class="payment-code-box" style="gap:14px"><b style="font-size:22px">PayPal 安全付款 · Sandbox 测试</b><small class="payment-scan-note">目前仅在测试预览环境使用，不会扣除真实金额。</small><div id="paypalButtonContainer" style="width:100%;max-width:340px;min-height:48px"></div><button type="button" class="secondary" id="paypalRecoverBtn" hidden>检查刚才的 PayPal 付款结果</button><small id="paypalPaymentStatus" aria-live="polite"></small></div></div><div class="payment-panel" id="fpsPaymentPanel" role="tabpanel" hidden><div class="fps-payment-box"><h3>FPS 转数快付款</h3><div class="fps-amount" id="fpsPaymentAmount">应付 HK$299</div><img class="fps-qr-image" src="fps-qr.jpeg" alt="中银香港 FPS 收款二维码"><div class="fps-reference">付款备注：<span id="fpsOrderReference">订单号生成中</span></div><ol class="fps-steps"><li>打开香港银行 App，扫描上面的二维码。</li><li>输入页面显示的应付金额，并在备注填写订单号。</li><li>付款后截屏，上传付款截图。</li></ol><div class="fps-proof-field"><label for="fpsPaymentProof">上传付款截图（必填）</label><input id="fpsPaymentProof" type="file" accept="image/jpeg,image/png,image/webp"><small class="fps-pay-note">截图会随订单发给商家核对。请勿上传密码、验证码或完整账户资料。</small><img id="fpsProofPreview" class="fps-proof-preview" alt="付款截图预览"></div><button type="button" class="primary demo-pay-btn" id="fpsPaidBtn" disabled>我已付款，继续填写资料</button><small class="fps-pay-note">提交后状态为“等待确认到账”。商家核实银行入账后才会开始制作。</small></div></div>
  <div class="action-row"><button type="button" class="secondary" data-go="petProfile">返回宠物档案</button><button type="button" class="secondary" data-go="confirm">再看狗牌正反面</button></div></div></div>
 </section>
 
@@ -3093,9 +3094,10 @@ async function notifyOrderStage(order,stage,attachments=[]){
   const previews=await prepareEmailPreviews(order);
   if(order.isDemo||location.protocol==='file:')return {demo:true,customerSent:false,merchantSent:false,previews};
   const verifiedStripeOrder=order.stripeSessionId&&order.stripeOrderToken;
-  const endpoint=verifiedStripeOrder?(PAYMENT_API_ORIGIN+'/api/paid-order-email'):(localStorage.getItem('tsun88_order_email_endpoint')||ORDER_EMAIL_ENDPOINT).trim();
+  const verifiedPaypalOrder=order.paypalOrderId&&order.paypalOrderToken;
+  const endpoint=verifiedPaypalOrder?(PAYMENT_API_ORIGIN+'/api/paypal-paid-order-email'):verifiedStripeOrder?(PAYMENT_API_ORIGIN+'/api/paid-order-email'):(localStorage.getItem('tsun88_order_email_endpoint')||ORDER_EMAIL_ENDPOINT).trim();
   try{
-    const payload=verifiedStripeOrder?{type:stage,sessionId:order.stripeSessionId,orderToken:order.stripeOrderToken,order,previews,attachments}:{type:stage,order,previews,attachments};
+    const payload=verifiedPaypalOrder?{type:stage,paypalOrderId:order.paypalOrderId,orderToken:order.paypalOrderToken,order,previews,attachments}:verifiedStripeOrder?{type:stage,sessionId:order.stripeSessionId,orderToken:order.stripeOrderToken,order,previews,attachments}:{type:stage,order,previews,attachments};
     const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const result=await response.json().catch(()=>({}));return {...result,ok:response.ok};
   }catch{return {ok:false,customerSent:false,merchantSent:false,error:'订单通知暂未发送，请稍后重试'};}
@@ -3114,6 +3116,9 @@ const PAYMENT_API_ORIGIN=(location.protocol==='file:'||location.hostname.endsWit
 const ORDER_EMAIL_ENDPOINT=PAYMENT_API_ORIGIN+'/api/order-email';
 const STRIPE_CREATE_ENDPOINT=PAYMENT_API_ORIGIN+'/api/create-checkout-session';
 const STRIPE_CONFIRM_ENDPOINT=PAYMENT_API_ORIGIN+'/api/confirm-paid-order';
+const PAYPAL_CONFIG_ENDPOINT=PAYMENT_API_ORIGIN+'/api/paypal-config';
+const PAYPAL_CREATE_ENDPOINT=PAYMENT_API_ORIGIN+'/api/paypal-create-order';
+const PAYPAL_CAPTURE_ENDPOINT=PAYMENT_API_ORIGIN+'/api/paypal-capture-order';
 const FPS_ORDER_ENDPOINT=PAYMENT_API_ORIGIN+'/api/fps-order';
 let fpsProofData='';
 const EMPTY_NFC_PROFILE={photoData:'',gender:'',neutered:'',breed:'',birthDate:'',coatMarks:'',backupOwnerName:'',backupPhone:'',location:'',ownerMessage:'',diet:'',personality:'',clinic:'',clinicPhone:''};
@@ -4835,18 +4840,112 @@ async function copyText(value){
 }
 function openPaymentSuccess(){
   const modal=document.getElementById('paymentSuccessModal'),method=document.getElementById('paymentSuccessMethod'),continueButton=document.getElementById('paymentSuccessContinue');
-  if(method)method.textContent='Stripe 付款成功';
+  if(method)method.textContent=(currentOrder?.payMethod==='PayPal'?'PayPal':'Stripe')+' 付款成功';
   if(modal)modal.hidden=false;
   if(continueButton)continueButton.focus();
 }
 function continueAfterPayment(){const modal=document.getElementById('paymentSuccessModal');if(modal)modal.hidden=true;if(!state.nfcProfile.breed)syncNfcBreedFromSelection();go('orderSuccess');}
 function selectPaymentMethod(method){
-  const fps=method==='FPS';state.payMethod=fps?'FPS':'Stripe';
-  const stripeChoice=document.getElementById('chooseStripePayment'),fpsChoice=document.getElementById('chooseFpsPayment'),stripePanel=document.getElementById('stripePaymentPanel'),fpsPanel=document.getElementById('fpsPaymentPanel');
-  if(stripeChoice){stripeChoice.classList.toggle('active',!fps);stripeChoice.setAttribute('aria-selected',String(!fps));}
-  if(fpsChoice){fpsChoice.classList.toggle('active',fps);fpsChoice.setAttribute('aria-selected',String(fps));}
-  if(stripePanel)stripePanel.hidden=fps;if(fpsPanel)fpsPanel.hidden=!fps;
+  if(method==='PayPal'&&!paypalConfiguration)return;
+  state.payMethod=['FPS','PayPal'].includes(method)?method:'Stripe';
+  for(const [choiceId,panelId,value] of [['chooseStripePayment','stripePaymentPanel','Stripe'],['chooseFpsPayment','fpsPaymentPanel','FPS'],['choosePaypalPayment','paypalPaymentPanel','PayPal']]){
+    const choice=document.getElementById(choiceId),panel=document.getElementById(panelId),selected=state.payMethod===value;
+    if(choice){choice.classList.toggle('active',selected);choice.setAttribute('aria-selected',String(selected));}
+    if(panel)panel.hidden=!selected;
+  }
+  if(state.payMethod==='PayPal')renderPaypalCheckout();
 }
+
+// PayPal checkout is opt-in: hidden on production until Live credentials are configured.
+let paypalConfiguration=null,paypalSdkLoading=null,paypalButtonsRendered=false;
+function paypalMessage(message){const el=document.getElementById('paypalPaymentStatus');if(el)el.textContent=message||'';}
+async function initPaypalAvailability(){
+  if(PROFILE_PREVIEW_MODE||LOCAL_FILE_REVIEW)return;
+  try{
+    const response=await fetch(PAYPAL_CONFIG_ENDPOINT,{cache:'no-store'});
+    const config=await response.json().catch(()=>({}));
+    if(!response.ok||!config.available||!config.clientId||!['sandbox','live'].includes(config.mode))return;
+    paypalConfiguration=config;
+    const choice=document.getElementById('choosePaypalPayment');if(choice){choice.hidden=false;choice.textContent=config.mode==='live'?'PayPal':'PayPal（测试）';choice.parentElement?.classList.add('paypal-ready');}
+    const heading=document.querySelector('#paypalPaymentPanel b');if(heading)heading.textContent=config.mode==='live'?'PayPal 安全付款':'PayPal 安全付款 · Sandbox 测试';
+    const note=document.querySelector('#paypalPaymentPanel .payment-scan-note');if(note&&config.mode==='live')note.textContent='PayPal 会安全处理付款，只有核实成功后订单才会生效。';
+  }catch{ /* Keep existing Stripe/FPS intact if PayPal is unavailable. */ }
+}
+function paypalShortOrder(order){
+  return {id:order.id,customerEmail:order.customerEmail,items:(order.items||[]).map(item=>({decorItems:{front:item.decorItems?.front||[],back:item.decorItems?.back||[]}}))};
+}
+async function paypalApi(endpoint,body){
+  const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(result.error||'PayPal 暂时无法处理此订单');
+  return result;
+}
+async function confirmPaypalPurchase(order,paypalOrderId){
+  const wasPaid=order.paymentStatus==='paid';
+  const confirmation=await paypalApi(PAYPAL_CAPTURE_ENDPOINT,{paypalOrderId,order:paypalShortOrder(order)});
+  if(!confirmation.paid||!confirmation.orderToken)throw new Error('PayPal 尚未确认收款');
+  order.isDemo=false;order.status='已付款';order.paymentStatus='paid';order.payMethod='PayPal';
+  order.paypalOrderId=confirmation.paypalOrderId||paypalOrderId;order.paypalOrderToken=confirmation.orderToken;
+  order.paymentTransactionId=confirmation.captureId;order.paidAmountCents=confirmation.amountTotal;
+  order.paidAt=new Date().toISOString();order.nfcStatus='等待客户填写';
+  order.customerEmailStatus='付款已确认，邮件待重试';updateStoredOrder(order);
+  currentOrder=order;preparePaidOrderScreen(order);
+  if(!state.nfcProfile.breed)syncNfcBreedFromSelection();
+  go('orderSuccess');openPaymentSuccess();
+  if(!wasPaid)startPaymentEmail(order);
+  return confirmation;
+}
+async function retryPaypalPayment(){
+  if(!currentOrder?.paypalOrderId){toast('还没有可核对的 PayPal 订单。');return;}
+  const button=document.getElementById('paypalRecoverBtn');if(button)button.disabled=true;
+  paypalMessage('正在向 PayPal 核实收款…');
+  try{await confirmPaypalPurchase(currentOrder,currentOrder.paypalOrderId);paypalMessage('付款已确认。');}
+  catch(error){paypalMessage(error.message||'PayPal 尚未完成付款');toast((error.message||'暂时无法确认付款')+'。请勿重复付款。',7000);}
+  finally{if(button)button.disabled=false;}
+}
+async function renderPaypalCheckout(){
+  if(!paypalConfiguration||paypalButtonsRendered||!document.getElementById('paypalButtonContainer'))return;
+  paypalMessage('正在载入 PayPal…');
+  try{
+    if(!paypalSdkLoading){
+      paypalSdkLoading=new Promise((resolve,reject)=>{
+        if(window.paypal?.Buttons){resolve();return;}
+        const script=document.createElement('script');
+        const params=new URLSearchParams({'client-id':paypalConfiguration.clientId,currency:'HKD',intent:'capture',components:'buttons'});
+        script.src='https://www.paypal.com/sdk/js?'+params.toString();script.async=true;
+        script.onload=()=>window.paypal?.Buttons?resolve():reject(new Error('PayPal 无法载入'));
+        script.onerror=()=>reject(new Error('PayPal 网络加载失败'));
+        document.head.appendChild(script);
+      });
+    }
+    await paypalSdkLoading;
+    const button=window.paypal.Buttons({
+      style:{layout:'vertical',label:'paypal',shape:'rect'},
+      async createOrder(){
+        if(!ensureCheckoutProfiles()||!currentOrder||!validateCustomerEmail()||!validateOrderPhoneConfirmations(currentOrder.items||[]))throw new Error('请先填写完整订单资料');
+        currentOrder.customerEmail=state.customerEmail;currentOrder.payMethod='PayPal';currentOrder.status='等待付款';
+        const p=calculateOrderPricing(currentOrder.items||[]);currentOrder.pricing=p;updateStoredOrder(currentOrder);
+        paypalMessage('正在创建 PayPal 订单…');
+        const result=await paypalApi(PAYPAL_CREATE_ENDPOINT,{orderId:currentOrder.id,customerEmail:currentOrder.customerEmail,itemCount:p.itemCount,decorCount:p.decorCount});
+        currentOrder.paypalOrderId=result.id;currentOrder.paypalCheckoutStartedAt=new Date().toISOString();updateStoredOrder(currentOrder);
+        const recovery=document.getElementById('paypalRecoverBtn');if(recovery)recovery.hidden=false;
+        paypalMessage('请在 PayPal 测试窗口完成付款授权。');return result.id;
+      },
+      async onApprove(data){
+        paypalMessage('正在向 PayPal 核实付款，请不要关闭页面…');
+        try{await confirmPaypalPurchase(currentOrder,String(data.orderID||currentOrder?.paypalOrderId||''));paypalMessage('PayPal 付款成功。');}
+        catch(error){paypalMessage(error.message||'PayPal 付款核对失败');toast('请点击「检查刚才的 PayPal 付款结果」，不要再次付款。',9000);}
+      },
+      onCancel(){paypalMessage('已取消 PayPal 付款，没有收到付款确认。');},
+      onError(error){console.error('PayPal checkout error',error);paypalMessage('PayPal 暂时无法继续。如已授权，请核对付款，避免重复扣款。');toast('PayPal 暂时无法打开或确认。请检查付款状态。',7000);}
+    });
+    if(!button.isEligible())throw new Error('当前浏览器无法使用 PayPal 按钮');
+    await button.render('#paypalButtonContainer');paypalButtonsRendered=true;
+    paypalMessage(paypalConfiguration.mode==='sandbox'?'测试模式：不涉及真实付款。':'请核对订单金额后付款。');
+    const recovery=document.getElementById('paypalRecoverBtn');if(recovery&&currentOrder?.paypalOrderId)recovery.hidden=false;
+  }catch(error){paypalSdkLoading=null;paypalMessage(error.message||'PayPal 按钮载入失败');}
+}
+
 function compressFpsProof(file){
   return new Promise((resolve,reject)=>{
     if(!file||!/^image\/(jpeg|png|webp)$/.test(file.type||''))return reject(new Error('请选择 JPG、PNG 或 WebP 图片'));
@@ -5028,9 +5127,11 @@ async function submitPostPaymentNfc(){
 function bindInputs(){
   const email=document.getElementById('customerEmail');
   if(email&&!email.dataset.bound){email.dataset.bound='1';email.value=state.customerEmail||'';email.addEventListener('input',()=>{state.customerEmail=email.value.trim();if(currentOrder){currentOrder.customerEmail=state.customerEmail;updateStoredOrder(currentOrder);}});}
-  const stripeChoice=document.getElementById('chooseStripePayment'),fpsChoice=document.getElementById('chooseFpsPayment'),fpsProof=document.getElementById('fpsPaymentProof');
+  const stripeChoice=document.getElementById('chooseStripePayment'),fpsChoice=document.getElementById('chooseFpsPayment'),paypalChoice=document.getElementById('choosePaypalPayment'),fpsProof=document.getElementById('fpsPaymentProof');
   if(stripeChoice&&!stripeChoice.dataset.bound){stripeChoice.dataset.bound='1';stripeChoice.addEventListener('click',()=>selectPaymentMethod('Stripe'));}
   if(fpsChoice&&!fpsChoice.dataset.bound){fpsChoice.dataset.bound='1';fpsChoice.addEventListener('click',()=>selectPaymentMethod('FPS'));}
+  if(paypalChoice&&!paypalChoice.dataset.bound){paypalChoice.dataset.bound='1';paypalChoice.addEventListener('click',()=>selectPaymentMethod('PayPal'));}
+  const paypalRecover=document.getElementById('paypalRecoverBtn');if(paypalRecover&&!paypalRecover.dataset.bound){paypalRecover.dataset.bound='1';paypalRecover.addEventListener('click',retryPaypalPayment);}
   if(fpsProof&&!fpsProof.dataset.bound){fpsProof.dataset.bound='1';fpsProof.addEventListener('change',async()=>{const file=fpsProof.files&&fpsProof.files[0],preview=document.getElementById('fpsProofPreview'),button=document.getElementById('fpsPaidBtn');fpsProofData='';if(button)button.disabled=true;if(preview){preview.classList.remove('visible');preview.removeAttribute('src');}if(!file)return;try{fpsProofData=await compressFpsProof(file);if(preview){preview.src=fpsProofData;preview.classList.add('visible');}if(button)button.disabled=false;}catch(error){fpsProof.value='';toast(error.message||'付款截图读取失败');}});}
   const profileLink=document.getElementById('nfcPublicLink');if(profileLink&&!profileLink.dataset.bound){profileLink.dataset.bound='1';profileLink.addEventListener('click',event=>{if(currentOrder?.cloudProfile){event.preventDefault();openChineseProfile();}});}
   const editProfile=document.getElementById('editNfcProfileBtn');if(editProfile&&!editProfile.dataset.bound){editProfile.dataset.bound='1';editProfile.addEventListener('click',editNfcProfile);}
@@ -5395,6 +5496,7 @@ try{
   bindNfcDraftFlow();
   updateCustomizeNav();
   renderAll();
+  initPaypalAvailability();
 }catch(error){
   console.error('页面初始化失败，继续恢复付款订单',error);
 }finally{
