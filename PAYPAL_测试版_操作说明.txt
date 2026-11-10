@@ -1,0 +1,30 @@
+8TSUN8 PayPal Checkout Sandbox 测试版（2026-11-10）
+
+本文件包包含网站完整代码。已在原有 Stripe、FPS 功能旁增加 PayPal 测试付款接口与按钮。现有 Stripe API 文件未修改。
+
+重要：这只是测试版；没有改动 GitHub 上的仓库，也没有部署到 Vercel；不能直接用来收取真实付款。
+
+部署建议：
+1. 在 GitHub 仓库 KSCOZ88/tsun88-nfc 新建测试分支 paypal-test，不要直接改 main。
+2. 将本压缩包解压，保留原来的目录结构，把以下文件上传/替换到 paypal-test 分支：
+   index.html (替换)
+   server/paypal-orders.js (新增)
+   api/paypal-config.js (新增)
+   api/paypal-create-order.js (新增)
+   api/paypal-capture-order.js (新增)
+   api/paypal-paid-order-email.js (新增)
+3. 等待 Vercel 创建此分支的 Preview 预览部署（不是 Production）。
+4. 在 Vercel 此项目的 Environment Variables > Preview 环境添加以下 Secret：
+   PAYPAL_SANDBOX_CLIENT_ID
+   PAYPAL_SANDBOX_CLIENT_SECRET
+   目前已在 Vercel 添加过的，不必重复添加。
+5. 在预览网站测试 PayPal（测试）。Sandbox 测试不会扣真实钱，付款测试也不会发出真实客户邮件。
+
+安全设计：
+- 服务器端从 PayPal 核实已付款订单、金额、币种和 capture 状态。
+- 浏览器不能获得 Client Secret；不在 ZIP 中存放密码或 API Secret。
+- Production 不会读取 Sandbox 环境变量。未明确配置 Live 凭证及 PAYPAL_MODE=live 前，正式站不会显示 PayPal 选项。
+- 正式上线前需要进一步测试回调、订单恢复、收款资格与企业账户关联。
+- PayPal 正式环境另外需要 PAYPAL_LIVE_CLIENT_ID、PAYPAL_LIVE_CLIENT_SECRET，并设置 PAYPAL_MODE=live；不要在完成测试前操作这些配置。
+
+本地检查：JavaScript 语法检查及模拟 PayPal API 流程测试通过。尚未在 PayPal 真正的 Sandbox 或线上部署进行端到端测试。

@@ -2,5 +2,8 @@
   "name": "tsun88-order-site",
   "version": "1.0.0",
   "private": true,
-  "dependencies": { "nodemailer": "10.0.10" }
+   "dependencies": {
+    "nodemailer": "10.0.10",
+    "@neondatabase/serverless": "^1.0.0"
+  }
 }

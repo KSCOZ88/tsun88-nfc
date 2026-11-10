@@ -3,20 +3,31 @@
     "api/order-email.js": {
       "maxDuration": 60
     },
-    "api/fps-order.js": {
-      "maxDuration": 60
+    "api/airwallex-create-session.js": {
+      "maxDuration": 30
     },
-    "api/confirm-paid-order.js": {
-      "maxDuration": 60
+    "api/airwallex-confirm-session.js": {
+      "maxDuration": 30
     },
-    "api/paid-order-email.js": {
+    "api/airwallex-paid-order-email.js": {
       "maxDuration": 60
     }
   },
   "rewrites": [
-    { "source": "/", "destination": "/index.html" }
+    {
+      "source": "/",
+      "destination": "/index.html"
+    }
   ],
   "headers": [
-    { "source": "/lucky88.html", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] }
+    {
+      "source": "/lucky88.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    }
   ]
 }
