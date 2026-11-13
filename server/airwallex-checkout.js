@@ -59,13 +59,22 @@ async function request(config,path,method='GET',payload){
   try{response=await fetch(config.base+path,{method,headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json','x-api-version':'2026-05-29'},...(payload?{body:JSON.stringify(payload)}:{}),signal:AbortSignal.timeout(20000)});}catch{throw fail('Airwallex 网络暂时无法连接，请稍后再试',503)}
   const body=await response.json().catch(()=>({}));
   if(!response.ok){
+
 const errorCode = body?.code ?? body?.error?.code;
+const errorSource = body?.source ?? body?.error?.source;
+
+const safeField = value =>
+  typeof value === 'string' &&
+  /^[a-zA-Z_][a-zA-Z0-9_.\[\]-]{0,119}$/.test(value)
+    ? value
+    : 'unavailable';
+
 console.error('[Airwallex Checkout Error]', {
   status: response.status,
-  code: typeof errorCode === 'string'
-    ? errorCode.slice(0, 100).replace(/[^a-zA-Z0-9_.-]/g, '')
-    : 'unknown'
+  code: safeField(errorCode),
+  source: safeField(errorSource)
 });
+
     // Don't return provider raw details or tokens to public clients.
     if(response.status===403)throw fail('Airwallex 尚未授权此功能，需核对 Checkout Sessions 权限或产品开通状态',503);
     if(response.status===401)throw fail('Airwallex API 登录权限失效，请联系网站管理员',503);
