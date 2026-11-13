@@ -1,0 +1,42 @@
+8TSUN8 PayPal Orders v2 接入包（2026-11-13）
+===========================================
+这是基于用户上传的 tsun88-nfc-main 项目生成的代码版本。
+目前没有操作或改变用户线上 GitHub / Vercel 账号，也没有执行真实交易。
+
+保留：原 8TSUN8 设计、HK$299/狗牌、HK$3/装饰、购物车、NFC 档案及 Airwallex 入口。
+新增：PayPal 官方跳转付款；服务器重新计算价格；在 PayPal 服务器确认 Capture COMPLETED 后写入 Neon；按已付款订单验证邮件；重复请求尽量安全重试。
+
+需要的 Vercel Production 环境变量：
+ PAYPAL_CLIENT_ID
+ PAYPAL_CLIENT_SECRET
+ DATABASE_URL (已有 Neon 项目提供)
+ SMTP_APP_PASSWORD（现有 Gmail 订单通知需要）
+可保留原有 Airwallex 变量及 Sandbox 变量，不必删除。
+
+使用步骤：
+ 1. 在 GitHub 从 main 新建 paypal-live-test 分支（不要覆盖 main），上传本 ZIP 解压后“内部”的所有文件，提交。
+ 2. 先确认 Vercel Preview 部署成功。Preview 模式仅使用已有的 PAYPAL_SANDBOX_CLIENT_ID/SECRET；如果你不做 Sandbox，可仅检查页面，不要在 Preview 尝试正式付款。
+ 3. 合并到 main 之前，确认 PayPal Developer 的 Live Activation_App 确实属于预期的 REYBAY INTERNATIONAL LIMITED 企业商户。
+ 4. 合并会在 Production 开启 PayPal 真实订单入口，务必先暂停对外推广，使用受控的真实小额订单验证：进入 PayPal、Capture 完成、PayPal 商户后台入账、Neon 记录、客户与商家邮件、快递资料与生产文件。请勿把仅进入 PayPal 视为付款成功。
+ 5. 如有报错查看 Vercel Runtime Logs：仅记录错误类别，不会输出 API Key / Secret。
+
+后台使用原有 API 文件：
+ api/paypal-create-order.js
+ api/paypal-capture-order.js
+ api/paypal-paid-order-email.js
+ server/paypal-orders.js
+ server/airwallex-order-mailer.js（仅新增支持跳过已发送邮件的可选参数，原 Airwallex 调用方式不变）
+ index.html（新增 PayPal 入口；移除未定义的旧初始化调用）
+
+数据库：网站服务端首次执行 PayPal 创建订单时会尝试自动创建：tsun_paypal_orders、tsun_paypal_mail 两张新表。
+这是独立于现有 orders 表的数据，不会清除或覆盖现有订单。
+若数据库账户没有建表权限，PayPal 会停止创建订单并提示数据库初始化失败，不会扣款。检查 Vercel 日志及 DATABASE_URL。
+
+重要限制（正式商用前需要确认）：
+ • 本版使用 PayPal 官方跳转 + REST Orders API。客户授权后必须返回站点以触发 Capture。若客户在返回前关闭浏览器，可能未扣款；若完成扣款后立即关闭，Neon 仍保存付款，但制作资料/邮件可能要人工补齐。
+ • 现有狗牌原始照片及大图保留在客户浏览器，Neon 仅保存去除大段 Base64 图片的数据快照。需要另建服务端对象存储与 Webhook 才能完全消除客户关闭浏览器造成的资料遗漏风险。
+ • 尚未接入 PayPal Webhook（异步付款/退款状态、争议、后台自动补单），正式全面推广前建议补上。
+ • 原有 Airwallex 付款参数验证错误仍存在，本版不尝试修复它。
+ • 邮件依赖 SMTP_APP_PASSWORD，SMTP 服务可能会短暂超时；已使用 Neon 状态标记降低重复发送风险，但不承诺跨 SMTP 故障的绝对只发送一次。
+ • PayPal 订单金额由服务器依据商品数量和 front/back 各不超过 6 件配饰计算；客户端提交的 total 不是支付依据。生产资料仍需商户核对。
+ • PayPal Live 尚未实测，不能宣称已经可正式收款。请不要在验证之前开放给公众。

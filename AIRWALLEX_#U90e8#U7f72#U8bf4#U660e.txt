@@ -1,0 +1,31 @@
+8TSUN8 · Airwallex 企业收款（测试分支）
+
+版本说明
+- 结账页面仅显示 Airwallex 企业收款。原 Stripe、PayPal、私人 FPS 入口及二维码已经移除。
+- 商品定价由服务端计算：每个狗牌 HK$299；每个配饰 HK$3。
+- 用户点击按钮后跳转 Airwallex 托管的 Checkout Session 收款页。
+- 返回网站后，服务端必须向 Airwallex 读取 Session，确认 COMPLETED、PAYMENT 模式、正确账户/币种/订单金额后，才将订单记为已付款。
+- API Key 仅从 Vercel 环境变量读取，绝对不要写到 GitHub。
+
+正式 Production 环境需设置（用户已在 Vercel 保存）：
+  AIRWALLEX_API_KEY
+  AIRWALLEX_CLIENT_ID
+  AIRWALLEX_ACCOUNT_ID
+
+Preview 测试环境必须使用 Airwallex Sandbox 独立凭证：
+  AIRWALLEX_SANDBOX_API_KEY
+  AIRWALLEX_SANDBOX_CLIENT_ID
+  AIRWALLEX_SANDBOX_ACCOUNT_ID
+
+说明：Production 的 API Key 不能用于 Preview。缺少 Sandbox 凭证时，预览付款会显示安全报错，不会尝试真实扣款。
+
+上线前必须做：
+1. 在 Airwallex 沙盒申请或启用 Checkout Sessions（这是 Beta / Early Access，账户可能需要支持团队开通）。
+2. 配置沙盒凭证到 Vercel Preview，部署此版本到测试分支。
+3. 测试成功付款、失败付款、付款取消及重新查询付款状态，核对后台记录金额。
+4. 配置并核实 Airwallex checkout_session.completed 与 payment_intent.succeeded 等 Webhook，尤其保障延迟入账场景，以及客户付款后直接关闭页面的情况。
+5. 正式上线前验证生产环境资格、付款页和端到端订单邮件，并由商户确认后合并 main 分支。
+
+注意：目前通过的是本地语法与模拟 API 测试，未用真实 Airwallex 凭证进行端到端付款；不要直接部署正式网站收款。
+
+GitHub 网站上传注意：如果使用网页版“Upload files”，新文件只能覆盖旧文件，不能自动删除旧文件。此次压缩包附带禁用旧付款 API 的 410 响应文件及无私人资料的空白 QR 图像，避免旧网址继续收款或显示私人账户。正式清理旧代码及其 Git 历史仍需单独执行。

@@ -1,0 +1,1 @@
+此旧 Stripe 测试说明已经停用。请参考 AIRWALLEX_部署说明.txt。
