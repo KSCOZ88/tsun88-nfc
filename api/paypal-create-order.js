@@ -1,2 +1,2 @@
-// Retired legacy payment endpoint. Only Airwallex corporate checkout is supported.
-module.exports=function(req,res){res.setHeader('Cache-Control','no-store');return res.status(410).json({error:'付款方式已停用，请通过 Airwallex 企业收款页面结账。'});};
+const p=require('../server/paypal-orders');
+module.exports=async(req,res)=>{if(!p.post(req,res))return;try{const body=p.bodyOf(req);return res.status(200).json(await p.create(req,body.order));}catch(err){p.error(res,err);}};
