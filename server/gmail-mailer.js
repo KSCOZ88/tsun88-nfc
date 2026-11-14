@@ -24,6 +24,6 @@ async function sendGmail(mail,eventId){
     const accepted=(result.accepted||[]).map(address=>String(address).toLowerCase());
     if(!mail.to.every(address=>accepted.includes(address.toLowerCase())))return {sent:false,error:'部分收件地址未被邮件服务接受'};
     return {sent:true,id:result.messageId};
-  }catch{return {sent:false,error:'Gmail 暂未接受邮件，请由后台重试'};}
+  }catch(error){console.error('[Gmail SMTP]',{code:error.code||'',command:error.command||'',responseCode:error.responseCode||'',message:String(error.message||'').replace(/(password|passwd|token|secret|authorization|credential)[=:]\s*\S+/gi,'[REDACTED]')});return {sent:false,error:'Gmail 暂未接受邮件，请由后台重试'};}
 }
 module.exports={sendGmail,GMAIL_ADDRESS};
