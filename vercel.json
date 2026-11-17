@@ -29,5 +29,6 @@
         }
       ]
     }
-  ]
+  ],
+  "buildCommand": "python3 scripts/patch-airwallex-payment-links.py"
 }
