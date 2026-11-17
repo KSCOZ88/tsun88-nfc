@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+from pathlib import Path
+p=Path("index.html")
+s=p.read_text(encoding="utf-8")
+anchor='<div class="action-row"><button type="button" class="secondary" data-go="petProfile">'
+if 'id="airwallexPaymentPanel"' not in s:
+    if s.count(anchor)!=1: raise SystemExit("Checkout anchor changed")
+    panel='''<div class="payment-panel" id="airwallexPaymentPanel" role="group" aria-label="Airwallex secure payment" style="margin-top:14px"><div class="payment-code-box" style="gap:12px"><b style="font-size:20px">Airwallex · Secure Checkout</b><small class="payment-scan-note" id="airwallexPaymentHelp">Payment opens in another tab. Return here to check payment status and enter delivery details.</small><button type="button" class="primary demo-pay-btn" id="airwallexPayBtn" style="background:#153e52;color:#fff">Pay with Airwallex</button><button type="button" class="secondary" id="airwallexRecoverBtn" hidden>Check Airwallex Payment Status</button></div></div>'''
+    s=s.replace(anchor,panel+anchor)
+start=s.find('async function startAirwallexCheckout(){')
+end=s.find('\nfunction preparePaidOrderScreen(',start)
+if start<0 or end<0: raise SystemExit("Checkout handler changed")
+replacement='''async function startAirwallexCheckout(){
+ if(!ensureCheckoutProfiles())return;
+ if(currentOrder&&!validateOrderPhoneConfirmations(currentOrder.items||[captureTagDesign()]))return;
+ if(LOCAL_FILE_REVIEW){openLocalPostPaymentPreview();return;}
+ if(PROFILE_PREVIEW_MODE){openOriginalProfilePreview();return;}
+ if(!currentOrder||!validateCustomerEmail())return;
+ const button=document.getElementById('airwallexPayBtn');
+ const paymentTab=window.open('about:blank','_blank');
+ if(button){button.disabled=true;button.textContent='Opening Airwallex…';}
+ try{
+  currentOrder.customerEmail=state.customerEmail;currentOrder.payMethod='Airwallex';
+  currentOrder.status='等待付款';currentOrder.pricing=calculateOrderPricing(currentOrder.items||[]);
+  updateStoredOrder(currentOrder);
+  let url=currentOrder.airwallexPaymentUrl;
+  if(!currentOrder.airwallexSessionId||!url){
+   const response=await fetch(AIRWALLEX_CREATE_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:currentOrder})});
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok||!result.url||!result.id||result.kind!=='payment_link')throw new Error(result.error||'Airwallex payment is not available');
+   if(!/^https:\\/\\/([a-z0-9-]+\\.)*airwallex\\.com\\//i.test(result.url))throw new Error('Invalid Airwallex payment URL');
+   currentOrder.airwallexSessionId=result.id;currentOrder.airwallexPaymentUrl=result.url;
+   currentOrder.airwallexCheckoutPending=true;currentOrder.airwallexCheckoutStartedAt=new Date().toISOString();
+   updateStoredOrder(currentOrder);url=result.url;
+  }
+  const recover=document.getElementById('airwallexRecoverBtn');if(recover)recover.hidden=false;
+  toast('After payment, return to this tab and check Airwallex payment status.',9000);
+  if(paymentTab&&!paymentTab.closed){paymentTab.location.replace(url);paymentTab.focus();}else location.assign(url);
+ }catch(error){if(paymentTab&&!paymentTab.closed)paymentTab.close();toast(error.message||'Airwallex is temporarily unavailable',9000);}
+ finally{if(button){button.disabled=false;renderPaymentOrder(currentOrder);}}
+}
+'''
+s=s[:start]+replacement+s[end:]
+old_start="const paidButton=document.getElementById('airwallexPayBtn');"
+pos=s.find(old_start)
+if pos<0: raise SystemExit("Airwallex price renderer changed")
+line_end=s.find("\n",pos)
+s=s[:pos]+"""const paidButton=document.getElementById('airwallexPayBtn');if(paidButton&&!paidButton.disabled){const zh=window.TsunI18n?.locale==='zh-Hant';paidButton.textContent=(PROFILE_PREVIEW_MODE||LOCAL_FILE_REVIEW)?(zh?'預覽模式，不會付款':'Preview only · No payment'):(zh?'使用 Airwallex 付款 · ':'Pay with Airwallex · ')+money(pricing.total);}
+  const awxHelp=document.getElementById('airwallexPaymentHelp');if(awxHelp)awxHelp.textContent=window.TsunI18n?.locale==='zh-Hant'?'付款在新分頁開啟。付款後返回此分頁，檢查付款狀態並填寫配送資料。':'Payment opens in another tab. After paying, return here, check payment status, and fill in delivery details.';"""+s[line_end:]
+p.write_text(s,encoding="utf-8")
+print("Patched",len(s),"characters")
