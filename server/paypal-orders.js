@@ -77,7 +77,7 @@ async function request(c,path,method='GET',body,requestId){
 }
 function safeSummary(order){return summary(order);}
 function monetary(cents){return (cents/100).toFixed(2);}
-async function create(req,order){
+async function create(req,order,requestedLocale){
   const c=config(),sql=db();await schema(sql);const s=safeSummary(order);
   const snapshot=safeOrder(order);
   await sql`INSERT INTO tsun_paypal_orders (merchant_order_id,email,amount_cents,order_digest,order_snapshot) VALUES (${s.orderId},${s.email},${s.totalCents},${s.binding},${JSON.stringify(snapshot)}::jsonb) ON CONFLICT(merchant_order_id) DO NOTHING`;
@@ -85,6 +85,8 @@ async function create(req,order){
   if(!row||row.order_digest!==s.binding||row.amount_cents!==s.totalCents||row.email.toLowerCase()!==s.email.toLowerCase())throw fail('订单金额或邮箱已经变更，请创建新订单',409);
   if(row.payment_status==='paid')throw fail('该订单已经付款，请勿重复支付',409);
   const origin=siteOrigin(req),qs='&order_id='+encodeURIComponent(s.orderId);
+  // Locale is a UI preference only, never part of payment amounts or order digest.
+  const checkoutLocale=requestedLocale==='zh-HK'?'zh-HK':'en-HK';
   if(row.paypal_order_id){
     const previous=await request(c,'/v2/checkout/orders/'+encodeURIComponent(row.paypal_order_id));
     if(previous.status==='CREATED'||previous.status==='PAYER_ACTION_REQUIRED'||previous.status==='APPROVED'){
@@ -97,7 +99,7 @@ async function create(req,order){
   if(s.decorCount)items.push({name:'8TSUN8 Tag Charms',quantity:String(s.decorCount),unit_amount:{currency_code:'HKD',value:'3.00'}});
   const created=await request(c,'/v2/checkout/orders','POST',{
     intent:'CAPTURE',purchase_units:[{reference_id:'8TSUN8',custom_id:s.orderId,amount:{currency_code:'HKD',value:monetary(s.totalCents),breakdown:{item_total:{currency_code:'HKD',value:monetary(s.totalCents)}}},items}],
-    payment_source:{paypal:{experience_context:{brand_name:'8TSUN8',user_action:'PAY_NOW',return_url:origin+'/?paypal_return=success'+qs,cancel_url:origin+'/?paypal_return=cancelled'+qs}}}
+    payment_source:{paypal:{experience_context:{brand_name:'8TSUN8',locale:checkoutLocale,user_action:'PAY_NOW',return_url:origin+'/?paypal_return=success'+qs,cancel_url:origin+'/?paypal_return=cancelled'+qs}}}
   },hash('tsun-create-'+s.orderId).slice(0,36));
   const paymentUrl=created.links?.find(l=>['payer-action','approve'].includes(l.rel))?.href;
   if(!created.id||!paymentUrl||!/^https:\/\/([^/]+\.)?paypal\.com\//i.test(paymentUrl))throw fail('PayPal 未返回有效的付款链接',502);

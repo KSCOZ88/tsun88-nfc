@@ -2689,7 +2689,7 @@ background:#ffffff;box-shadow:0 8px 22px rgba(50,90,110,.18);font-size:23px;disp
     </nav>
   </aside>
  <div class="summary-card payment-checkout"><div id="mobileCheckoutPricing"></div><div class="checkout-final-total"><span>应付总额</span><b id="checkoutFinalTotal"></b></div><p class="checkout-final-reference" id="checkoutFinalReference" translate="no"></p><div class="field" id="customerEmailField"><label for="customerEmail">订单通知邮箱（必填）</label><input id="customerEmail" type="email" inputmode="email" autocomplete="email" maxlength="254" required placeholder="请输入常用邮箱" aria-describedby="customerEmailHelp"><small id="customerEmailHelp">我们会通过这个邮箱通知你订单、制作及寄送进度，并发送狗牌效果图和宠物档案网址。</small></div><a id="localPostPaymentPreview" class="local-post-payment-preview" hidden target="_blank" rel="noopener">预览配送资料页（无需付款） ↗</a>
-  <div class="payment-panel" id="paypalPaymentPanel" role="group" aria-label="PayPal 安全收款" style="margin-top:14px"><div class="payment-code-box" style="gap:12px"><b style="font-size:22px">PayPal 企业安全付款</b><small class="payment-scan-note">在 PayPal 官方页面付款，金额由网站服务器重新核对。付款成功后返回填写快递资料。</small><button type="button" class="primary demo-pay-btn" id="paypalPayBtn" style="background:#ffc439;color:#173a64">使用 PayPal 付款</button><button type="button" class="secondary" id="paypalRecoverBtn" hidden>检查 PayPal 付款结果</button><small id="paypalPaymentStatus" aria-live="polite"></small></div></div>
+  <div class="payment-panel" id="paypalPaymentPanel" role="group" aria-label="Secure PayPal Checkout" style="margin-top:14px"><div class="payment-code-box" style="gap:12px"><b id="paypalPanelTitle" translate="no">Secure PayPal Checkout</b><small id="paypalPanelDescription" class="payment-scan-note" translate="no">Pay securely on PayPal. Your total is verified by our server. Return to enter delivery details after payment.</small><button type="button" class="primary demo-pay-btn" id="paypalPayBtn" translate="no" style="background:#ffc439;color:#173a64">Pay with PayPal</button><button type="button" class="secondary" id="paypalRecoverBtn" hidden translate="no">Check PayPal Payment Status</button><small id="paypalPaymentStatus" aria-live="polite"></small></div></div>
   <div class="action-row"><button type="button" class="secondary" data-go="petProfile">返回宠物档案</button><button type="button" class="secondary" data-go="confirm">再看狗牌正反面</button></div></div></div>
 </section>
 
@@ -4686,7 +4686,7 @@ function renderPaymentOrder(order){
   if(decorSubtotal)decorSubtotal.textContent=money(pricing.decorSubtotal);
   if(grandTotal)grandTotal.textContent=money(pricing.total);
   if(saving)saving.textContent=`狗牌限时优惠共减 ${money(pricing.discount)}（装饰按实际选择计费）`;
-  const paypalButton=document.getElementById('paypalPayBtn');if(paypalButton&&!paypalButton.disabled)paypalButton.textContent=(PROFILE_PREVIEW_MODE||LOCAL_FILE_REVIEW)?'预览模式，不会付款':`使用 PayPal 付款 ${money(pricing.total)}`;
+  const paypalButton=document.getElementById('paypalPayBtn');if(paypalButton&&!paypalButton.disabled){const en=window.TsunI18n?.locale!=='zh-Hant';paypalButton.textContent=(PROFILE_PREVIEW_MODE||LOCAL_FILE_REVIEW)?(en?'Preview only · No payment':'預覽模式，不會付款'):(en?`Pay with PayPal · ${money(pricing.total)}`:`使用 PayPal 付款 · ${money(pricing.total)}`);}
   const paypalRecover=document.getElementById('paypalRecoverBtn');if(paypalRecover)paypalRecover.hidden=!order.paypalOrderId||order.paymentStatus==='paid';
   const paidButton=document.getElementById('airwallexPayBtn');if(paidButton&&!paidButton.disabled)paidButton.textContent=(PROFILE_PREVIEW_MODE||LOCAL_FILE_REVIEW)?'预览配送资料页（无需付款）':`使用 Airwallex 付款 ${money(pricing.total)}`;
   const recoverButton=document.getElementById('airwallexRecoverBtn');if(recoverButton)recoverButton.hidden=!order.airwallexSessionId||order.paymentStatus==='paid';
@@ -4850,14 +4850,14 @@ async function startPaypalCheckout(){
   if(LOCAL_FILE_REVIEW||PROFILE_PREVIEW_MODE){toast('本地预览不能发起真实付款');return;}
   if(!currentOrder||!validateCustomerEmail())return;
   const button=document.getElementById('paypalPayBtn');
-  if(button){button.disabled=true;button.textContent='正在打开 PayPal…';}
+  if(button){button.disabled=true;button.textContent=window.TsunI18n?.locale==='zh-Hant'?'正在開啟 PayPal…':'Opening PayPal…';}
   try{
     currentOrder.customerEmail=state.customerEmail;currentOrder.payMethod='PayPal';currentOrder.status='等待付款';currentOrder.pricing=calculateOrderPricing(currentOrder.items||[]);updateStoredOrder(currentOrder);
-    const response=await fetch(PAYPAL_CREATE_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:currentOrder})});
+    const response=await fetch(PAYPAL_CREATE_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:currentOrder,locale:window.TsunI18n?.locale==='zh-Hant'?'zh-HK':'en-HK'})});
     const result=await response.json().catch(()=>({}));if(!response.ok||!result.url||!result.id)throw new Error(result.error||'PayPal 暂时无法打开付款页面');
     currentOrder.paypalOrderId=result.id;currentOrder.paypalCheckoutPending=true;updateStoredOrder(currentOrder);
     location.assign(result.url);
-  }catch(error){toast(error.message||'PayPal 暂时不可用，请稍后再试',9000);if(button){button.disabled=false;renderPaymentOrder(currentOrder);}}
+  }catch(error){toast(error.message||(window.TsunI18n?.locale==='zh-Hant'?'PayPal 暫時無法使用，請稍後再試。':'PayPal is temporarily unavailable. Please try again.'),9000);if(button){button.disabled=false;renderPaymentOrder(currentOrder);}}
 }
 async function handlePaypalReturn(){
   if(PROFILE_PREVIEW_MODE)return;
@@ -8217,4 +8217,41 @@ if(LOCAL_FILE_REVIEW){
 })();
 </script>
 
+
+<style id="tsun-paypal-bilingual-style">
+/* PayPal checkout typography: readable English and Traditional Chinese. */
+#paypalPaymentPanel{font-family:Inter,"Noto Sans TC","PingFang TC","Microsoft JhengHei",Arial,system-ui,sans-serif}
+#paypalPanelTitle{font-size:clamp(19px,2vw,22px);font-weight:800;line-height:1.4;letter-spacing:0}
+#paypalPanelDescription{font-size:13px;line-height:1.7;font-weight:400}
+#paypalPayBtn,#paypalRecoverBtn{font-family:inherit;font-weight:800;line-height:1.35;letter-spacing:0}
+html[lang="en"] #paypalPaymentPanel{font-family:Inter,Arial,system-ui,sans-serif}
+</style>
+
+<script id="tsun-paypal-bilingual">
+(()=>{
+  'use strict';
+  // Follow the site's existing EN / 繁體中文 selector; never infer language from IP.
+  const labels={
+    en:{title:'Secure PayPal Checkout',description:'Pay securely on PayPal. Your total is verified by our server. Return to enter delivery details after payment.',pay:'Pay with PayPal',recover:'Check PayPal Payment Status',preview:'Preview only · No payment',opening:'Opening PayPal…'},
+    zh:{title:'PayPal 企業安全付款',description:'在 PayPal 官方頁面安全付款，金額由網站伺服器核對。付款成功後返回填寫配送資料。',pay:'使用 PayPal 付款',recover:'檢查 PayPal 付款結果',preview:'預覽模式，不會付款',opening:'正在開啟 PayPal…'}
+  };
+  const $=id=>document.getElementById(id);
+  const isChinese=()=>window.TsunI18n?.locale==='zh-Hant'||document.documentElement.lang==='zh-Hant';
+  function sync(){
+    const t=labels[isChinese()?'zh':'en'];
+    const panel=$('paypalPaymentPanel');if(panel)panel.setAttribute('aria-label',t.title);
+    const title=$('paypalPanelTitle');if(title)title.textContent=t.title;
+    const description=$('paypalPanelDescription');if(description)description.textContent=t.description;
+    const recover=$('paypalRecoverBtn');if(recover)recover.textContent=t.recover;
+    const pay=$('paypalPayBtn');
+    if(pay&&!pay.disabled){
+      const total=$('checkoutFinalTotal')?.textContent.trim()||'';
+      const preview=typeof PROFILE_PREVIEW_MODE!=='undefined'&&PROFILE_PREVIEW_MODE||typeof LOCAL_FILE_REVIEW!=='undefined'&&LOCAL_FILE_REVIEW;
+      pay.textContent=preview?t.preview:(t.pay+(total?' · '+total:''));
+    }
+  }
+  document.addEventListener('DOMContentLoaded',sync);
+  window.addEventListener('tsun-language-change',sync);
+})();
+</script>
 </body></html>
