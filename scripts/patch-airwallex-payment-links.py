@@ -47,5 +47,34 @@ if pos<0: raise SystemExit("Airwallex price renderer changed")
 line_end=s.find("\n",pos)
 s=s[:pos]+"""const paidButton=document.getElementById('airwallexPayBtn');if(paidButton&&!paidButton.disabled){const zh=window.TsunI18n?.locale==='zh-Hant';paidButton.textContent=(PROFILE_PREVIEW_MODE||LOCAL_FILE_REVIEW)?(zh?'預覽模式，不會付款':'Preview only · No payment'):(zh?'使用 Airwallex 付款 · ':'Pay with Airwallex · ')+money(pricing.total);}
   const awxHelp=document.getElementById('airwallexPaymentHelp');if(awxHelp)awxHelp.textContent=window.TsunI18n?.locale==='zh-Hant'?'付款在新分頁開啟。付款後返回此分頁，檢查付款狀態並填寫配送資料。':'Payment opens in another tab. After paying, return here, check payment status, and fill in delivery details.';"""+s[line_end:]
+# Recover a paid Payment Link when the buyer returns to the checkout tab.
+# Does not create a new link or charge the buyer; the existing server API verifies payment first.
+recovery = r'''<script id="tsun-airwallex-return-check">
+(function(){
+ let lastAttempt=0;
+ let pendingTimer=null;
+ function check(){
+   if(document.visibilityState!=='visible')return;
+   const button=document.getElementById('airwallexRecoverBtn');
+   if(!button||button.hidden||button.disabled)return;
+   if(Date.now()-lastAttempt<15000)return;
+   lastAttempt=Date.now();
+   button.click();
+ }
+ function soon(){
+   if(pendingTimer)clearTimeout(pendingTimer);
+   pendingTimer=setTimeout(check,1200);
+ }
+ window.addEventListener('focus',soon);
+ document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')soon();});
+ window.addEventListener('pageshow',soon);
+ document.addEventListener('DOMContentLoaded',soon);
+ // While the checkout tab remains open, recheck pending links without another payment attempt.
+ setInterval(function(){if(document.visibilityState==='visible')check();},30000);
+})();
+</script>'''
+if 'id="tsun-airwallex-return-check"' not in s:
+    if s.count('</body>')!=1: raise SystemExit("Checkout body marker changed")
+    s=s.replace('</body>',recovery+'</body>')
 p.write_text(s,encoding="utf-8")
 print("Patched",len(s),"characters")
