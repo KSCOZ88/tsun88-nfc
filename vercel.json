@@ -30,5 +30,5 @@
       ]
     }
   ],
-  "buildCommand": "python3 scripts/patch-airwallex-payment-links.py"
+  "installCommand": "npm install && python3 scripts/patch-airwallex-payment-links.py"
 }
