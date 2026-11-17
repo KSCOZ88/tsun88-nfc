@@ -11,6 +11,9 @@
     },
     "api/airwallex-paid-order-email.js": {
       "maxDuration": 60
+    },
+    "api/airwallex-webhook.mjs": {
+      "maxDuration": 60
     }
   },
   "rewrites": [
