@@ -2,8 +2,11 @@
   "name": "tsun88-order-site",
   "version": "1.0.0",
   "private": true,
-   "dependencies": {
+  "dependencies": {
     "nodemailer": "10.0.10",
     "@neondatabase/serverless": "^1.0.0"
+  },
+  "scripts": {
+    "postinstall": "python3 scripts/patch-airwallex-payment-links.py"
   }
 }
