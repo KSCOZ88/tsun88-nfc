@@ -67,4 +67,14 @@ async function abort(lease){
  await sql`DELETE FROM tsun_airwallex_orders WHERE merchant_order_id=${s.orderId}
  AND status='creating' AND payment_link_id IS NULL`;
 }
-module.exports={begin,complete,abort,db,schema};
+async function recordPaid(order,linkId){
+ const summaryData=summary(order),sql=db();await schema(sql);
+ const [stored]=await sql`SELECT payment_link_id,order_binding,amount_cents,status FROM tsun_airwallex_orders WHERE merchant_order_id=${summaryData.orderId}`;
+ if(!stored)return {legacy:true};
+ if(stored.payment_link_id!==linkId||stored.order_binding!==summaryData.binding||stored.amount_cents!==summaryData.totalCents)
+  throw fail('付款链接与原订单记录不匹配，请联系商户核查',409);
+ await sql`UPDATE tsun_airwallex_orders SET status='paid',paid_at=COALESCE(paid_at,now())
+ WHERE merchant_order_id=${summaryData.orderId} AND payment_link_id=${linkId}`;
+ return {legacy:false};
+}
+module.exports={begin,complete,abort,recordPaid,db,schema};
