@@ -7,6 +7,6 @@
     "@neondatabase/serverless": "^1.0.0"
   },
   "scripts": {
-    "postinstall": "python3 scripts/patch-airwallex-payment-links.py"
+    "postinstall": "python3 scripts/patch-airwallex-payment-links.py && node --test tests/airwallex-payment-links.test.js"
   }
 }
