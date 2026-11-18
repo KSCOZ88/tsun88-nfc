@@ -150,11 +150,4 @@ async function dailyReconciliation(){
  console.info('[Airwallex reconcile] sweep complete',{queued:queued.length,polled:polled.length});
  return {queued:queued.length,polled:polled.length};
 }
-async function sendVerifiedHistoricalReceipt(row){
- const sql=db();await tables(sql);
- await receipts(sql,row);
- const [mail]=await sql`SELECT customer_sent,merchant_sent FROM tsun_airwallex_mail
- WHERE merchant_order_id=${row.merchant_order_id} AND payment_link_id=${row.payment_link_id} AND stage='payment_received'`;
- return {customerSent:!!mail?.customer_sent,merchantSent:!!mail?.merchant_sent};
-}
-module.exports={enqueue,processEvent,retryPending,reconcilePending,dailyReconciliation,sendVerifiedHistoricalReceipt};
+module.exports={enqueue,processEvent,retryPending,reconcilePending,dailyReconciliation};
