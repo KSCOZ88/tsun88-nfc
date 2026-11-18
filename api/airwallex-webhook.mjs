@@ -32,9 +32,6 @@ export async function GET(request){
  return json({webhook:'reachable',accepts:'POST'});
 }
 export async function POST(request){
- if(new URL(request.url).searchParams.get('dbDiagnostic')==='1'){
-   return require('../server/airwallex-db-diagnostic').runDiagnostic(request);
- }
  console.info('[Airwallex webhook] request received');
  if(!process.env.AIRWALLEX_WEBHOOK_SECRET){
    console.error('[Airwallex webhook] signing secret not configured');
