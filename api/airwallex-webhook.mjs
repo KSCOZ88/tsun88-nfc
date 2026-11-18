@@ -1,7 +1,8 @@
 import {createHmac,timingSafeEqual} from 'node:crypto';
 import {createRequire} from 'node:module';
+import {waitUntil} from '@vercel/functions';
 const require=createRequire(import.meta.url);
-const {enqueue,processEvent,retryPending}=require('../server/airwallex-webhook-queue');
+const {enqueue,processEvent,dailyReconciliation}=require('../server/airwallex-webhook-queue');
 const json=(obj,status=200)=>Response.json(obj,{status,headers:{'Cache-Control':'no-store'}});
 function verifyHmac(secret,stamp,signature,raw){
  if(!secret||!/^[0-9]{13}$/.test(stamp)||!/^[a-f0-9]{64}$/i.test(signature))return false;
@@ -21,20 +22,16 @@ function authenticate(request,raw){
  if(testKey&&verifyHmac(testKey,stamp,signature,raw))return 'test';
  return null;
 }
-export async function GET(request,context){
+export async function GET(request){
  const header=request.headers.get('authorization')||'';
  const secret=process.env.CRON_SECRET||'';
  if(secret&&header==='Bearer '+secret){
-  if(context?.waitUntil){
-   context.waitUntil(retryPending().catch(error=>console.error('[Airwallex cron] failed',String(error?.status||'unknown'))));
-   return json({retry:'scheduled'});
-  }
-  await retryPending();
-  return json({retry:'executed'});
+  waitUntil(dailyReconciliation().catch(error=>console.error('[Airwallex cron] failed',String(error?.status||'unknown'))));
+  return json({retry:'scheduled'});
  }
  return json({webhook:'reachable',accepts:'POST'});
 }
-export async function POST(request,context){
+export async function POST(request){
  console.info('[Airwallex webhook] request received');
  if(!process.env.AIRWALLEX_WEBHOOK_SECRET){
    console.error('[Airwallex webhook] signing secret not configured');
@@ -77,11 +74,7 @@ export async function POST(request,context){
   // Persist the authenticated event before acknowledging. Payment verification
   // and SMTP run separately, without blocking Airwallex's 200 response.
   await enqueue(eventId,linkId);
-  if(context?.waitUntil){
-   context.waitUntil(processEvent(eventId).catch(error=>console.error('[Airwallex webhook] deferred processing failed',String(error?.status||'unknown'))));
-  }else{
-   await processEvent(eventId);
-  }
+  waitUntil(processEvent(eventId).catch(error=>console.error('[Airwallex webhook] deferred processing failed',String(error?.status||'unknown'))));
   return json({received:true});
  }catch(error){
   console.error('[Airwallex webhook] queue unavailable',String(error?.status||'unknown'));
