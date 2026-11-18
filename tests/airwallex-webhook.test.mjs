@@ -55,4 +55,9 @@ test('signed test event acknowledges before touching order or SMTP',async()=>{
  assert.equal(res.status,200);
  assert.equal((await res.json()).test,true);
 });
+test('temporary SMTP check requires separate bearer authorization',async()=>{
+ const req=new Request('https://example.com/api/airwallex-webhook?smtpDiagnostic=1',{method:'POST'});
+ const res=await POST(req);
+ assert.equal(res.status,404);
+});
 test.after(()=>{if(previous===undefined)delete process.env.AIRWALLEX_WEBHOOK_SECRET;else process.env.AIRWALLEX_WEBHOOK_SECRET=previous;});
