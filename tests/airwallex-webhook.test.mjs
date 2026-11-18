@@ -55,4 +55,9 @@ test('signed test event acknowledges before touching order or SMTP',async()=>{
  assert.equal(res.status,200);
  assert.equal((await res.json()).test,true);
 });
+test('historical recovery route is unavailable without one-time authorization',async()=>{
+ const request=new Request('https://example.com/api/airwallex-webhook?recoverHistorical=1');
+ const response=await GET(request);
+ assert.equal(response.status,404);
+});
 test.after(()=>{if(previous===undefined)delete process.env.AIRWALLEX_WEBHOOK_SECRET;else process.env.AIRWALLEX_WEBHOOK_SECRET=previous;});
