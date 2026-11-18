@@ -42,4 +42,16 @@ async function verify(linkId,order){
  for(const [key,value] of Object.entries(fields(s))){if(!match(data.metadata?.[key]??'',value))throw fail('Payment order metadata mismatch',409);}
  return {paid:true,paymentLinkId:linkId,paymentIntentId:data.latest_successful_payment_intent_id,amountCents:s.totalCents,currency:'HKD',mode:cfg.mode};
 }
-module.exports={create,verify};
+async function listPaidLinks(from,to,maxPages=6){
+ const cfg=configuration(),matches=[];
+ for(let page=0;page<Math.min(6,maxPages);page++){
+  const params=new URLSearchParams({status:'PAID',from_created_at:from,to_created_at:to,page_num:String(page),page_size:'50'});
+  const result=await call(cfg,'/api/v1/pa/payment_links?'+params.toString());
+  if(!Array.isArray(result.items))throw fail('Airwallex returned invalid link list');
+  matches.push(...result.items);
+  if(!result.has_more)break;
+  if(page===Math.min(6,maxPages)-1&&result.has_more)throw fail('Historical links require additional reconciliation; refusing partial lookup');
+ }
+ return matches;
+}
+module.exports={create,verify,listPaidLinks};
