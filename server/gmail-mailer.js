@@ -33,6 +33,6 @@ async function sendGmail(mail,eventId){
     const command=String(error?.command||'').replace(/[^A-Za-z0-9_-]/g,'').slice(0,40);
     console.error('[8TSUN8 SMTP] delivery error',{code,command});
     return {sent:false,error:'Gmail 暂未接受邮件，请由后台重试'};
-  }}
+  }
 }
 module.exports={sendGmail,GMAIL_ADDRESS};
