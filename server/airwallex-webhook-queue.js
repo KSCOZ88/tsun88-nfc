@@ -4,11 +4,13 @@ const {db,schema,recordPaid}=require('./airwallex-order-store');
 const {verify}=require('./airwallex-payment-links');
 const {sendGmail,GMAIL_ADDRESS}=require('./gmail-mailer');
 const {escape}=require('./email-template');
+const {createHash}=require('node:crypto');
 const fail=(message,status=422)=>Object.assign(new Error(message),{status});
 let tablesPromise;
 async function tables(sql){
  if(!tablesPromise)tablesPromise=(async()=>{
   await schema(sql);
+  await sql`ALTER TABLE tsun_airwallex_orders ADD COLUMN IF NOT EXISTS last_reconciled_at TIMESTAMPTZ`;
   await sql`CREATE TABLE IF NOT EXISTS tsun_airwallex_webhook_events (
    event_id TEXT PRIMARY KEY,
    payment_link_id TEXT NOT NULL,
@@ -111,4 +113,41 @@ async function retryPending(limit=3){
  ORDER BY received_at ASC LIMIT ${Math.min(3,Math.max(1,limit))}`;
  return Promise.all(waiting.map(row=>processEvent(row.event_id)));
 }
-module.exports={enqueue,processEvent,retryPending};
+// Fallback for missing Airwallex deliveries: independently reconcile a few
+// unconfirmed Payment Links on each scheduled run. A successful lookup creates
+// a durable synthetic event, so SMTP failure is retried through the same queue.
+async function reconcilePending(limit=3){
+ const sql=db();await tables(sql);
+ const capped=Math.min(3,Math.max(1,Number(limit)||3));
+ const pending=await sql`SELECT merchant_order_id,payment_link_id,order_snapshot
+ FROM tsun_airwallex_orders
+ WHERE status='pending' AND payment_link_id IS NOT NULL
+ ORDER BY last_reconciled_at ASC NULLS FIRST, created_at ASC
+ LIMIT ${capped}`;
+ const results=[];
+ for(const order of pending){
+   await sql`UPDATE tsun_airwallex_orders SET last_reconciled_at=now()
+      WHERE merchant_order_id=${order.merchant_order_id} AND status='pending'`;
+   try{
+     await verify(order.payment_link_id,order.order_snapshot);
+     const eventId='reconcile_'+createHash('sha256').update(order.payment_link_id).digest('hex');
+     await enqueue(eventId,order.payment_link_id);
+     const outcome=await processEvent(eventId);
+     results.push({status:outcome.status});
+   }catch(error){
+     // A pending/unpaid link is expected; API/permission errors are retried on
+     // the next reconciliation cycle. Never send mail on failed verification.
+     const status=Number(error?.status)||500;
+     results.push({status:status===409?'not-paid':'verification-unavailable'});
+     if(status!==409)console.warn('[Airwallex reconcile] lookup unavailable',{status});
+   }
+ }
+ return results;
+}
+async function dailyReconciliation(){
+ const queued=await retryPending(3);
+ const polled=await reconcilePending(3);
+ console.info('[Airwallex reconcile] sweep complete',{queued:queued.length,polled:polled.length});
+ return {queued:queued.length,polled:polled.length};
+}
+module.exports={enqueue,processEvent,retryPending,reconcilePending,dailyReconciliation};
