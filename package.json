@@ -4,7 +4,8 @@
   "private": true,
   "dependencies": {
     "nodemailer": "10.0.10",
-    "@neondatabase/serverless": "^1.0.0"
+    "@neondatabase/serverless": "^1.0.0",
+    "@vercel/functions": "^3.11.3"
   },
   "scripts": {
     "postinstall": "python3 scripts/patch-airwallex-payment-links.py && node --test tests/airwallex-payment-links.test.js tests/airwallex-webhook.test.mjs"
