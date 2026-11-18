@@ -22,8 +22,17 @@ async function sendGmail(mail,eventId){
       }))
     });
     const accepted=(result.accepted||[]).map(address=>String(address).toLowerCase());
-    if(!mail.to.every(address=>accepted.includes(address.toLowerCase())))return {sent:false,error:'部分收件地址未被邮件服务接受'};
+    if(!mail.to.every(address=>accepted.includes(address.toLowerCase()))){
+      console.warn('[8TSUN8 SMTP] not all recipients accepted',{acceptedCount:accepted.length,requestedCount:mail.to.length});
+      return {sent:false,error:'部分收件地址未被邮件服务接受'};
+    }
+    console.info('[8TSUN8 SMTP] accepted',{recipients:accepted.length});
     return {sent:true,id:result.messageId};
-  }catch{return {sent:false,error:'Gmail 暂未接受邮件，请由后台重试'};}
+  }catch(error){
+    const code=String(error?.code||'unknown').replace(/[^A-Za-z0-9_-]/g,'').slice(0,40);
+    const command=String(error?.command||'').replace(/[^A-Za-z0-9_-]/g,'').slice(0,40);
+    console.error('[8TSUN8 SMTP] delivery error',{code,command});
+    return {sent:false,error:'Gmail 暂未接受邮件，请由后台重试'};
+  }}
 }
 module.exports={sendGmail,GMAIL_ADDRESS};
