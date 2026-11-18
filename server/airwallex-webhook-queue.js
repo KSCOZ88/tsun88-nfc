@@ -128,13 +128,13 @@ async function reconcilePending(limit=3){
    AND m.payment_link_id=o.payment_link_id AND m.stage='payment_received'
    AND m.customer_sent=true AND m.merchant_sent=true
  )
- ORDER BY CASE WHEN o.status='paid' THEN 0 ELSE 1 END,
-          o.last_reconciled_at ASC NULLS FIRST, o.created_at ASC
+ ORDER BY o.last_reconciled_at ASC NULLS FIRST,
+          CASE WHEN o.status='paid' THEN 0 ELSE 1 END, o.created_at ASC
  LIMIT ${capped}`;
  const results=[];
  for(const order of pending){
    await sql`UPDATE tsun_airwallex_orders SET last_reconciled_at=now()
-      WHERE merchant_order_id=${order.merchant_order_id} AND status='pending'`;
+      WHERE merchant_order_id=${order.merchant_order_id} AND status IN ('pending','paid')`;
    try{
      await verify(order.payment_link_id,order.order_snapshot);
      const eventId='reconcile_'+createHash('sha256').update(order.payment_link_id).digest('hex');
