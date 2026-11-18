@@ -24,6 +24,20 @@ function authenticate(request,raw){
 }
 export async function GET(request){
  const header=request.headers.get('authorization')||'';
+ if(new URL(request.url).searchParams.get('recoverHistorical')==='1'){
+  const token=process.env.AIRWALLEX_RECOVERY_TOKEN||'';
+  const supplied=header.startsWith('Bearer ')?header.slice(7):'';
+  const a=Buffer.from(token),b=Buffer.from(supplied);
+  if(!token||a.length!==b.length||!timingSafeEqual(a,b))return json({error:'not found'},404);
+  try{
+   const {recoverHistoricalOrder}=require('../server/airwallex-legacy-recovery');
+   const result=await recoverHistoricalOrder();
+   return json(result);
+  }catch(error){
+   console.error('[Airwallex historical recovery] failed',{status:Number(error?.status)||500});
+   return json({error:'historical reconciliation unavailable'},502);
+  }
+ }
  const secret=process.env.CRON_SECRET||'';
  if(secret&&header==='Bearer '+secret){
   waitUntil(dailyReconciliation().catch(error=>console.error('[Airwallex cron] failed',String(error?.status||'unknown'))));
