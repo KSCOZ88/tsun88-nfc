@@ -3,6 +3,7 @@ import {createRequire} from 'node:module';
 import {waitUntil} from '@vercel/functions';
 const require=createRequire(import.meta.url);
 const {enqueue,processEvent,dailyReconciliation}=require('../server/airwallex-webhook-queue');
+const {parseEventEnvelope,enqueueLiveEvent}=require('../server/airwallex-live-webhook');
 const json=(obj,status=200)=>Response.json(obj,{status,headers:{'Cache-Control':'no-store'}});
 function verifyHmac(secret,stamp,signature,raw){
  if(!secret||!/^[0-9]{13}$/.test(stamp)||!/^[a-f0-9]{64}$/i.test(signature))return false;
@@ -60,24 +61,26 @@ export async function POST(request){
    console.warn('[Airwallex webhook] invalid json');
    return json({error:'invalid JSON'},400);
  }
- if(event.name!=='payment_link.paid'){
-   console.info('[Airwallex webhook] unrelated event');
-   return json({received:true,ignored:true});
+ const parsed=parseEventEnvelope(event);
+ if(parsed.kind==='invalid-body'){
+  console.warn('[Airwallex webhook] invalid event envelope');
+  return json({error:'invalid event envelope'},400);
  }
- const linkId=String(event.data?.object?.id||'');
- const eventId=String(event.id||'');
- if(!/^[A-Za-z0-9_-]{6,130}$/.test(linkId)||!/^[A-Za-z0-9_-]{6,130}$/.test(eventId)){
+ if(parsed.kind==='ignored'){
+  console.info('[Airwallex webhook] unrelated event');
+  return json({received:true,ignored:true});
+ }
+ if(parsed.kind==='invalid-identifiers'){
   console.warn('[Airwallex webhook] missing event or link id');
   return json({error:'invalid event identifiers'},422);
  }
  try{
-  // Persist the authenticated event before acknowledging. Payment verification
-  // and SMTP run separately, without blocking Airwallex's 200 response.
-  await enqueue(eventId,linkId);
-  waitUntil(processEvent(eventId).catch(error=>console.error('[Airwallex webhook] deferred processing failed',String(error?.status||'unknown'))));
+  // Persist a real signed event, then acknowledge without waiting for SMTP.
+  await enqueueLiveEvent(parsed,{enqueue,processEvent,schedule:waitUntil});
+  console.info('[Airwallex webhook] verified live payment event queued');
   return json({received:true});
  }catch(error){
-  console.error('[Airwallex webhook] queue unavailable',String(error?.status||'unknown'));
+  console.error('[Airwallex webhook] queue unavailable',{status:Number(error?.status)||500});
   return json({error:'temporary webhook processing error'},503);
  }
 }
