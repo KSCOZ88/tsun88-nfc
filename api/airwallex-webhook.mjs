@@ -63,16 +63,43 @@ async function sendReceipts(sql,row){
    await sql`UPDATE tsun_airwallex_mail SET processing_until=NULL WHERE merchant_order_id=${id} AND stage=${stage} AND payment_link_id=${linkId}`;
  }
 }
+export async function GET(){
+ // Safe health check: never expose account data or signing secrets.
+ return json({webhook:'reachable',accepts:'POST'});
+}
 export async function POST(request){
- if(!process.env.AIRWALLEX_WEBHOOK_SECRET)return json({error:'webhook not configured'},503);
+ console.info('[Airwallex webhook] request received');
+ if(!process.env.AIRWALLEX_WEBHOOK_SECRET){
+   console.error('[Airwallex webhook] signing secret not configured');
+   return json({error:'webhook not configured'},503);
+ }
  const raw=await request.text();
- if(raw.length>250000)return json({error:'payload too large'},413);
+ if(raw.length>250000){
+   console.warn('[Airwallex webhook] payload too large');
+   return json({error:'payload too large'},413);
+ }
  const auth=authenticate(request,raw);
- if(!auth)return json({error:'invalid signature'},401);
- if(auth==='test')return json({received:true,test:true});
+ if(!auth){
+   console.warn('[Airwallex webhook] invalid signature', {
+     hasTimestamp:!!request.headers.get('x-timestamp'),
+     hasSignature:!!request.headers.get('x-signature'),
+     isTestHeaderPresent:!!request.headers.get('client-secret-key')
+   });
+   return json({error:'invalid signature'},401);
+ }
+ if(auth==='test'){
+   console.info('[Airwallex webhook] verified test event, no business action');
+   return json({received:true,test:true});
+ }
  let event;
- try{event=JSON.parse(raw);}catch{return json({error:'invalid JSON'},400);}
- if(event.name!=='payment_link.paid')return json({received:true,ignored:true});
+ try{event=JSON.parse(raw);}catch{
+   console.warn('[Airwallex webhook] invalid json');
+   return json({error:'invalid JSON'},400);
+ }
+ if(event.name!=='payment_link.paid'){
+   console.info('[Airwallex webhook] unrelated event');
+   return json({received:true,ignored:true});
+ }
  const linkId=String(event.data?.object?.id||'');
  if(!/^[A-Za-z0-9_-]{6,120}$/.test(linkId))return json({error:'invalid link id'},422);
  try{
