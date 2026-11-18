@@ -6,15 +6,23 @@ const {verify}=require('../server/airwallex-payment-links');
 const {sendGmail,GMAIL_ADDRESS}=require('../server/gmail-mailer');
 const {escape}=require('../server/email-template');
 const json=(obj,status=200)=>Response.json(obj,{status,headers:{'Cache-Control':'no-store'}});
-function authenticated(request,raw){
- const secret=process.env.AIRWALLEX_WEBHOOK_SECRET||'';
- const stamp=request.headers.get('x-timestamp')||'';
- const sig=request.headers.get('x-signature')||'';
- if(!secret||!/^\d{13}$/.test(stamp)||! /^[a-f0-9]{64}$/i.test(sig))return false;
+function verifyHmac(secret,stamp,signature,raw){
+ if(!secret||!/^[0-9]{13}$/.test(stamp)||!/^[a-f0-9]{64}$/i.test(signature))return false;
  if(Math.abs(Date.now()-Number(stamp))>5*60*1000)return false;
- const expect=createHmac('sha256',secret).update(stamp+raw).digest();
- const actual=Buffer.from(sig,'hex');
- return actual.length===expect.length&&timingSafeEqual(actual,expect);
+ const expected=createHmac('sha256',secret).update(stamp+raw).digest();
+ const actual=Buffer.from(signature,'hex');
+ return actual.length===expected.length&&timingSafeEqual(actual,expected);
+}
+function authenticate(request,raw){
+ const stamp=request.headers.get('x-timestamp')||'';
+ const signature=request.headers.get('x-signature')||'';
+ // A live event must be signed with the configured webhook's secret.
+ if(verifyHmac(process.env.AIRWALLEX_WEBHOOK_SECRET||'',stamp,signature,raw))return 'live';
+ // Airwallex explicitly documents a separate signature key header for test events.
+ // Such requests are acknowledged for connectivity testing only; never fulfill orders.
+ const testKey=request.headers.get('client-secret-key')||'';
+ if(testKey&&verifyHmac(testKey,stamp,signature,raw))return 'test';
+ return null;
 }
 async function ensureMailTable(sql){
  await sql`CREATE TABLE IF NOT EXISTS tsun_airwallex_mail (
@@ -59,7 +67,9 @@ export async function POST(request){
  if(!process.env.AIRWALLEX_WEBHOOK_SECRET)return json({error:'webhook not configured'},503);
  const raw=await request.text();
  if(raw.length>250000)return json({error:'payload too large'},413);
- if(!authenticated(request,raw))return json({error:'invalid signature'},401);
+ const auth=authenticate(request,raw);
+ if(!auth)return json({error:'invalid signature'},401);
+ if(auth==='test')return json({received:true,test:true});
  let event;
  try{event=JSON.parse(raw);}catch{return json({error:'invalid JSON'},400);}
  if(event.name!=='payment_link.paid')return json({received:true,ignored:true});
