@@ -26,4 +26,19 @@ test('rejects signed body if payload was altered',async()=>{
  const response=await POST(request);
  assert.equal(response.status,401);
 });
+test('Airwallex test event accepts a signed client-secret-key without sending mail',async()=>{
+ const body=JSON.stringify({name:'payment_link.paid',data:{object:{id:'plink_test_fixture'}}});
+ const stamp=String(Date.now()),testSecret='airwallex-test-fixture-key';
+ const sig=createHmac('sha256',testSecret).update(stamp+body).digest('hex');
+ const request=new Request('https://example.com/api/airwallex-webhook',{method:'POST',headers:{'x-timestamp':stamp,'x-signature':sig,'client-secret-key':testSecret},body});
+ const response=await POST(request);
+ assert.equal(response.status,200);
+ assert.equal((await response.json()).test,true);
+});
+test('invalid test signature is rejected',async()=>{
+ const body=JSON.stringify({name:'payment_link.paid'});
+ const request=new Request('https://example.com/api/airwallex-webhook',{method:'POST',headers:{'x-timestamp':String(Date.now()),'x-signature':'0'.repeat(64),'client-secret-key':'fake-test-key'},body});
+ const response=await POST(request);
+ assert.equal(response.status,401);
+});
 test.after(()=>{if(previous===undefined)delete process.env.AIRWALLEX_WEBHOOK_SECRET;else process.env.AIRWALLEX_WEBHOOK_SECRET=previous;});
