@@ -119,10 +119,17 @@ async function retryPending(limit=3){
 async function reconcilePending(limit=3){
  const sql=db();await tables(sql);
  const capped=Math.min(3,Math.max(1,Number(limit)||3));
- const pending=await sql`SELECT merchant_order_id,payment_link_id,order_snapshot
- FROM tsun_airwallex_orders
- WHERE status='pending' AND payment_link_id IS NOT NULL
- ORDER BY last_reconciled_at ASC NULLS FIRST, created_at ASC
+ const pending=await sql`SELECT o.merchant_order_id,o.payment_link_id,o.order_snapshot
+ FROM tsun_airwallex_orders o
+ WHERE o.status IN ('pending','paid') AND o.payment_link_id IS NOT NULL
+ AND NOT EXISTS (
+   SELECT 1 FROM tsun_airwallex_mail m
+   WHERE m.merchant_order_id=o.merchant_order_id
+   AND m.payment_link_id=o.payment_link_id AND m.stage='payment_received'
+   AND m.customer_sent=true AND m.merchant_sent=true
+ )
+ ORDER BY CASE WHEN o.status='paid' THEN 0 ELSE 1 END,
+          o.last_reconciled_at ASC NULLS FIRST, o.created_at ASC
  LIMIT ${capped}`;
  const results=[];
  for(const order of pending){
