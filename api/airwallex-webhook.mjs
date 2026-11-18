@@ -22,6 +22,39 @@ function authenticate(request,raw){
  if(testKey&&verifyHmac(testKey,stamp,signature,raw))return 'test';
  return null;
 }
+
+async function oneTimeSmtpDiagnostic(request){
+ const configured=process.env.SMTP_DIAGNOSTIC_TOKEN||'';
+ const value=request.headers.get('authorization')||'';
+ const supplied=value.startsWith('Bearer ')?value.slice(7):'';
+ const a=Buffer.from(configured),b=Buffer.from(supplied);
+ if(!configured||a.length!==b.length||!timingSafeEqual(a,b))return json({error:'not found'},404);
+ if(process.env.VERCEL_ENV!=='production')return json({error:'production required'},503);
+ try{
+  const {db}=require('../server/airwallex-order-store');
+  const {sendGmail}=require('../server/gmail-mailer');
+  const sql=db();
+  await sql`CREATE TABLE IF NOT EXISTS tsun_smtp_diagnostic_runs (
+    run_id TEXT PRIMARY KEY,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  )`;
+  const claim=await sql`INSERT INTO tsun_smtp_diagnostic_runs (run_id)
+    VALUES ('smtp-2026-11-18-once') ON CONFLICT DO NOTHING RETURNING run_id`;
+  if(!claim.length)return json({test:'already-attempted'},409);
+  const result=await sendGmail({
+    to:['tsunlab888@gmail.com','kingkingkingsimon@163.com'],
+    subject:'8TSUN8 Gmail SMTP 测试 / SMTP delivery check',
+    html:'<p>这是一封由 8TSUN8 正式服务器发送的邮件测试，不是新订单或扣款。</p>',
+    text:'8TSUN8 Gmail SMTP 测试：这不是新订单，也不会产生扣款。'
+  },'tsun88-smtp-diagnostic-20261118');
+  console.info('[8TSUN8 SMTP diagnostic]',{accepted:!!result.sent});
+  return json({smtpAccepted:!!result.sent,reason:result.sent?'accepted':'smtp-not-accepted'},result.sent?200:502);
+ }catch(error){
+  console.error('[8TSUN8 SMTP diagnostic] internal failure',{code:Number(error?.status)||500});
+  return json({error:'diagnostic unavailable'},503);
+ }
+}
+
 export async function GET(request){
  const header=request.headers.get('authorization')||'';
  const secret=process.env.CRON_SECRET||'';
@@ -32,6 +65,7 @@ export async function GET(request){
  return json({webhook:'reachable',accepts:'POST'});
 }
 export async function POST(request){
+ if(new URL(request.url).searchParams.get('smtpDiagnostic')==='1')return oneTimeSmtpDiagnostic(request);
  console.info('[Airwallex webhook] request received');
  if(!process.env.AIRWALLEX_WEBHOOK_SECRET){
    console.error('[Airwallex webhook] signing secret not configured');
