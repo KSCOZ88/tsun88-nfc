@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHmac} from 'node:crypto';
-import {POST} from '../api/airwallex-webhook.mjs';
+import {POST,GET} from '../api/airwallex-webhook.mjs';
 const previous=process.env.AIRWALLEX_WEBHOOK_SECRET;
 process.env.AIRWALLEX_WEBHOOK_SECRET='unit-test-only-webhook-secret';
 const signedRequest=(body,signatureOverride)=>{
@@ -40,5 +40,19 @@ test('invalid test signature is rejected',async()=>{
  const request=new Request('https://example.com/api/airwallex-webhook',{method:'POST',headers:{'x-timestamp':String(Date.now()),'x-signature':'0'.repeat(64),'client-secret-key':'fake-test-key'},body});
  const response=await POST(request);
  assert.equal(response.status,401);
+});
+test('GET health check stays public and does not trigger retry',async()=>{
+ const res=await GET(new Request('https://example.com/api/airwallex-webhook'));
+ assert.equal(res.status,200);
+ assert.deepEqual(await res.json(),{webhook:'reachable',accepts:'POST'});
+});
+test('signed test event acknowledges before touching order or SMTP',async()=>{
+ const body=JSON.stringify({name:'payment_link.paid',data:{object:{id:'plink_synthetic_123'}}});
+ const timestamp=String(Date.now()),key='synthetic-test-secret';
+ const signature=createHmac('sha256',key).update(timestamp+body).digest('hex');
+ const request=new Request('https://example.com/api/airwallex-webhook',{method:'POST',headers:{'x-timestamp':timestamp,'x-signature':signature,'client-secret-key':key},body});
+ const res=await POST(request,{waitUntil(){throw Error('test events must not schedule background work')}});
+ assert.equal(res.status,200);
+ assert.equal((await res.json()).test,true);
 });
 test.after(()=>{if(previous===undefined)delete process.env.AIRWALLEX_WEBHOOK_SECRET;else process.env.AIRWALLEX_WEBHOOK_SECRET=previous;});
