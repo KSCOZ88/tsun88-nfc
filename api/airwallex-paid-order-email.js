@@ -1,6 +1,7 @@
 const {configuration,parseBody,summary,verifyToken,handleError,method}=require('../server/airwallex-checkout');
 const {verify}=require('../server/airwallex-payment-links');
 const {deliver}=require('../server/airwallex-order-mailer');
+const {deliveryOutcome}=require('../server/airwallex-mail-status');
 const {neon}=require('@neondatabase/serverless');
 let schemaPromise;
 function db(){
@@ -49,11 +50,10 @@ module.exports=async function(req,res){
    const previous=claimed[0];
    try{
      const result=await deliver(body.type,order,body.previews||[],body.attachments||[],{skipCustomer:previous.customer_sent,skipMerchant:previous.merchant_sent});
-     const customerSent=!!(previous.customer_sent||result.customerSent);
-     const merchantSent=!!(previous.merchant_sent||result.merchantSent||body.type!=='order_completed');
+     const {customerSent,merchantSent,complete}=deliveryOutcome(body.type,previous,result);
      await sql`UPDATE tsun_airwallex_mail SET customer_sent=${customerSent},merchant_sent=${merchantSent},processing_until=NULL
        WHERE merchant_order_id=${s.orderId} AND stage=${body.type} AND payment_link_id=${id}`;
-     return res.status(customerSent&&merchantSent?200:502).json({customerSent,merchantSent,error:customerSent&&merchantSent?undefined:'邮件未全部发送，请重试'});
+     return res.status(complete?200:502).json({customerSent,merchantSent,error:complete?undefined:'邮件未全部发送，请重试'});
    }catch(error){
      await sql`UPDATE tsun_airwallex_mail SET processing_until=NULL
        WHERE merchant_order_id=${s.orderId} AND stage=${body.type} AND payment_link_id=${id}`;
