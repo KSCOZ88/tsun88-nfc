@@ -28,29 +28,29 @@ export async function POST(request){
   await enqueue(eventId,linkId);
   eventCreated=true;
   await enqueue(eventId,linkId);
-  const [queued]=await sql\`SELECT COUNT(*)::int AS count
-   FROM tsun_airwallex_webhook_events WHERE event_id=\${eventId} AND payment_link_id=\${linkId}\`;
+  const [queued]=await sql`SELECT COUNT(*)::int AS count
+   FROM tsun_airwallex_webhook_events WHERE event_id=${eventId} AND payment_link_id=${linkId}`;
   const processed=await processEvent(eventId);
-  const [event]=await sql\`SELECT attempts,processed_at IS NOT NULL AS acknowledged,
-    last_error FROM tsun_airwallex_webhook_events WHERE event_id=\${eventId}\`;
+  const [event]=await sql`SELECT attempts,processed_at IS NOT NULL AS acknowledged,
+    last_error FROM tsun_airwallex_webhook_events WHERE event_id=${eventId}`;
 
-  await sql\`INSERT INTO tsun_airwallex_mail
+  await sql`INSERT INTO tsun_airwallex_mail
    (merchant_order_id,payment_link_id,stage)
-   VALUES (\${orderId},\${linkId},'diagnostic_no_mail')\`;
+   VALUES (${orderId},${linkId},'diagnostic_no_mail')`;
   mailCreated=true;
-  const [mailBefore]=await sql\`SELECT customer_sent,merchant_sent FROM tsun_airwallex_mail
-    WHERE merchant_order_id=\${orderId} AND stage='diagnostic_no_mail'\`;
-  const [mailAfter]=await sql\`UPDATE tsun_airwallex_mail SET customer_sent=true
-    WHERE merchant_order_id=\${orderId} AND stage='diagnostic_no_mail'
-    RETURNING customer_sent,merchant_sent\`;
+  const [mailBefore]=await sql`SELECT customer_sent,merchant_sent FROM tsun_airwallex_mail
+    WHERE merchant_order_id=${orderId} AND stage='diagnostic_no_mail'`;
+  const [mailAfter]=await sql`UPDATE tsun_airwallex_mail SET customer_sent=true
+    WHERE merchant_order_id=${orderId} AND stage='diagnostic_no_mail'
+    RETURNING customer_sent,merchant_sent`;
 
-  const [orders]=await sql\`SELECT COUNT(*)::int AS total,
+  const [orders]=await sql`SELECT COUNT(*)::int AS total,
     COUNT(*) FILTER (WHERE status='pending')::int AS pending,
-    COUNT(*) FILTER (WHERE status='paid')::int AS paid FROM tsun_airwallex_orders\`;
-  const [unfinished]=await sql\`SELECT COUNT(*)::int AS count FROM tsun_airwallex_webhook_events
-    WHERE processed_at IS NULL AND event_id<>\${eventId}\`;
-  const [mailPending]=await sql\`SELECT COUNT(*)::int AS count FROM tsun_airwallex_mail
-    WHERE stage='payment_received' AND (customer_sent=false OR merchant_sent=false)\`;
+    COUNT(*) FILTER (WHERE status='paid')::int AS paid FROM tsun_airwallex_orders`;
+  const [unfinished]=await sql`SELECT COUNT(*)::int AS count FROM tsun_airwallex_webhook_events
+    WHERE processed_at IS NULL AND event_id<>${eventId}`;
+  const [mailPending]=await sql`SELECT COUNT(*)::int AS count FROM tsun_airwallex_mail
+    WHERE stage='payment_received' AND (customer_sent=false OR merchant_sent=false)`;
   const healthy=queued?.count===1&&processed?.status==='unmatched'&&event?.attempts===1&&
     event?.acknowledged===true&&event?.last_error==='unmatched historical order'&&
     mailBefore?.customer_sent===false&&mailBefore?.merchant_sent===false&&
@@ -66,9 +66,9 @@ export async function POST(request){
   console.error('[8TSUN8 DB probe] error',{code:Number(error?.status)||500});
   return respond({database:'error',code:Number(error?.status)||500},503);
  }finally{
-  if(mailCreated)await sql\`DELETE FROM tsun_airwallex_mail
-    WHERE merchant_order_id=\${orderId} AND stage='diagnostic_no_mail'\`.catch(()=>{});
-  if(eventCreated)await sql\`DELETE FROM tsun_airwallex_webhook_events
-    WHERE event_id=\${eventId} AND payment_link_id=\${linkId}\`.catch(()=>{});
+  if(mailCreated)await sql`DELETE FROM tsun_airwallex_mail
+    WHERE merchant_order_id=${orderId} AND stage='diagnostic_no_mail'`.catch(()=>{});
+  if(eventCreated)await sql`DELETE FROM tsun_airwallex_webhook_events
+    WHERE event_id=${eventId} AND payment_link_id=${linkId}`.catch(()=>{});
  }
 }
