@@ -42,7 +42,7 @@ async function deliverStage(order,sessionId,stage,previews,attachments=[]){const
  WHERE merchant_order_id=${order.id} AND stage=${stage} AND (processing_until IS NULL OR processing_until<now())
  AND (customer_sent=false OR (stage='order_completed' AND merchant_sent=false))
  RETURNING customer_sent,merchant_sent`;
- if(!claim){const [prior]=await sql`SELECT customer_sent,merchant_sent FROM tsun_stripe_mail WHERE merchant_order_id=${order.id} AND stage=${stage}`;return {customerSent:!!prior?.customer_sent,merchantSent:!!prior?.merchant_sent,alreadyHandled:true};}
+ if(!claim){const [prior]=await sql`SELECT customer_sent,merchant_sent FROM tsun_stripe_mail WHERE merchant_order_id=${order.id} AND stage=${stage}`;return {customerSent:!!prior?.customer_sent,merchantSent:!!prior?.merchant_sent,alreadyHandled:true,pending:!prior?.customer_sent||(stage==='order_completed'&&!prior?.merchant_sent)};}
  try{const result=await deliver(stage,order,previews||[],attachments||[],{skipCustomer:claim.customer_sent,skipMerchant:claim.merchant_sent});const customerSent=!!(claim.customer_sent||result.customerSent),merchantSent=!!(claim.merchant_sent||result.merchantSent);await sql`UPDATE tsun_stripe_mail SET customer_sent=${customerSent},merchant_sent=${merchantSent},processing_until=NULL WHERE merchant_order_id=${order.id} AND stage=${stage}`;if(!customerSent||(stage==='order_completed'&&!merchantSent))throw fail('邮件未全部发送，请重试',503);return {customerSent,merchantSent};}
  catch(error){await sql`UPDATE tsun_stripe_mail SET processing_until=NULL WHERE merchant_order_id=${order.id} AND stage=${stage}`;throw error;}
 }
@@ -57,4 +57,5 @@ async function processEvent(eventId){const sql=db();await schema(sql);const [evt
  return {status:'processed'};
  }catch(error){await sql`UPDATE tsun_stripe_webhook_events SET processing_until=NULL,last_error=${String(error?.status||'processing_failed')} WHERE event_id=${eventId}`.catch(()=>{});console.error('[Stripe webhook] queued event failed',{status:Number(error?.status)||500});return {status:'retryable-error'};}
 }
-module.exports={begin,complete,abort,enqueue,processEvent,deliverStage,db,schema};
+async function retryPending(limit=5){const sql=db();await schema(sql);const rows=await sql`SELECT event_id FROM tsun_stripe_webhook_events WHERE processed_at IS NULL AND (processing_until IS NULL OR processing_until<now()) ORDER BY received_at ASC LIMIT ${Math.min(5,Math.max(1,Number(limit)||5))}`;return Promise.all(rows.map(row=>processEvent(row.event_id)));}
+module.exports={begin,complete,abort,enqueue,processEvent,retryPending,deliverStage,db,schema};
