@@ -29,7 +29,7 @@ if "isStripe=order.payMethod==='Stripe'" not in s:
     const endpoint=isPaypal?PAYPAL_EMAIL_ENDPOINT:isStripe?STRIPE_EMAIL_ENDPOINT:AIRWALLEX_EMAIL_ENDPOINT;
     const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:stage,sessionId:isStripe?order.stripeSessionId:order.airwallexSessionId,paypalOrderId:order.paypalOrderId,orderToken:isPaypal?order.paypalOrderToken:isStripe?order.stripeOrderToken:order.airwallexOrderToken,order,previews,attachments})});""",
          "payment email router")
-if "locale:window.TsunI18n?.locale==='zh-Hant'?'zh-HK':'en'" not in s:
+if "locale:String(window.TsunI18n?.locale||document.documentElement.lang||'en').toLowerCase().startsWith('zh')?'zh-HK':'en'" not in s:
     once("body:JSON.stringify({order:currentOrder,previews})",
          "body:JSON.stringify({order:currentOrder,previews,locale:window.TsunI18n?.locale==='zh-Hant'?'zh-HK':'en'})",
          "Stripe Checkout locale")
@@ -45,7 +45,7 @@ if "async function startStripeCheckout()" not in s:
     currentOrder.customerEmail=state.customerEmail;currentOrder.payMethod='Stripe';currentOrder.status='等待付款';currentOrder.pricing=calculateOrderPricing(currentOrder.items||[]);updateStoredOrder(currentOrder);
     const previews=await prepareEmailPreviews(currentOrder);\n    const response=await fetch(STRIPE_CREATE_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:currentOrder,previews})});
     const result=await response.json().catch(()=>({}));if(!response.ok||!result.url||!result.id)throw new Error(result.error||'Stripe 暂时无法打开付款页面');
-    currentOrder.stripeSessionId=result.id;currentOrder.language=result.language||((window.TsunI18n?.locale==='zh-Hant')?'zh-Hant':'en');currentOrder.stripeCheckoutPending=true;updateStoredOrder(currentOrder);
+    currentOrder.stripeSessionId=result.id;currentOrder.language=result.language||(String(window.TsunI18n?.locale||document.documentElement.lang||'en').toLowerCase().startsWith('zh')?'zh-Hant':'en');currentOrder.stripeCheckoutPending=true;updateStoredOrder(currentOrder);
     location.assign(result.url);
   }catch(error){toast(error.message||'Stripe 暂时不可用，请稍后再试。',9000);if(button){button.disabled=false;renderPaymentOrder(currentOrder);}}
 }
