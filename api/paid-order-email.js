@@ -1,4 +1,4 @@
-const p=require('../server/stripe-orders');
+// One-time protected mail QA deployment refresh.\nconst p=require('../server/stripe-orders');
 const store=require('../server/stripe-order-store');
 module.exports=async function(req,res){p.cors(req,res);if(req.method==='OPTIONS')return res.status(204).end();if(req.method!=='POST')return res.status(405).json({error:'仅支持 POST 请求'});try{const body=typeof req.body==='string'?JSON.parse(req.body):req.body||{};
 if(body.testLanguageEmails===true){
