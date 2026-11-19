@@ -4,35 +4,61 @@
 })(typeof globalThis==='object'?globalThis:this,function(){
   const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const safeUrl=value=>{try{const u=new URL(value);return u.protocol==='https:'?u.href:'';}catch{return '';}};
-  function render(order,stage='payment_received',previews=[]){
-    const titles={payment_received:'付款成功，专属狗牌即将启程',order_completed:'资料已收齐，萌宠档案来啦',in_production:'你的专属狗牌正在制作中',shipped:'你的狗牌正向你飞奔而来'};
-    if(!titles[stage])throw new Error('未知订单通知类型');
+  const copy={
+    'zh-Hant':{
+      titles:{payment_received:'付款成功，專屬狗牌即將啟程',order_completed:'資料已收齊，萌寵檔案來啦',in_production:'你的專屬狗牌正在製作中',shipped:'你的狗牌已經寄出！'},
+      intros:{
+        payment_received:n=>`謝謝你為 ${n} 選擇 8TSUN8！我們已收到你的付款。請繼續填寫送貨資料和寵物檔案，資料齊全後便會開始製作。`,
+        order_completed:n=>`${n} 的訂單資料已經收齊，我們會按照確認的設計安排製作。萌寵檔案也準備好啦，點擊下方連結即可查看。`,
+        in_production:n=>`${n} 的專屬狗牌正在用心製作中。每一份小小的守護，都值得我們認真完成。`,
+        shipped:n=>`${n} 的狗牌已經寄出，正向你飛奔而來！願它陪伴寶貝安心探索，也多一個回家的方法。`
+      },
+      order:'訂單編號',payment:'付款方式',tag:'狗牌',decor:'裝飾',paid:'實付金額',pet:'寵物',base:'底板',profile:'看看我們的萌寵檔案',profilePending:'完成送貨資料和寵物檔案後，我們會再發送檔案連結。',carrier:'快遞公司',tracking:'追蹤編號',greeting:'如果有任何問題，直接回覆這封電郵即可，我們會盡快為你解答。訂單後續進度也會透過這個電郵通知你。',signoff:'我們會把這份小小的守護認真做好，讓它早日來到你和寶貝身邊。',merchantTitle:'新訂單已付款，資料已收齊',customer:'客戶電郵',shipName:'收件人',phone:'聯絡電話',address:'送貨地址',nfc:'NFC 寵物檔案',production:'請將檔案連結寫入 NFC；生產圖片請查看附件。',subject:'8TSUN8｜'
+    },
+    en:{
+      titles:{payment_received:'Payment received — your pet tag is on its way',order_completed:'Order details received — your pet profile is ready',in_production:'Your 8TSUN8 pet tag is being made',shipped:'Your 8TSUN8 pet tag has shipped'},
+      intros:{
+        payment_received:n=>`Thank you for choosing 8TSUN8 for ${n}! Your payment has been received. Please complete the shipping details and pet profile so we can begin production.`,
+        order_completed:n=>`We have received all the details for ${n}'s order and will make the tag according to your confirmed design. Your pet profile is ready to view below.`,
+        in_production:n=>`${n}'s custom pet tag is now being carefully made. Every little detail deserves our attention.`,
+        shipped:n=>`${n}'s pet tag is on its way! We hope it helps your best friend explore with confidence and find their way home.`
+      },
+      order:'Order number',payment:'Payment method',tag:'Pet tag',decor:'Decorations',paid:'Total paid',pet:'Pet',base:'Tag design',profile:'View your pet profile',profilePending:'We will email your pet profile link once the shipping details and pet profile are complete.',carrier:'Carrier',tracking:'Tracking number',greeting:'If you have any questions, simply reply to this email and we will be happy to help. We will also send order updates to this address.',signoff:'We will take good care of every detail and get this little piece of protection to you and your pet soon.',merchantTitle:'New paid order — details received',customer:'Customer email',shipName:'Recipient',phone:'Phone',address:'Shipping address',nfc:'NFC pet profile',production:'Please write the profile link to the NFC tag. Production artwork is attached.',subject:'8TSUN8 | '
+    }
+  };
+  function language(order){return order?.language==='zh-Hant'||order?.locale==='zh-HK'?'zh-Hant':'en';}
+  function totals(order){
     const items=Array.isArray(order.items)&&order.items.length?order.items:[order];
     const quantity=items.length;
     const decorCount=items.reduce((total,item)=>total+['front','back'].reduce((sum,side)=>sum+(item.decorItems?.[side]?.length||0),0),0);
-    const total=quantity*299+decorCount*3;
-    const name=escape(order.petName||items[0].petName||'你家宝贝');
+    return {items,quantity,decorCount,total:quantity*299+decorCount*3};
+  }
+  function render(order,stage='payment_received',previews=[]){
+    const lang=language(order),t=copy[lang];
+    if(!t.titles[stage])throw new Error('Unknown order email stage');
+    const {items,quantity,decorCount,total}=totals(order);
+    const name=escape(order.petName||items[0].petName||(lang==='en'?'your pet':'你的寶貝'));
     const url=safeUrl(order.cloudProfile?.publicUrl);
-    const intros={
-      payment_received:`谢谢你为 ${name} 选择尊八八！我们已收到你的付款。请继续填写快递信息和宠物档案，资料齐全后就会开始制作。`,
-      order_completed:`${name} 的订单资料已经收齐，我们会按确认的设计安排制作。萌宠档案也准备好啦，点击下方链接就能查看。`,
-      in_production:`${name} 的专属狗牌正在认真制作中。每一份小小的守护，都值得我们用心完成。`,
-      shipped:`${name} 的狗牌已经寄出，正向你飞奔而来！愿它陪宝贝安心探索，也多一个回家的办法。`
-    };
     const designs=previews.map((p,index)=>{
       const img=String(p.src||'');
-      if(!/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(img)&&!/^cid:[\w-]+$/.test(img))return '';
-      return `<td style="width:50%;padding:8px;text-align:center;vertical-align:top"><img alt="${escape(p.label||'狗牌效果图')}" src="${escape(img)}" width="220" style="max-width:100%;height:auto;border-radius:16px;background:#f7fbfd"><div style="font-size:13px;color:#607c88">${escape(p.label||('狗牌 '+(index+1)))}</div></td>`;
+      if(!/^data:image\\/png;base64,[A-Za-z0-9+/=]+$/.test(img)&&!/^cid:[\\w-]+$/.test(img))return '';
+      return `<td style="width:50%;padding:8px;text-align:center;vertical-align:top"><img alt="${escape(p.label||t.tag)}" src="${escape(img)}" width="220" style="max-width:100%;height:auto;border-radius:16px;background:#f7fbfd"><div style="font-size:13px;color:#607c88">${escape(p.label||t.tag+' '+(index+1))}</div></td>`;
     });
     const pictures=designs.map((html,i)=>i%2===0?'<tr>'+html+(designs[i+1]||'<td></td>')+'</tr>':'').join('');
-    const rows=items.map((item,i)=>`<tr><td style="padding:8px 0">第 ${i+1} 张 · ${escape(item.petName||order.petName||'Lucky')}</td><td style="text-align:right">${escape(item.baseLabel||order.baseLabel||'已选底板')}</td></tr>`).join('');
-    const profile=url?`<div style="padding:18px;background:#f0faf4;border-radius:14px;margin:20px 0"><b>来看看咱家的萌宠档案啦</b><p style="word-break:break-all"><a href="${escape(url)}" style="color:#26735a">${escape(url)}</a></p></div>`:'<p style="color:#607c88">完成快递信息和宠物档案后，我们会再发一封邮件，把档案网址送到你的邮箱。</p>';
-    const shipping=stage==='shipped'?`<p>快递公司：${escape(order.shippingCarrier)}<br>快递单号：${escape(order.trackingNumber)}</p>`:'';
-    const subject=`尊八八｜${titles[stage]}｜${String(order.id||'').replace(/[\r\n]/g,'')}`;
-    const closing=stage==='shipped'?'期待这份小小的礼物，早日来到你和宝贝身边。':'我们会把这份小小的守护认真做好，让它早日向你和宝贝飞奔而来。';
-    const html=`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:#f5fafc;font-family:'Microsoft YaHei','PingFang SC',Arial,sans-serif;color:#244452;line-height:1.8"><div style="max-width:620px;margin:24px auto;background:#fff;border:1px solid #dcecf2;border-radius:24px;overflow:hidden"><div style="padding:24px 28px;background:#e4f4fc"><b style="font-size:24px;letter-spacing:3px">8 TSUN 8</b><div>尊八八 · 给狗狗多一个回家的办法</div></div><div style="padding:28px"><h1 style="font-size:24px;line-height:1.5">${titles[stage]}</h1><p>${intros[stage]}</p><div style="background:#f7fbfd;padding:16px;border-radius:14px">订单号：${escape(order.id)}<br>付款方式：${escape(order.payMethod||'在线支付')}<br>狗牌 ${quantity} 张 × HK$299 + 装饰 ${decorCount} 枚 × HK$3<br><b>实付金额：HK$${total.toFixed(2)}</b></div><table style="width:100%;border-collapse:collapse;margin:16px 0">${rows}</table><table role="presentation" style="width:100%;border-collapse:collapse">${pictures}</table>${profile}${shipping}<p>${closing}</p><p>Best regards,<br><b>尊八八 TSUN88</b></p><p style="padding-top:16px;border-top:1px solid #e1edf2;color:#607c88">如果有任何问题，直接回复这封邮件就可以，我们会尽快为你解答。<br>订单后续进度也会通过这个邮箱通知你。</p></div></div></body></html>`;
-    const text=`${titles[stage]}\n订单号：${order.id}\n狗牌 ${quantity} 张，装饰 ${decorCount} 枚，实付 HK$${total.toFixed(2)}\n${stage==='payment_received'?'请继续填写快递信息和宠物档案。':''}\n${url?'萌宠档案：'+url:'完成资料后会另发档案网址。'}\n${stage==='shipped'?'快递：'+order.shippingCarrier+' '+order.trackingNumber:''}\n${closing}\nBest regards,\n尊八八 TSUN88\n如果有问题，可以直接回复这封邮件。`;
-    return {subject,html,text,total};
+    const rows=items.map((item,i)=>`<tr><td style="padding:8px 0">${t.pet} ${i+1} · ${escape(item.petName||order.petName||(lang==='en'?'Pet':'寵物'))}</td><td style="text-align:right">${escape(item.baseLabel||order.baseLabel||t.base)}</td></tr>`).join('');
+    const profile=url?`<div style="padding:18px;background:#f0faf4;border-radius:14px;margin:20px 0"><b>${t.profile}</b><p style="word-break:break-all"><a href="${escape(url)}" style="color:#26735a">${escape(url)}</a></p></div>`:`<p style="color:#607c88">${t.profilePending}</p>`;
+    const shipping=stage==='shipped'?`<p>${t.carrier}: ${escape(order.shippingCarrier)}<br>${t.tracking}: ${escape(order.trackingNumber)}</p>`:'';
+    const subject=`${t.subject}${t.titles[stage]} | ${String(order.id||'').replace(/[\\r\\n]/g,'')}`;
+    const closing=stage==='shipped'?t.signoff:t.signoff;
+    const html=`<!doctype html><html lang="${lang==='en'?'en':'zh-HK'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:#f5fafc;font-family:Arial,'PingFang TC','Microsoft JhengHei',sans-serif;color:#244452;line-height:1.8"><div style="max-width:620px;margin:24px auto;background:#fff;border:1px solid #dcecf2;border-radius:24px;overflow:hidden"><div style="padding:24px 28px;background:#e4f4fc"><b style="font-size:24px;letter-spacing:3px">8TSUN8</b><div>${lang==='en'?'A little more protection for your best friend':'給狗狗多一個回家的辦法'}</div></div><div style="padding:28px"><h1 style="font-size:24px;line-height:1.5">${t.titles[stage]}</h1><p>${t.intros[stage](name)}</p><div style="background:#f7fbfd;padding:16px;border-radius:14px">${t.order}: ${escape(order.id)}<br>${t.payment}: ${escape(order.payMethod||'Stripe')}<br>${t.tag} ${quantity} × HK$299 + ${t.decor} ${decorCount} × HK$3<br><b>${t.paid}: HK$${total.toFixed(2)}</b></div><table style="width:100%;border-collapse:collapse;margin:16px 0">${rows}</table><table role="presentation" style="width:100%;border-collapse:collapse">${pictures}</table>${profile}${shipping}<p>${closing}</p><p>Best regards,<br><b>8TSUN8</b></p><p style="padding-top:16px;border-top:1px solid #e1edf2;color:#607c88">${t.greeting}</p></div></div></body></html>`;
+    const textBody=[t.titles[stage],t.order+': '+order.id,t.tag+' '+quantity+', '+t.decor+' '+decorCount+', '+t.paid+': HK$'+total.toFixed(2),url?t.profile+': '+url:t.profilePending,stage==='shipped'?t.carrier+': '+order.shippingCarrier+' '+t.tracking+': '+order.trackingNumber:'',closing,'Best regards, 8TSUN8',t.greeting].filter(Boolean).join('\\n');
+    return {subject,html,text:textBody,total};
   }
-  return {render,escape,safeUrl};
+  function renderMerchant(order,attachments=[]){
+    const lang=language(order),t=copy[lang],{quantity,decorCount,total}=totals(order),url=safeUrl(order.cloudProfile?.publicUrl);
+    const subject=`${t.subject}${t.merchantTitle} | ${String(order.id||'').replace(/[\\r\\n]/g,'')}`;
+    const html=`<!doctype html><html lang="${lang==='en'?'en':'zh-HK'}"><head><meta charset="utf-8"></head><body style="font-family:Arial,'PingFang TC','Microsoft JhengHei',sans-serif;line-height:1.7;color:#244452"><h2>${t.merchantTitle}</h2><p>${t.order}: ${escape(order.id)}<br>${t.customer}: ${escape(order.customerEmail)}<br>${t.paid}: HK$${Number(order.paidAmountCents||total*100/100).toFixed(2)}<br>${t.tag}: ${quantity} · ${t.decor}: ${decorCount}<br>${t.shipName}: ${escape(order.shipName)}<br>${t.phone}: ${escape(order.shipPhone)}<br>${t.address}: ${escape(order.shipAddress)}</p><p>${t.nfc}: ${url?`<a href="${escape(url)}">${escape(url)}</a>`:'-'}</p><p>${t.production}</p></body></html>`;
+    return {subject,html,attachments};
+  }
+  return {render,renderMerchant,escape,safeUrl,language};
 });
