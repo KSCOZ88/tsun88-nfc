@@ -31,7 +31,7 @@ if "isStripe=order.payMethod==='Stripe'" not in s:
          "payment email router")
 if "locale:String(window.TsunI18n?.locale||document.documentElement.lang||'en').toLowerCase().startsWith('zh')?'zh-HK':'en'" not in s:
     once("body:JSON.stringify({order:currentOrder,previews})",
-         "body:JSON.stringify({order:currentOrder,previews,locale:window.TsunI18n?.locale==='zh-Hant'?'zh-HK':'en'})",
+         "body:JSON.stringify({order:currentOrder,previews,locale:String(window.TsunI18n?.locale||document.documentElement.lang||'en').toLowerCase().startsWith('zh')?'zh-HK':'en'})",
          "Stripe Checkout locale")
 if "async function startStripeCheckout()" not in s:
     stripe_handlers="""async function startStripeCheckout(){
