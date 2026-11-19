@@ -1,0 +1,30 @@
+name: Apply Stripe Checkout UI patch
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'scripts/patch-stripe-checkout.py'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Apply Stripe storefront patch
+        run: python scripts/patch-stripe-checkout.py
+      - name: Commit patched storefront
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "No storefront changes required"
+          else
+            git commit -m "Integrate Stripe Live Checkout UI"
+            git push
+          fi
