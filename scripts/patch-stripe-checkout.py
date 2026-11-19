@@ -84,3 +84,5 @@ if "result.pending?'付款确认邮件处理中'" not in s:
          "Stripe receipt pending status")
 p.write_text(s,encoding="utf-8")
 print("Stripe checkout patch applied")
+
+# Trigger Stripe checkout UI workflow
