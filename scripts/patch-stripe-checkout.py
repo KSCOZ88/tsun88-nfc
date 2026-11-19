@@ -29,6 +29,10 @@ if "isStripe=order.payMethod==='Stripe'" not in s:
     const endpoint=isPaypal?PAYPAL_EMAIL_ENDPOINT:isStripe?STRIPE_EMAIL_ENDPOINT:AIRWALLEX_EMAIL_ENDPOINT;
     const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:stage,sessionId:isStripe?order.stripeSessionId:order.airwallexSessionId,paypalOrderId:order.paypalOrderId,orderToken:isPaypal?order.paypalOrderToken:isStripe?order.stripeOrderToken:order.airwallexOrderToken,order,previews,attachments})});""",
          "payment email router")
+if "locale:window.TsunI18n?.locale==='zh-Hant'?'zh-HK':'en'" not in s:
+    once("body:JSON.stringify({order:currentOrder,previews})",
+         "body:JSON.stringify({order:currentOrder,previews,locale:window.TsunI18n?.locale==='zh-Hant'?'zh-HK':'en'})",
+         "Stripe Checkout locale")
 if "async function startStripeCheckout()" not in s:
     stripe_handlers="""async function startStripeCheckout(){
   if(!ensureCheckoutProfiles())return;
