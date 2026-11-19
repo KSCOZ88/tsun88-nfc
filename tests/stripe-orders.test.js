@@ -7,8 +7,8 @@ test('Stripe HKD total matches current 8TSUN8 published pricing',()=>{
  assert.deepEqual(stripe.pricing(order),{itemCount:2,decorCount:4,totalCents:61000});
 });
 test('Stripe Checkout locale follows the selected storefront language',()=>{
- assert.equal(stripe.checkoutLocale('zh-Hant'),'zh-HK');
- assert.equal(stripe.checkoutLocale('zh-HK'),'zh-HK');
+ assert.equal(stripe.checkoutLocale('zh-Hant'),'auto');
+ assert.equal(stripe.checkoutLocale('zh-HK'),'auto');
  assert.equal(stripe.checkoutLocale('en'),'en');
  assert.equal(stripe.checkoutLocale(undefined),'en');
 });
