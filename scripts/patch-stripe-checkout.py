@@ -78,5 +78,9 @@ if "const stripeButton=document.getElementById('stripePayBtn');if(stripeButton&&
     once("  const recoverButton=document.getElementById('airwallexRecoverBtn');if(recoverButton)recoverButton.hidden=!order.airwallexSessionId||order.paymentStatus==='paid';",
          "  const recoverButton=document.getElementById('airwallexRecoverBtn');if(recoverButton)recoverButton.hidden=!order.airwallexSessionId||order.paymentStatus==='paid';\n  const stripeButton=document.getElementById('stripePayBtn');if(stripeButton&&!stripeButton.disabled)stripeButton.textContent=(PROFILE_PREVIEW_MODE||LOCAL_FILE_REVIEW)?'Preview only · No payment':(window.TsunI18n?.locale==='zh-Hant'?'使用 Stripe 付款 · ':'Pay with Stripe · ')+money(pricing.total);",
          "Stripe price label")
+if "result.pending?'付款确认邮件处理中'" not in s:
+    once("order.customerEmailStatus=result.demo?'演示未发送':result.customerSent?'已发送付款确认':'发送失败';updateStoredOrder(order);",
+         "order.customerEmailStatus=result.demo?'演示未发送':result.customerSent?'已发送付款确认':result.pending?'付款确认邮件处理中':'发送失败';updateStoredOrder(order);",
+         "Stripe receipt pending status")
 p.write_text(s,encoding="utf-8")
 print("Stripe checkout patch applied")
