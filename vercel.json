@@ -26,6 +26,9 @@
     },
     "api/paid-order-email.js": {
       "maxDuration": 60
+    },
+    "api/test-language-emails.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [
