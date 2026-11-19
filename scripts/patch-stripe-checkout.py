@@ -30,7 +30,7 @@ if "isStripe=order.payMethod==='Stripe'" not in s:
     const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:stage,sessionId:isStripe?order.stripeSessionId:order.airwallexSessionId,paypalOrderId:order.paypalOrderId,orderToken:isPaypal?order.paypalOrderToken:isStripe?order.stripeOrderToken:order.airwallexOrderToken,order,previews,attachments})});""",
          "payment email router")
 if "locale:String(window.TsunI18n?.locale||document.documentElement.lang||'en').toLowerCase().startsWith('zh')?'zh-HK':'en'" not in s:
-    once("body:JSON.stringify({order:currentOrder,previews})",
+    once("body:JSON.stringify({order:currentOrder,previews,locale:window.TsunI18n?.locale==='zh-Hant'?'zh-HK':'en'})",
          "body:JSON.stringify({order:currentOrder,previews,locale:String(window.TsunI18n?.locale||document.documentElement.lang||'en').toLowerCase().startsWith('zh')?'zh-HK':'en'})",
          "Stripe Checkout locale")
 if "async function startStripeCheckout()" not in s:
