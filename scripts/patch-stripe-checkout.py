@@ -45,7 +45,7 @@ if "async function startStripeCheckout()" not in s:
     currentOrder.customerEmail=state.customerEmail;currentOrder.payMethod='Stripe';currentOrder.status='等待付款';currentOrder.pricing=calculateOrderPricing(currentOrder.items||[]);updateStoredOrder(currentOrder);
     const previews=await prepareEmailPreviews(currentOrder);\n    const response=await fetch(STRIPE_CREATE_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:currentOrder,previews})});
     const result=await response.json().catch(()=>({}));if(!response.ok||!result.url||!result.id)throw new Error(result.error||'Stripe 暂时无法打开付款页面');
-    currentOrder.stripeSessionId=result.id;currentOrder.stripeCheckoutPending=true;updateStoredOrder(currentOrder);
+    currentOrder.stripeSessionId=result.id;currentOrder.language=result.language||((window.TsunI18n?.locale==='zh-Hant')?'zh-Hant':'en');currentOrder.stripeCheckoutPending=true;updateStoredOrder(currentOrder);
     location.assign(result.url);
   }catch(error){toast(error.message||'Stripe 暂时不可用，请稍后再试。',9000);if(button){button.disabled=false;renderPaymentOrder(currentOrder);}}
 }
