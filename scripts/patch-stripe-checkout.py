@@ -39,7 +39,7 @@ if "async function startStripeCheckout()" not in s:
   if(button){button.disabled=true;button.textContent='正在打开 Stripe…';}
   try{
     currentOrder.customerEmail=state.customerEmail;currentOrder.payMethod='Stripe';currentOrder.status='等待付款';currentOrder.pricing=calculateOrderPricing(currentOrder.items||[]);updateStoredOrder(currentOrder);
-    const response=await fetch(STRIPE_CREATE_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:currentOrder})});
+    const previews=await prepareEmailPreviews(currentOrder);\n    const response=await fetch(STRIPE_CREATE_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:currentOrder,previews})});
     const result=await response.json().catch(()=>({}));if(!response.ok||!result.url||!result.id)throw new Error(result.error||'Stripe 暂时无法打开付款页面');
     currentOrder.stripeSessionId=result.id;currentOrder.stripeCheckoutPending=true;updateStoredOrder(currentOrder);
     location.assign(result.url);
