@@ -74,5 +74,9 @@ if "const stripeButton=document.getElementById('stripePayBtn')" not in s:
          "Stripe button binding")
 if "handleStripeReturn();" not in s:
     once("  handleAirwallexReturn();\n  handlePaypalReturn();","  handleAirwallexReturn();\n  handlePaypalReturn();\n  handleStripeReturn();","Stripe return recovery")
+if "const stripeButton=document.getElementById('stripePayBtn');if(stripeButton&&!stripeButton.disabled)" not in s:
+    once("  const recoverButton=document.getElementById('airwallexRecoverBtn');if(recoverButton)recoverButton.hidden=!order.airwallexSessionId||order.paymentStatus==='paid';",
+         "  const recoverButton=document.getElementById('airwallexRecoverBtn');if(recoverButton)recoverButton.hidden=!order.airwallexSessionId||order.paymentStatus==='paid';\n  const stripeButton=document.getElementById('stripePayBtn');if(stripeButton&&!stripeButton.disabled)stripeButton.textContent=(PROFILE_PREVIEW_MODE||LOCAL_FILE_REVIEW)?'Preview only · No payment':(window.TsunI18n?.locale==='zh-Hant'?'使用 Stripe 付款 · ':'Pay with Stripe · ')+money(pricing.total);",
+         "Stripe price label")
 p.write_text(s,encoding="utf-8")
 print("Stripe checkout patch applied")
