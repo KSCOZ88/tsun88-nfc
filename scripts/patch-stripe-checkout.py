@@ -18,7 +18,7 @@ if "const STRIPE_CREATE_ENDPOINT=" not in s:
     once("const PAYPAL_EMAIL_ENDPOINT=PAYMENT_API_ORIGIN+'/api/paypal-paid-order-email';",
          "const PAYPAL_EMAIL_ENDPOINT=PAYMENT_API_ORIGIN+'/api/paypal-paid-order-email';\nconst STRIPE_CREATE_ENDPOINT=PAYMENT_API_ORIGIN+'/api/create-checkout-session';\nconst STRIPE_CONFIRM_ENDPOINT=PAYMENT_API_ORIGIN+'/api/confirm-paid-order';\nconst STRIPE_EMAIL_ENDPOINT=PAYMENT_API_ORIGIN+'/api/paid-order-email';",
          "payment API constants")
-if "const isStripe=order.payMethod==='Stripe'" not in s:
+if "isStripe=order.payMethod==='Stripe'" not in s:
     once("""  const isPaypal=order.payMethod==='PayPal';
   if(isPaypal?(!order.paypalOrderId||!order.paypalOrderToken):(!order.airwallexSessionId||!order.airwallexOrderToken))return {ok:false,customerSent:false,merchantSent:false,error:'付款尚未通过服务器核验'};
   try{
