@@ -41,7 +41,7 @@
     const url=safeUrl(order.cloudProfile?.publicUrl);
     const designs=previews.map((p,index)=>{
       const img=String(p.src||'');
-      if(!/^data:image\\/png;base64,[A-Za-z0-9+/=]+$/.test(img)&&!/^cid:[\\w-]+$/.test(img))return '';
+      if(!new RegExp('^data:image/png;base64,[A-Za-z0-9+/=]+$').test(img)&&!/^cid:[A-Za-z0-9_-]+$/.test(img))return '';
       return `<td style="width:50%;padding:8px;text-align:center;vertical-align:top"><img alt="${escape(p.label||t.tag)}" src="${escape(img)}" width="220" style="max-width:100%;height:auto;border-radius:16px;background:#f7fbfd"><div style="font-size:13px;color:#607c88">${escape(p.label||t.tag+' '+(index+1))}</div></td>`;
     });
     const pictures=designs.map((html,i)=>i%2===0?'<tr>'+html+(designs[i+1]||'<td></td>')+'</tr>':'').join('');
