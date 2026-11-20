@@ -37,7 +37,7 @@ async function begin(order,previews,total,paymentMethod='card',allowSwitch=false
  // original paid-order design with mutable browser content.
  const canonicalChanged=existing.order_binding!==b;
  if(canonicalChanged){
-  if(!allowSwitch||!existing.stripe_session_id||order.stripeSessionId!==existing.stripe_session_id)
+  if(!existing.stripe_session_id||order.stripeSessionId!==existing.stripe_session_id)
     throw fail('訂單資料不一致，請返回原訂單再試',409);
   const [saved]=await sql`SELECT order_snapshot,previews FROM tsun_stripe_orders WHERE merchant_order_id=${order.id}`;
   if(!saved?.order_snapshot)throw fail('原訂單資料無法恢復，請聯絡商戶',409);
