@@ -65,6 +65,7 @@ resume_handler="""function handleCheckoutResume(){
   if(!order){history.replaceState({},document.title,location.pathname);return;}
   if(order.paymentStatus==='paid'){history.replaceState({},document.title,location.pathname);return;}
   currentOrder=order;cartDesigns=order.items||[];currentCartIndex=0;
+  if(order.customerEmail)state.customerEmail=order.customerEmail;
   applyTagDesign({...order.items?.[0],nfcProfile:order.nfcProfile});
   go('checkout');renderPaymentOrder(order);
   history.replaceState({},document.title,location.pathname+location.hash);
@@ -78,5 +79,13 @@ if "  handleCheckoutResume();" not in s:
     needle="  handleStripeReturn();"
     if s.count(needle)!=1:raise SystemExit("Checkout resume: startup anchor missing")
     s=s.replace(needle,needle+"\n  handleCheckoutResume();")
+# Restore the saved customer email on Stripe's own Back/cancel path too.
+# The payment page reads state.customerEmail when validating the next attempt.
+if "if(order.customerEmail)state.customerEmail=order.customerEmail;" not in s.split('async function handleStripeReturn(){')[1].split('async function startAirwallexCheckout(){')[0]:
+    target="currentOrder=order;cartDesigns=order.items||[];currentCartIndex=0;applyTagDesign("
+    replacement="currentOrder=order;cartDesigns=order.items||[];currentCartIndex=0;if(order.customerEmail)state.customerEmail=order.customerEmail;applyTagDesign("
+    if s.count(target)!=1:
+        raise SystemExit("Stripe return email restoration anchor changed")
+    s=s.replace(target,replacement)
 p.write_text(s,encoding="utf-8")
 print("Payment choices patch applied")
