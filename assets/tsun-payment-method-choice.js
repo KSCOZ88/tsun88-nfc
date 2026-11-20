@@ -57,7 +57,7 @@
      b.setAttribute('aria-checked',String(selected===choice.id));
    });
   }
-  continueButton.addEventListener('click',()=>{
+  continueButton.addEventListener('click',async()=>{
    const choice=choices.find(x=>x.id===selected);
    if(preview()){
      warning.textContent=msg('這是 Preview 測試版，已停用真實付款。正式上線前需完成測試。','This is a Preview build. Live payments are disabled to protect customers.');
@@ -65,16 +65,33 @@
    }
    const order=typeof currentOrder!=='undefined'?currentOrder:null;
    if(choice.stripe){
-    if(order?.stripeSessionId&&(!order.stripeSelectedMethod||order.stripeSelectedMethod!==choice.stripe)){
-      warning.textContent=msg('此訂單已有不同支付方式的待處理付款連結。為防止重複扣款，請聯絡商戶處理。','This order already has a pending session for a different method. Contact the merchant before switching.');
-      return;
-    }
+    // The server expires an earlier unpaid Stripe Session before issuing a new
+    // one for the newly selected method. The same order and previews are retained.
     window.__tsunStripeMethod=choice.stripe;
     if(choice.id==='apple'||choice.id==='google'){
       warning.textContent=msg('Stripe 會按裝置判斷是否提供 '+choice.en+'，否則可使用銀行卡。','Stripe will show '+choice.en+' only when eligible. You can use a bank card otherwise.');
     }else warning.textContent='';
     stripeBtn.click();
-   }else if(choice.provider==='paypal'){warning.textContent='';paypalBtn.click();}
+   }else if(choice.provider==='paypal'){
+    if(order?.paymentStatus==='paid'){warning.textContent=msg('此訂單已付款，無需再次支付。','This order is already paid.');return;}
+    if(order?.stripeSessionId&&!order.stripeSessionRetired){
+      // Do not leave an open Stripe link behind when moving to a different gateway.
+      continueButton.disabled=true;
+      try{
+        const response=await fetch('/api/create-checkout-session',{method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({action:'retireStripeSession',order,sessionId:order.stripeSessionId})});
+        const result=await response.json().catch(()=>({}));
+        if(!response.ok||!result.retired)throw new Error(result.error||'Unable to close previous checkout');
+        order.stripeSessionRetired=true;order.stripeCheckoutPending=false;
+        if(typeof updateStoredOrder==='function')updateStoredOrder(order);
+      }catch(error){
+        warning.textContent=msg('原付款狀態尚未確認，為避免重複扣款，請勿再付款。','The earlier checkout could not be safely closed. Please check its status before retrying.');
+        return;
+      }finally{continueButton.disabled=false;}
+    }
+    warning.textContent='';paypalBtn.click();
+   }
   });
   refresh();
   new MutationObserver(refresh).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
