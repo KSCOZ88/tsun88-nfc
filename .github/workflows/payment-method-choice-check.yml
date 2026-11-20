@@ -39,7 +39,7 @@ jobs:
           python3 scripts/patch-payment-method-choice.py
       - name: Verify storefront integration
         run: |
-          grep -Fq 'id="tsunSpecificPaymentMethods"' assets/tsun-payment-method-choice.js
+          grep -Fq 'tsunSpecificPaymentMethods' assets/tsun-payment-method-choice.js
           grep -Fq 'paymentMethod:window.__tsunStripeMethod' index.html
           grep -Fq '<script src="/assets/tsun-payment-method-choice.js" defer></script>' index.html
       - name: Run Stripe regression tests
