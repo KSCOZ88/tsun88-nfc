@@ -8,18 +8,20 @@ end=s.find("async function handleStripeReturn(){",start)
 if start<0 or end<0:
     raise SystemExit("Payment choices: Stripe checkout handler not found")
 block=s[start:end]
-import re
 if "paymentMethod:window.__tsunStripeMethod" not in block:
-    pattern=r"body:JSON\\.stringify\\(\\{order:currentOrder,previews(?:,locale:[^}]*)?\\}\\)"
-    matches=list(re.finditer(pattern,block))
-    if len(matches)!=1:
-        raise SystemExit(f"Payment choices: expected one Stripe request body, found {len(matches)}")
-    old=matches[0].group()
+    needle="body:JSON.stringify({order:currentOrder,previews"
+    position=block.find(needle)
+    if position<0 or block.find(needle,position+1)>=0:
+        raise SystemExit("Payment choices: missing or ambiguous Stripe request")
+    finish=block.find("})",position)
+    if finish<0:
+        raise SystemExit("Payment choices: malformed Stripe request")
+    old=block[position:finish+2]
     if ",locale:" not in old:
-        old_new=old[:-2]+",locale:String(window.TsunI18n?.locale||document.documentElement.lang||'en').toLowerCase().startsWith('zh')?'zh-HK':'en',paymentMethod:window.__tsunStripeMethod||'card'})"
+        replacement=old[:-2]+",locale:String(window.TsunI18n?.locale||document.documentElement.lang||'en').toLowerCase().startsWith('zh')?'zh-HK':'en',paymentMethod:window.__tsunStripeMethod||'card'})"
     else:
-        old_new=old[:-2]+",paymentMethod:window.__tsunStripeMethod||'card'})"
-    block=block.replace(old,old_new)
+        replacement=old[:-2]+",paymentMethod:window.__tsunStripeMethod||'card'})"
+    block=block[:position]+replacement+block[finish+2:]
 # Keep payment method in local order to prevent reusing a different method's session.
 anchor="currentOrder.customerEmail=state.customerEmail;currentOrder.payMethod='Stripe';"
 updated="currentOrder.customerEmail=state.customerEmail;currentOrder.stripeSelectedMethod=window.__tsunStripeMethod||'card';currentOrder.payMethod='Stripe';"
