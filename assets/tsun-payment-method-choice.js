@@ -3,8 +3,8 @@
 (function(){
  const choices=[
   {id:'card',en:'Credit / Debit Card',zh:'信用卡／扣賬卡',subEn:'Visa · Mastercard · Amex',subZh:'Visa · Mastercard · Amex',logos:['visa','mastercard','americanexpress'],stripe:'card'},
-  {id:'apple',en:'Apple Pay',zh:'Apple Pay',subEn:'On compatible Apple devices',subZh:'適用於支援的 Apple 裝置',logos:['applepay'],stripe:'card'},
-  {id:'google',en:'Google Pay',zh:'Google Pay',subEn:'On compatible browsers',subZh:'適用於支援的瀏覽器',logos:['googlepay'],stripe:'card'},
+  {id:'apple',en:'Apple Pay',zh:'Apple Pay',subEn:'Shown by Stripe when supported',subZh:'Stripe 僅於支援時顯示',logos:['applepay'],stripe:'card'},
+  {id:'google',en:'Google Pay',zh:'Google Pay',subEn:'Shown by Stripe when supported',subZh:'Stripe 僅於支援時顯示',logos:['googlepay'],stripe:'card'},
   {id:'alipay',en:'Alipay',zh:'支付寶 Alipay',subEn:'Mainland wallet · not AlipayHK',subZh:'內地錢包，非 AlipayHK',logos:['alipay'],stripe:'alipay'},
   {id:'wechat',en:'WeChat Pay',zh:'微信支付 WeChat Pay',subEn:'Mainland wallet · not WeChat Pay HK',subZh:'內地錢包，非 WeChat Pay HK',logos:['wechatpay'],stripe:'wechat_pay'},
   {id:'paypal',en:'PayPal',zh:'PayPal',subEn:'Secure PayPal checkout',subZh:'使用 PayPal 安全付款',logos:['paypal'],provider:'paypal'}
@@ -28,11 +28,9 @@
   const heading=el('h3','tsun-method-title');const subtitle=el('p','tsun-method-subtitle');
   const buttons=el('div');buttons.id='tsunMethodButtons';buttons.setAttribute('role','radiogroup');
   const warning=el('small');warning.id='tsunMethodWarning';warning.setAttribute('role','status');warning.setAttribute('aria-live','polite');
-  const total=el('div','tsun-method-total');const totalLabel=el('span');const totalValue=el('strong');
-  total.append(totalLabel,totalValue);
   const continueButton=el('button','tsun-method-continue');continueButton.type='button';
   const foot=el('div','tsun-method-footnote');
-  wrap.append(heading,subtitle,buttons,warning,total,continueButton,foot);
+  wrap.append(heading,subtitle,buttons,warning,continueButton,foot);
   paypal.parentNode.insertBefore(panel,paypal);
   paypal.hidden=true;stripe.hidden=true;paypal.style.display='none';stripe.style.display='none';
   const airwallex=document.getElementById('airwallexPaymentPanel');
@@ -51,14 +49,9 @@
   function refresh(){
    heading.textContent=msg('選擇付款方式','Choose a payment method');
    subtitle.textContent=msg('安全加密付款 · Secure checkout','Secure checkout · Choose how to pay');
-   totalLabel.textContent=msg('訂單總額','Order total');
-   const order=typeof currentOrder!=='undefined'?currentOrder:null;
-   const amount=order?.pricing?.total;
-   totalValue.textContent=typeof amount==='number'&&Number.isFinite(amount)?'HK$'+amount.toFixed(2):'';
-   total.hidden=!totalValue.textContent;
    continueButton.textContent=msg('確認付款','Continue to payment');
    foot.textContent=msg('付款由安全支付服務商處理','Payments processed securely');
-   if(preview())continueButton.textContent=msg('預覽付款介面','Preview payment interface');
+   if(preview())continueButton.textContent=msg('檢視付款介面（不會扣款）','Preview only · No charge');
    nodes.forEach(({choice,b,name,detail})=>{
      name.textContent=zh()?choice.zh:choice.en;detail.textContent=zh()?choice.subZh:choice.subEn;
      b.setAttribute('aria-checked',String(selected===choice.id));
