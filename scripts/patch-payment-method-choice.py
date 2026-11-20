@@ -79,13 +79,16 @@ if "  handleCheckoutResume();" not in s:
     needle="  handleStripeReturn();"
     if s.count(needle)!=1:raise SystemExit("Checkout resume: startup anchor missing")
     s=s.replace(needle,needle+"\n  handleCheckoutResume();")
-# Restore the saved customer email on Stripe's own Back/cancel path too.
-# The payment page reads state.customerEmail when validating the next attempt.
-if "if(order.customerEmail)state.customerEmail=order.customerEmail;" not in s.split('async function handleStripeReturn(){')[1].split('async function startAirwallexCheckout(){')[0]:
-    target="currentOrder=order;cartDesigns=order.items||[];currentCartIndex=0;applyTagDesign("
-    replacement="currentOrder=order;cartDesigns=order.items||[];currentCartIndex=0;if(order.customerEmail)state.customerEmail=order.customerEmail;applyTagDesign("
-    if s.count(target)!=1:
-        raise SystemExit("Stripe return email restoration anchor changed")
-    s=s.replace(target,replacement)
+# Restore the customer email on Stripe's Back/cancel path too.
+start_return=s.find("async function handleStripeReturn(){")
+end_return=s.find("async function startAirwallexCheckout(){",start_return)
+if start_return<0 or end_return<0: raise SystemExit("Stripe return handler not found")
+return_block=s[start_return:end_return]
+saved_email="if(order.customerEmail)state.customerEmail=order.customerEmail;"
+if saved_email not in return_block:
+    needle="currentOrder=order;"
+    if return_block.count(needle)<1: raise SystemExit("Stripe return current order anchor changed")
+    return_block=return_block.replace(needle,needle+saved_email,1)
+    s=s[:start_return]+return_block+s[end_return:]
 p.write_text(s,encoding="utf-8")
 print("Payment choices patch applied")
