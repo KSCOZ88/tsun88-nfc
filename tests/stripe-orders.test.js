@@ -87,3 +87,21 @@ test('Stripe cancellation survives the legacy Home-first startup and BFCache pag
  assert.match(html,/!RESUME_STRIPE_ON_STARTUP&&!paymentCheckoutVisible\(\)\)go\('home'\)/);
  assert.match(html,/event\.persisted[^\n]*!RESUME_STRIPE_ON_STARTUP&&!paymentCheckoutVisible\(\)\)go\('home'\)/);
 });
+
+test('Payment switch reuses original stored design instead of trusting rehydrated cart serialization',()=>{
+ const {readFileSync}=require('node:fs'),{join}=require('node:path');
+ const store=readFileSync(join(__dirname,'../server/stripe-order-store.js'),'utf8');
+ const service=readFileSync(join(__dirname,'../server/stripe-orders.js'),'utf8');
+ assert.match(store,/const canonicalChanged=existing\.order_binding!==b/);
+ assert.match(store,/order\.stripeSessionId!==existing\.stripe_session_id/);
+ assert.match(store,/order=safeOrder;previews=saved\.previews/);
+ assert.match(store,/previous\.status==='open'/);
+ assert.match(store,/expireStripeSession\(existing\.stripe_session_id\)/);
+ assert.match(service,/order=lease\.order;if\(lease\.existing\)/);
+});
+test('Stripe Back and cancellation restore saved email state before rendering checkout',()=>{
+ const {readFileSync}=require('node:fs'),{join}=require('node:path');
+ const html=readFileSync(join(__dirname,'../index.html'),'utf8');
+ const occurrences=html.split('if(order.customerEmail)state.customerEmail=order.customerEmail').length-1;
+ assert.ok(occurrences>=2,'both Stripe return and browser Back must restore email');
+});

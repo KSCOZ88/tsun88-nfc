@@ -31,7 +31,22 @@ async function begin(order,previews,total,paymentMethod='card',allowSwitch=false
  ON CONFLICT DO NOTHING RETURNING merchant_order_id`;
  if(inserted.length)return {sql,order,total,fresh:true,attempt:1};
  const [existing]=await sql`SELECT email,amount_cents,order_binding,stripe_session_id,stripe_session_url,payment_method,checkout_attempt,status FROM tsun_stripe_orders WHERE merchant_order_id=${order.id}`;
- if(!existing||existing.order_binding!==b||existing.amount_cents!==total.totalCents||existing.email!==String(order.customerEmail).toLowerCase())throw fail('订单资料或金额已改变，请重新创建订单',409);
+ if(!existing||existing.amount_cents!==total.totalCents||existing.email!==String(order.customerEmail).toLowerCase())throw fail('订单资料或金额已改变，请重新创建订单',409);
+ // Returning from Stripe may rehydrate design objects with different non-payment
+ // fields/serialization. Reuse the immutable server snapshot; never replace the
+ // original paid-order design with mutable browser content.
+ const canonicalChanged=existing.order_binding!==b;
+ if(canonicalChanged){
+  if(!existing.stripe_session_id||order.stripeSessionId!==existing.stripe_session_id)
+    throw fail('訂單資料不一致，請返回原訂單再試',409);
+  const [saved]=await sql`SELECT order_snapshot,previews FROM tsun_stripe_orders WHERE merchant_order_id=${order.id}`;
+  if(!saved?.order_snapshot)throw fail('原訂單資料無法恢復，請聯絡商戶',409);
+  const safeOrder=saved.order_snapshot;
+  if(safeOrder.id!==order.id||String(safeOrder.customerEmail).toLowerCase()!==String(order.customerEmail).toLowerCase()||
+     require('./stripe-orders').pricing(safeOrder).totalCents!==total.totalCents)
+     throw fail('原訂單資料不一致，請聯絡商戶',409);
+  order=safeOrder;previews=saved.previews||[];
+ }
  if(existing.stripe_session_id&&existing.stripe_session_url&&existing.status==='pending'){
   const previousMethod=existing.payment_method||'card';
   if(previousMethod===paymentMethod)return {sql,order,total,existing};
@@ -70,7 +85,7 @@ async function expireForAlternateProvider(order,sessionId){
  const total=require('./stripe-orders').pricing(order),b=binding(order,total);
  const [existing]=await sql`SELECT merchant_order_id,email,amount_cents,order_binding,stripe_session_id,status
  FROM tsun_stripe_orders WHERE merchant_order_id=${order.id}`;
- if(!existing||existing.order_binding!==b||existing.amount_cents!==total.totalCents||
+ if(!existing||existing.amount_cents!==total.totalCents||
  existing.email!==String(order.customerEmail||'').toLowerCase()||
  existing.stripe_session_id!==sessionId)throw fail('訂單資料與 Stripe 付款記錄不符',409);
  if(existing.status==='paid')throw fail('原訂單已付款，不可再次支付',409);
@@ -89,7 +104,7 @@ async function expireForAlternateProvider(order,sessionId){
 }
 async function complete(lease,session){const rows=await lease.sql`UPDATE tsun_stripe_orders SET stripe_session_id=${session.id},stripe_session_url=${session.url},status='pending'
  WHERE merchant_order_id=${lease.order.id} AND status='creating' AND stripe_session_id IS NULL RETURNING merchant_order_id`;if(!rows.length)throw fail('Stripe 付款链接保存失败，请联系客服核查，不要重复付款',503);}
-async function abort(lease){if(!lease.fresh)return;await lease.sql`DELETE FROM tsun_stripe_orders WHERE merchant_order_id=${lease.order.id} AND status='creating' AND stripe_session_id IS NULL`;}
+async function abort(lease){if(!lease.fresh)return;if((lease.attempt||1)>1){await lease.sql`UPDATE tsun_stripe_orders SET status='cancelled' WHERE merchant_order_id=${lease.order.id} AND status='creating' AND stripe_session_id IS NULL`;return;}await lease.sql`DELETE FROM tsun_stripe_orders WHERE merchant_order_id=${lease.order.id} AND status='creating' AND stripe_session_id IS NULL`;}
 async function enqueue(eventId,sessionId){if(!/^[A-Za-z0-9_-]{6,130}$/.test(eventId)||!/^cs_live_[A-Za-z0-9_]+$/.test(sessionId))throw fail('Stripe webhook identifiers invalid');const sql=db();await schema(sql);await sql`INSERT INTO tsun_stripe_webhook_events(event_id,stripe_session_id) VALUES(${eventId},${sessionId}) ON CONFLICT(event_id) DO NOTHING`;}
 async function deliverStage(order,sessionId,stage,previews,attachments=[]){const sql=db();await schema(sql);await sql`INSERT INTO tsun_stripe_mail(merchant_order_id,stage) VALUES(${order.id},${stage}) ON CONFLICT DO NOTHING`;const [claim]=await sql`UPDATE tsun_stripe_mail SET processing_until=now()+interval '4 minutes'
  WHERE merchant_order_id=${order.id} AND stage=${stage} AND (processing_until IS NULL OR processing_until<now())
