@@ -2,17 +2,18 @@
 const {neon}=require('@neondatabase/serverless');
 const {createHash}=require('node:crypto');
 const {sendGmail}=require('./gmail-mailer');
-const {fail,stripeSession,verifyPaidSession,deliver}=require('./stripe-orders');
+const {fail,stripeSession,expireStripeSession,verifyPaidSession,deliver}=require('./stripe-orders');
 let schemaPromise;
 function db(){if(!process.env.DATABASE_URL)throw fail('订单数据库未配置',503);return neon(process.env.DATABASE_URL);}
 async function schema(sql){if(!schemaPromise)schemaPromise=(async()=>{
  await sql`CREATE TABLE IF NOT EXISTS tsun_stripe_orders (
   merchant_order_id TEXT PRIMARY KEY,email TEXT NOT NULL,amount_cents INTEGER NOT NULL,
   order_binding TEXT NOT NULL,order_snapshot JSONB NOT NULL,previews JSONB NOT NULL DEFAULT '[]'::jsonb,
-  stripe_session_id TEXT UNIQUE,stripe_session_url TEXT,payment_method TEXT,status TEXT NOT NULL DEFAULT 'creating',
+  stripe_session_id TEXT UNIQUE,stripe_session_url TEXT,payment_method TEXT,checkout_attempt INTEGER NOT NULL DEFAULT 1,status TEXT NOT NULL DEFAULT 'creating',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),paid_at TIMESTAMPTZ
  )`;
  await sql`ALTER TABLE tsun_stripe_orders ADD COLUMN IF NOT EXISTS payment_method TEXT`;
+ await sql`ALTER TABLE tsun_stripe_orders ADD COLUMN IF NOT EXISTS checkout_attempt INTEGER NOT NULL DEFAULT 1`;
  await sql`CREATE TABLE IF NOT EXISTS tsun_stripe_webhook_events (
   event_id TEXT PRIMARY KEY,stripe_session_id TEXT NOT NULL,received_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   processed_at TIMESTAMPTZ,processing_until TIMESTAMPTZ,attempts INTEGER NOT NULL DEFAULT 0,last_error TEXT
@@ -25,16 +26,33 @@ async function schema(sql){if(!schemaPromise)schemaPromise=(async()=>{
 })().catch(e=>{schemaPromise=null;throw e;});return schemaPromise;}
 function snapshot(order){const value=JSON.parse(JSON.stringify(order));function strip(obj,depth=0){if(!obj||typeof obj!=='object'||depth>14)return;for(const [k,v] of Object.entries(obj)){if(typeof v==='string'&&(v.startsWith('data:image/')||v.length>12000))obj[k]='[image not stored]';else if(v&&typeof v==='object')strip(v,depth+1);}}strip(value);if(Buffer.byteLength(JSON.stringify(value))>220000)throw fail('订单内容过大',413);return value;}
 function binding(order,total){return createHash('sha256').update(JSON.stringify({id:order.id,email:String(order.customerEmail).toLowerCase(),amount:total.totalCents,items:order.items})).digest('hex');}
-async function begin(order,previews,total,paymentMethod='card'){const sql=db();await schema(sql);const s=snapshot(order),b=binding(order,total);const inserted=await sql`INSERT INTO tsun_stripe_orders(merchant_order_id,email,amount_cents,order_binding,order_snapshot,previews,payment_method)
+async function begin(order,previews,total,paymentMethod='card',allowSwitch=false){const sql=db();await schema(sql);const s=snapshot(order),b=binding(order,total);const inserted=await sql`INSERT INTO tsun_stripe_orders(merchant_order_id,email,amount_cents,order_binding,order_snapshot,previews,payment_method)
  VALUES(${order.id},${String(order.customerEmail).toLowerCase()},${total.totalCents},${b},${JSON.stringify(s)}::jsonb,${JSON.stringify(previews||[])}::jsonb,${paymentMethod})
  ON CONFLICT DO NOTHING RETURNING merchant_order_id`;
- if(inserted.length)return {sql,order,total,fresh:true};
- const [existing]=await sql`SELECT email,amount_cents,order_binding,stripe_session_id,stripe_session_url,payment_method,status FROM tsun_stripe_orders WHERE merchant_order_id=${order.id}`;
+ if(inserted.length)return {sql,order,total,fresh:true,attempt:1};
+ const [existing]=await sql`SELECT email,amount_cents,order_binding,stripe_session_id,stripe_session_url,payment_method,checkout_attempt,status FROM tsun_stripe_orders WHERE merchant_order_id=${order.id}`;
  if(!existing||existing.order_binding!==b||existing.amount_cents!==total.totalCents||existing.email!==String(order.customerEmail).toLowerCase())throw fail('订单资料或金额已改变，请重新创建订单',409);
  if(existing.stripe_session_id&&existing.stripe_session_url&&existing.status==='pending'){
-  if(existing.payment_method&&existing.payment_method!==paymentMethod)throw fail('此订单已有其他付款方式的 Stripe 链接，请勿重复付款',409);
-  if(!existing.payment_method&&paymentMethod!=='card')throw fail('此订单已有旧版 Stripe 付款链接，暂不能切换付款方式',409);
-  return {sql,order,total,existing};
+  const previousMethod=existing.payment_method||'card';
+  if(previousMethod===paymentMethod)return {sql,order,total,existing};
+  if(!allowSwitch)throw fail('切換支付方式需要確認舊付款會話已失效',409);
+  // The current Stripe Checkout must be expired before replacing its pointer in our
+  // order table. A completed session can never be switched, even if not yet settled.
+  const previous=await stripeSession(existing.stripe_session_id);
+  if(previous.status==='open'){
+   const expired=await expireStripeSession(existing.stripe_session_id);
+   if(expired.status!=='expired')throw fail('無法取消原付款連結，請勿重複付款',409);
+  }else if(previous.status!=='expired'){
+   throw fail('原付款已提交或正在處理，請先確認付款結果',409);
+  }
+  const changed=await sql`UPDATE tsun_stripe_orders
+   SET stripe_session_id=NULL,stripe_session_url=NULL,payment_method=${paymentMethod},
+       checkout_attempt=checkout_attempt+1,status='creating'
+   WHERE merchant_order_id=${order.id} AND stripe_session_id=${existing.stripe_session_id}
+     AND status='pending'
+   RETURNING checkout_attempt`;
+  if(!changed.length)throw fail('付款狀態已變更，請重新整理後核對',409);
+  return {sql,order,total,fresh:true,attempt:changed[0].checkout_attempt};
  }
  if(existing.status==='paid')throw fail('该订单已付款，请勿重复付款',409);
  throw fail('Stripe 付款链接正在创建，请稍后刷新订单',409);
