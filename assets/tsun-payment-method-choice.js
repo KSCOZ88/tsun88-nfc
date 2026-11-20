@@ -1,16 +1,18 @@
 'use strict';
-/* 8TSUN8 customer-facing payment choices. Gateway credentials and paid verification stay server-side. */
+/* 8TSUN8 checkout v2. Local SVG marks are sourced from Simple Icons. */
 (function(){
  const choices=[
-  {id:'card',nameEn:'Credit / Debit Card',nameZh:'信用卡／扣賬卡',detailEn:'Visa · Mastercard · supported cards',detailZh:'Visa · Mastercard · 支援的銀行卡',stripe:'card'},
-  {id:'apple',nameEn:'Apple Pay',nameZh:'Apple Pay',detailEn:'Available on eligible Apple devices',detailZh:'須使用符合條件的 Apple 裝置',stripe:'card'},
-  {id:'google',nameEn:'Google Pay',nameZh:'Google Pay',detailEn:'Available on eligible browsers',detailZh:'須使用符合條件的瀏覽器',stripe:'card'},
-  {id:'alipay',nameEn:'Alipay',nameZh:'支付寶 Alipay',detailEn:'Mainland Alipay wallet · not AlipayHK',detailZh:'內地支付寶錢包，非 AlipayHK',stripe:'alipay'},
-  {id:'wechat',nameEn:'WeChat Pay',nameZh:'微信支付 WeChat Pay',detailEn:'Mainland WeChat Pay · not WeChat Pay HK',detailZh:'內地微信支付，非 WeChat Pay HK',stripe:'wechat_pay'},
-  {id:'paypal',nameEn:'PayPal',nameZh:'PayPal',detailEn:'Secure PayPal checkout',detailZh:'使用 PayPal 安全付款',provider:'paypal'}
+  {id:'card',en:'Credit / Debit Card',zh:'信用卡／扣賬卡',subEn:'Visa · Mastercard · Amex',subZh:'Visa · Mastercard · Amex',logos:['visa','mastercard','americanexpress'],stripe:'card'},
+  {id:'apple',en:'Apple Pay',zh:'Apple Pay',subEn:'On compatible Apple devices',subZh:'適用於支援的 Apple 裝置',logos:['applepay'],stripe:'card'},
+  {id:'google',en:'Google Pay',zh:'Google Pay',subEn:'On compatible browsers',subZh:'適用於支援的瀏覽器',logos:['googlepay'],stripe:'card'},
+  {id:'alipay',en:'Alipay',zh:'支付寶 Alipay',subEn:'Mainland wallet · not AlipayHK',subZh:'內地錢包，非 AlipayHK',logos:['alipay'],stripe:'alipay'},
+  {id:'wechat',en:'WeChat Pay',zh:'微信支付 WeChat Pay',subEn:'Mainland wallet · not WeChat Pay HK',subZh:'內地錢包，非 WeChat Pay HK',logos:['wechatpay'],stripe:'wechat_pay'},
+  {id:'paypal',en:'PayPal',zh:'PayPal',subEn:'Secure PayPal checkout',subZh:'使用 PayPal 安全付款',logos:['paypal'],provider:'paypal'}
  ];
  function zh(){return String(window.TsunI18n?.locale||document.documentElement.lang||'en').toLowerCase().startsWith('zh');}
- function msg(zhText,enText){return zh()?zhText:enText;}
+ function msg(a,b){return zh()?a:b;}
+ function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text)e.textContent=text;return e;}
+ function preview(){return location.hostname.endsWith('.vercel.app');}
  function init(){
   if(document.getElementById('tsunSpecificPaymentMethods'))return;
   const paypal=document.getElementById('paypalPaymentPanel');
@@ -18,52 +20,72 @@
   const paypalBtn=document.getElementById('paypalPayBtn');
   const stripeBtn=document.getElementById('stripePayBtn');
   if(!paypal||!stripe||!paypalBtn||!stripeBtn)return;
-  const panel=document.createElement('div');
-  panel.id='tsunSpecificPaymentMethods';
-  panel.className='payment-panel';
-  panel.setAttribute('role','group');
-  panel.style.marginTop='14px';
-  panel.innerHTML='<div class="payment-code-box" style="gap:12px"><b id="tsunMethodHeading"></b><small class="payment-scan-note" id="tsunMethodExplanation"></small><div id="tsunMethodButtons" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px"></div><small id="tsunMethodWarning" aria-live="polite"></small></div>';
+  if(!document.getElementById('tsunSpecificPaymentMethodsStyle')){
+   const link=el('link');link.id='tsunSpecificPaymentMethodsStyle';link.rel='stylesheet';link.href='/assets/tsun-payment-method-choice.css';document.head.append(link);
+  }
+  const panel=el('div','payment-panel');panel.id='tsunSpecificPaymentMethods';panel.setAttribute('role','group');panel.setAttribute('aria-label','Payment methods');
+  const wrap=el('div','payment-code-box');panel.append(wrap);
+  const heading=el('h3','tsun-method-title');const subtitle=el('p','tsun-method-subtitle');
+  const buttons=el('div');buttons.id='tsunMethodButtons';buttons.setAttribute('role','radiogroup');
+  const warning=el('small');warning.id='tsunMethodWarning';warning.setAttribute('role','status');warning.setAttribute('aria-live','polite');
+  const total=el('div','tsun-method-total');const totalLabel=el('span');const totalValue=el('strong');
+  total.append(totalLabel,totalValue);
+  const continueButton=el('button','tsun-method-continue');continueButton.type='button';
+  const foot=el('div','tsun-method-footnote');
+  wrap.append(heading,subtitle,buttons,warning,total,continueButton,foot);
   paypal.parentNode.insertBefore(panel,paypal);
   paypal.hidden=true;stripe.hidden=true;paypal.style.display='none';stripe.style.display='none';
   const airwallex=document.getElementById('airwallexPaymentPanel');
-  // Preserve the legacy recovery UI for unpaid orders that already have an Airwallex session.
   if(airwallex){const pending=typeof currentOrder!=='undefined'&&currentOrder?.airwallexSessionId&&currentOrder?.paymentStatus!=='paid';if(!pending){airwallex.hidden=true;airwallex.style.display='none';}}
-  const holder=panel.querySelector('#tsunMethodButtons');
+  let selected='card';
+  const nodes=[];
   for(const choice of choices){
-   const button=document.createElement('button');
-   button.type='button';button.className='secondary';button.dataset.tsunMethod=choice.id;
-   button.style.cssText='display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;min-height:68px;padding:12px;border:1px solid #b9c6cb;border-radius:10px;background:transparent;color:inherit;cursor:pointer';
-   const name=document.createElement('strong'), detail=document.createElement('small');
-   button.append(name,detail);holder.append(button);
-   choice.button=button;choice.nameNode=name;choice.detailNode=detail;
-   button.addEventListener('click',function(){
-    const order=typeof currentOrder!=='undefined'?currentOrder:null;
-    if(choice.stripe){
-     // Existing sessions are tied to the selected payment method. Do not silently reuse
-     // a session for a different method, because the store is idempotent by order id.
-     if(order?.stripeSessionId&&(!order.stripeSelectedMethod||order.stripeSelectedMethod!==choice.stripe)){
-      const warning=msg('此訂單已有待處理的 Stripe 付款連結，無法直接改用另一付款方式。請先完成原有付款或聯絡商戶處理。','This order already has a Stripe payment session for another payment method. Finish that session or contact the merchant before switching.');
-      panel.querySelector('#tsunMethodWarning').textContent=warning;
-      return;
-     }
-     window.__tsunStripeMethod=choice.stripe;
-     if(choice.id==='apple'||choice.id==='google')panel.querySelector('#tsunMethodWarning').textContent=msg('Stripe 會按裝置及瀏覽器判斷是否顯示 '+choice.nameEn+'；若不支援，可使用銀行卡。','Stripe decides whether to show '+choice.nameEn+' on this device. Card payment remains available.');
-     else panel.querySelector('#tsunMethodWarning').textContent='';
-     stripeBtn.click();
-    }else if(choice.provider==='paypal'){
-     panel.querySelector('#tsunMethodWarning').textContent='';
-     paypalBtn.click();
-    }
+   const b=el('button','tsun-method-option');b.type='button';b.dataset.tsunMethod=choice.id;b.setAttribute('role','radio');
+   const indicator=el('span','tsun-method-indicator');indicator.setAttribute('aria-hidden','true');
+   const copy=el('span','tsun-method-copy');const name=el('span','tsun-method-name');const detail=el('span','tsun-method-detail');
+   const marks=el('span','tsun-method-logos');
+   choice.logos.forEach(id=>{const logo=el('img','tsun-method-logo'+(choice.logos.length===1?' tsun-single-logo':''));logo.src='/assets/payment-logos/'+id+'.svg';logo.alt=id==='wechatpay'?'WeChat Pay':id;logo.loading='lazy';marks.append(logo);});
+   copy.append(name,detail);b.append(indicator,copy,marks);buttons.append(b);nodes.push({choice,b,name,detail});
+   b.addEventListener('click',()=>{selected=choice.id;warning.textContent='';refresh();});
+  }
+  function refresh(){
+   heading.textContent=msg('選擇付款方式','Choose a payment method');
+   subtitle.textContent=msg('安全加密付款 · Secure checkout','Secure checkout · Choose how to pay');
+   totalLabel.textContent=msg('訂單總額','Order total');
+   const order=typeof currentOrder!=='undefined'?currentOrder:null;
+   const amount=order?.pricing?.total;
+   totalValue.textContent=typeof amount==='number'&&Number.isFinite(amount)?'HK$'+amount.toFixed(2):'';
+   total.hidden=!totalValue.textContent;
+   continueButton.textContent=msg('確認付款','Continue to payment');
+   foot.textContent=msg('付款由安全支付服務商處理','Payments processed securely');
+   if(preview())continueButton.textContent=msg('預覽付款介面','Preview payment interface');
+   nodes.forEach(({choice,b,name,detail})=>{
+     name.textContent=zh()?choice.zh:choice.en;detail.textContent=zh()?choice.subZh:choice.subEn;
+     b.setAttribute('aria-checked',String(selected===choice.id));
    });
   }
-  function translate(){
-   panel.querySelector('#tsunMethodHeading').textContent=msg('選擇付款方式','Choose a payment method');
-   panel.querySelector('#tsunMethodExplanation').textContent=msg('選擇支付方式後將開啟安全付款頁面。Apple Pay、Google Pay 是否顯示取決於你的裝置。','You will continue to secure checkout. Apple Pay and Google Pay depend on device eligibility.');
-   for(const c of choices){c.nameNode.textContent=zh()?c.nameZh:c.nameEn;c.detailNode.textContent=zh()?c.detailZh:c.detailEn;}
-  }
-  translate();
-  new MutationObserver(translate).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
+  continueButton.addEventListener('click',()=>{
+   const choice=choices.find(x=>x.id===selected);
+   if(preview()){
+     warning.textContent=msg('這是 Preview 測試版，已停用真實付款。正式上線前需完成測試。','This is a Preview build. Live payments are disabled to protect customers.');
+     return;
+   }
+   const order=typeof currentOrder!=='undefined'?currentOrder:null;
+   if(choice.stripe){
+    if(order?.stripeSessionId&&(!order.stripeSelectedMethod||order.stripeSelectedMethod!==choice.stripe)){
+      warning.textContent=msg('此訂單已有不同支付方式的待處理付款連結。為防止重複扣款，請聯絡商戶處理。','This order already has a pending session for a different method. Contact the merchant before switching.');
+      return;
+    }
+    window.__tsunStripeMethod=choice.stripe;
+    if(choice.id==='apple'||choice.id==='google'){
+      warning.textContent=msg('Stripe 會按裝置判斷是否提供 '+choice.en+'，否則可使用銀行卡。','Stripe will show '+choice.en+' only when eligible. You can use a bank card otherwise.');
+    }else warning.textContent='';
+    stripeBtn.click();
+   }else if(choice.provider==='paypal'){warning.textContent='';paypalBtn.click();}
+  });
+  refresh();
+  new MutationObserver(refresh).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
+  panel.addEventListener('focusin',refresh);
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
