@@ -58,3 +58,21 @@ test('Preview cannot initiate live checkout even when the Stripe secret is live'
   if(key===undefined)delete process.env.STRIPE_SECRET_KEY;else process.env.STRIPE_SECRET_KEY=key;
  }
 });
+
+test('Stripe checkout return uses an order-specific browser Back URL and explicit method switch',()=>{
+ const {readFileSync}=require('node:fs');
+ const html=readFileSync(require('node:path').join(__dirname,'../index.html'),'utf8');
+ assert.match(html,/function handleCheckoutResume\(\)/);
+ assert.match(html,/history\.replaceState\([^\n]*checkout_resume/);
+ assert.match(html,/switchPaymentMethod:switchingStripeMethod/);
+ assert.match(html,/stripeSessionRetired=false/);
+});
+test('Stripe backend expires the prior session before making another payable link',()=>{
+ const {readFileSync}=require('node:fs');
+ const store=readFileSync(require('node:path').join(__dirname,'../server/stripe-order-store.js'),'utf8');
+ assert.match(store,/previous\.status==='open'/);
+ assert.match(store,/expireStripeSession\(existing\.stripe_session_id\)/);
+ assert.match(store,/previous\.status!=='expired'/);
+ assert.match(store,/checkout_attempt=checkout_attempt\+1/);
+ assert.match(store,/existing\.status==='paid'/);
+});
