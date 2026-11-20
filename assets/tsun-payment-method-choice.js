@@ -25,10 +25,10 @@
   panel.style.marginTop='14px';
   panel.innerHTML='<div class="payment-code-box" style="gap:12px"><b id="tsunMethodHeading"></b><small class="payment-scan-note" id="tsunMethodExplanation"></small><div id="tsunMethodButtons" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px"></div><small id="tsunMethodWarning" aria-live="polite"></small></div>';
   paypal.parentNode.insertBefore(panel,paypal);
-  paypal.hidden=true;stripe.hidden=true;
+  paypal.hidden=true;stripe.hidden=true;paypal.style.display='none';stripe.style.display='none';
   const airwallex=document.getElementById('airwallexPaymentPanel');
   // Preserve the legacy recovery UI for unpaid orders that already have an Airwallex session.
-  if(airwallex&&!window.currentOrder?.airwallexSessionId)airwallex.hidden=true;
+  if(airwallex){const pending=typeof currentOrder!=='undefined'&&currentOrder?.airwallexSessionId&&currentOrder?.paymentStatus!=='paid';if(!pending){airwallex.hidden=true;airwallex.style.display='none';}}
   const holder=panel.querySelector('#tsunMethodButtons');
   for(const choice of choices){
    const button=document.createElement('button');
