@@ -80,9 +80,10 @@ test('Stripe backend expires the prior session before making another payable lin
 test('Stripe cancellation survives the legacy Home-first startup and BFCache pageshow',()=>{
  const fs=require('node:fs'),path=require('node:path');
  const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
+ assert.match(html,/const RESUME_STRIPE_ON_STARTUP=/);
  assert.match(html,/params\.get\('stripe_return'\)\)/);
  assert.match(html,/params\.has\('checkout_resume'\)/);
  assert.match(html,/const paymentCheckoutVisible=/);
- assert.match(html,/!RESUME_AIRWALLEX_ON_STARTUP&&!paymentCheckoutVisible\(\)\)go\('home'\)/);
- assert.match(html,/event\.persisted[^\n]*!paymentCheckoutVisible\(\)\)go\('home'\)/);
+ assert.match(html,/!RESUME_STRIPE_ON_STARTUP&&!paymentCheckoutVisible\(\)\)go\('home'\)/);
+ assert.match(html,/event\.persisted[^\n]*!RESUME_STRIPE_ON_STARTUP&&!paymentCheckoutVisible\(\)\)go\('home'\)/);
 });
