@@ -105,3 +105,12 @@ test('Stripe Back and cancellation restore saved email state before rendering ch
  const occurrences=html.split('if(order.customerEmail)state.customerEmail=order.customerEmail').length-1;
  assert.ok(occurrences>=2,'both Stripe return and browser Back must restore email');
 });
+
+test('Checkout stays in HKD and disables local currency conversion',()=>{
+ const {readFileSync}=require('node:fs'),{join}=require('node:path');
+ const src=readFileSync(join(__dirname,'../server/stripe-orders.js'),'utf8');
+ assert.match(src,/form\.set\('adaptive_pricing\[enabled\]','false'\)/);
+ assert.match(src,/form\.set\('line_items\[0\]\[price_data\]\[currency\]','hkd'\)/);
+ assert.match(src,/form\.set\('line_items\[1\]\[price_data\]\[currency\]','hkd'\)/);
+ assert.match(src,/String\(session\.currency\)\.toLowerCase\(\)!=='hkd'/);
+});
