@@ -1,0 +1,46 @@
+name: Validate 8TSUN8 payment method choices
+on:
+  push:
+    branches:
+      - feature/payment-method-choice-20261120
+  pull_request:
+    paths:
+      - 'scripts/patch-payment-method-choice.py'
+      - 'assets/tsun-payment-method-choice.js'
+      - 'server/stripe-orders.js'
+      - 'server/stripe-order-store.js'
+      - 'api/create-checkout-session.js'
+      - 'tests/stripe-orders.test.js'
+      - 'package.json'
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: npm install --ignore-scripts
+      - name: Syntax validation
+        run: |
+          python3 -m py_compile scripts/patch-payment-method-choice.py
+          node --check assets/tsun-payment-method-choice.js
+          node --check server/stripe-orders.js
+          node --check server/stripe-order-store.js
+          node --check api/create-checkout-session.js
+      - name: Apply payment UI patch twice (idempotence)
+        run: |
+          python3 scripts/patch-payment-method-choice.py
+          python3 scripts/patch-payment-method-choice.py
+      - name: Verify storefront integration
+        run: |
+          grep -Fq 'tsunSpecificPaymentMethods' assets/tsun-payment-method-choice.js
+          grep -Fq 'paymentMethod:window.__tsunStripeMethod' index.html
+          grep -Fq '<script src="/assets/tsun-payment-method-choice.js" defer></script>' index.html
+      - name: Run Stripe regression tests
+        run: node --test tests/stripe-orders.test.js
