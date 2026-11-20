@@ -54,8 +54,38 @@ async function begin(order,previews,total,paymentMethod='card',allowSwitch=false
   if(!changed.length)throw fail('付款狀態已變更，請重新整理後核對',409);
   return {sql,order,total,fresh:true,attempt:changed[0].checkout_attempt};
  }
+ if(existing.status==='cancelled'&&allowSwitch){
+  const [changed]=await sql`UPDATE tsun_stripe_orders SET stripe_session_id=NULL,stripe_session_url=NULL,
+    payment_method=${paymentMethod},checkout_attempt=checkout_attempt+1,status='creating'
+    WHERE merchant_order_id=${order.id} AND status='cancelled' RETURNING checkout_attempt`;
+  if(!changed.length)throw fail('付款狀態已變更，請重新整理',409);
+  return {sql,order,total,fresh:true,attempt:changed[0].checkout_attempt};
+ }
  if(existing.status==='paid')throw fail('该订单已付款，请勿重复付款',409);
  throw fail('Stripe 付款链接正在创建，请稍后刷新订单',409);
+}
+async function expireForAlternateProvider(order,sessionId){
+ if(!/^cs_live_[A-Za-z0-9_]+$/.test(sessionId||''))throw fail('Stripe 付款編號無效',422);
+ const sql=db();await schema(sql);
+ const total=require('./stripe-orders').pricing(order),b=binding(order,total);
+ const [existing]=await sql`SELECT merchant_order_id,email,amount_cents,order_binding,stripe_session_id,status
+ FROM tsun_stripe_orders WHERE merchant_order_id=${order.id}`;
+ if(!existing||existing.order_binding!==b||existing.amount_cents!==total.totalCents||
+ existing.email!==String(order.customerEmail||'').toLowerCase()||
+ existing.stripe_session_id!==sessionId)throw fail('訂單資料與 Stripe 付款記錄不符',409);
+ if(existing.status==='paid')throw fail('原訂單已付款，不可再次支付',409);
+ if(existing.status==='cancelled')return {retired:true};
+ if(existing.status!=='pending')throw fail('付款會話仍在建立中，請稍後重試',409);
+ const session=await stripeSession(sessionId);
+ if(session.status==='open'){
+  const expired=await expireStripeSession(sessionId);
+  if(expired.status!=='expired')throw fail('舊付款連結未能失效，請勿重複付款',409);
+ }else if(session.status!=='expired')throw fail('付款已提交或正在處理，請先確認結果',409);
+ const updated=await sql`UPDATE tsun_stripe_orders SET status='cancelled'
+ WHERE merchant_order_id=${order.id} AND status='pending' AND stripe_session_id=${sessionId}
+ RETURNING merchant_order_id`;
+ if(!updated.length)throw fail('付款狀態已變更，請重新核對',409);
+ return {retired:true};
 }
 async function complete(lease,session){const rows=await lease.sql`UPDATE tsun_stripe_orders SET stripe_session_id=${session.id},stripe_session_url=${session.url},status='pending'
  WHERE merchant_order_id=${lease.order.id} AND status='creating' AND stripe_session_id IS NULL RETURNING merchant_order_id`;if(!rows.length)throw fail('Stripe 付款链接保存失败，请联系客服核查，不要重复付款',503);}
@@ -81,4 +111,4 @@ async function processEvent(eventId){const sql=db();await schema(sql);const [evt
  }catch(error){await sql`UPDATE tsun_stripe_webhook_events SET processing_until=NULL,last_error=${String(error?.status||'processing_failed')} WHERE event_id=${eventId}`.catch(()=>{});console.error('[Stripe webhook] queued event failed',{status:Number(error?.status)||500});return {status:'retryable-error'};}
 }
 async function retryPending(limit=5){const sql=db();await schema(sql);const rows=await sql`SELECT event_id FROM tsun_stripe_webhook_events WHERE processed_at IS NULL AND (processing_until IS NULL OR processing_until<now()) ORDER BY received_at ASC LIMIT ${Math.min(5,Math.max(1,Number(limit)||5))}`;return Promise.all(rows.map(row=>processEvent(row.event_id)));}
-module.exports={begin,complete,abort,enqueue,processEvent,retryPending,deliverStage,db,schema};
+module.exports={begin,complete,abort,expireForAlternateProvider,enqueue,processEvent,retryPending,deliverStage,db,schema};
