@@ -30,3 +30,10 @@ test('order emails follow the saved checkout language',()=>{
  assert.match(en.html,/Total paid/);
  assert.match(renderMerchant({...base,language:'en'}).html,/Customer email/);
 });
+
+test('Stripe-specific checkout methods are allowlisted, not arbitrary payment identifiers',()=>{
+ assert.equal(stripe.checkoutPaymentMethod('card'),'card');
+ assert.equal(stripe.checkoutPaymentMethod('alipay'),'alipay');
+ assert.equal(stripe.checkoutPaymentMethod('wechat_pay'),'wechat_pay');
+ for(const invalid of ['',null,'paypal','apple_pay','google_pay','alipayhk','wechatpayhk','card;anything'])assert.throws(()=>stripe.checkoutPaymentMethod(invalid),/不支持所选/);
+});
