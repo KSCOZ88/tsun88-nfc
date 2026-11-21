@@ -1,4 +1,5 @@
 'use strict';
+const {ensureProductionQueue}=require('./production-queue');
 const {neon}=require('@neondatabase/serverless');
 const {createHash}=require('node:crypto');
 const {sendGmail}=require('./gmail-mailer');
@@ -118,7 +119,13 @@ async function processEvent(eventId){const sql=db();await schema(sql);const [evt
  WHERE event_id=${eventId} AND processed_at IS NULL AND (processing_until IS NULL OR processing_until<now()) RETURNING stripe_session_id`;if(!evt)return {status:'handled-or-busy'};
  try{const [row]=await sql`SELECT merchant_order_id,email,amount_cents,order_snapshot,previews,status FROM tsun_stripe_orders WHERE stripe_session_id=${evt.stripe_session_id}`;if(!row){await sql`UPDATE tsun_stripe_webhook_events SET processed_at=now(),processing_until=NULL,last_error='unmatched order' WHERE event_id=${eventId}`;return {status:'unmatched'};}
  const session=await stripeSession(evt.stripe_session_id);const total=verifyPaidSession(session,row.order_snapshot);if(total.totalCents!==row.amount_cents)throw fail('Stored Stripe amount mismatch',409);
- await sql`UPDATE tsun_stripe_orders SET status='paid',paid_at=COALESCE(paid_at,now()) WHERE stripe_session_id=${evt.stripe_session_id}`;
+ await ensureProductionQueue(sql);
+ await sql`WITH paid AS (
+  UPDATE tsun_stripe_orders SET status='paid',paid_at=COALESCE(paid_at,now()) WHERE stripe_session_id=${evt.stripe_session_id} RETURNING merchant_order_id
+ )
+  INSERT INTO tsun_production_jobs (merchant_order_id, payment_provider)
+  SELECT merchant_order_id, 'stripe' FROM paid
+  ON CONFLICT (merchant_order_id) DO NOTHING`;
  const order={...row.order_snapshot,paymentStatus:'paid',payMethod:'Stripe',paymentTransactionId:String(session.payment_intent||session.id),paidAmountCents:session.amount_total,paidAt:new Date((session.created||Math.floor(Date.now()/1000))*1000).toISOString()};
  await deliverStage(order,evt.stripe_session_id,'payment_received',row.previews||[]);
  await sql`UPDATE tsun_stripe_webhook_events SET processed_at=now(),processing_until=NULL,last_error=NULL WHERE event_id=${eventId}`;
