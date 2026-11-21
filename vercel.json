@@ -30,6 +30,10 @@
   },
   "rewrites": [
     {
+      "source": "/api/production-admin",
+      "destination": "/api/order-email?productionAdmin=1"
+    },
+    {
       "source": "/",
       "destination": "/index.html"
     }

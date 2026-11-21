@@ -23,6 +23,7 @@ function pngAttachments(list,inline=false){
   });
 }
 module.exports=async function handler(req,res){
+  if(req.method==='GET'&&req.query?.productionAdmin==='1')return require('../server/production-admin')(req,res);
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='POST')return res.status(405).json({error:'仅支持 POST 请求'});
   let body;
