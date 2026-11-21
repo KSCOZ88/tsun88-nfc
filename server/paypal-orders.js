@@ -1,5 +1,6 @@
 'use strict';
 // PayPal Orders v2. Server-side prices; persistent order/capture state in Neon.
+const {ensureProductionQueue}=require('./production-queue');
 const {createHash,createHmac,timingSafeEqual}=require('node:crypto');
 const {neon}=require('@neondatabase/serverless');
 const {summary}=require('./airwallex-checkout');
@@ -129,7 +130,15 @@ async function capture(orderId,paypalOrderId){
     data=await request(c,'/v2/checkout/orders/'+encodeURIComponent(paypalOrderId)+'/capture','POST',{},hash('tsun-capture-'+paypalOrderId).slice(0,36));
   }
   const captureData=successfulCapture(data,row);
-  const result=await sql`UPDATE tsun_paypal_orders SET payment_status='paid',capture_id=${captureData.id},paid_at=COALESCE(paid_at,now()) WHERE merchant_order_id=${orderId} AND paypal_order_id=${paypalOrderId} AND (capture_id IS NULL OR capture_id=${captureData.id}) RETURNING *`;
+  await ensureProductionQueue(sql);
+  const result=await sql`WITH paid AS (
+  UPDATE tsun_paypal_orders SET payment_status='paid',capture_id=${captureData.id},paid_at=COALESCE(paid_at,now()) WHERE merchant_order_id=${orderId} AND paypal_order_id=${paypalOrderId} AND (capture_id IS NULL OR capture_id=${captureData.id}) RETURNING *
+ ), queued AS (
+  INSERT INTO tsun_production_jobs (merchant_order_id, payment_provider)
+  SELECT merchant_order_id, 'paypal' FROM paid WHERE ${c.live}
+  ON CONFLICT (merchant_order_id) DO NOTHING
+ )
+  SELECT * FROM paid`;
   row=result[0];if(!row)throw fail('付款记录不一致，请联系商户核实',409);
   return {paid:true,orderId,paypalOrderId,captureId:captureData.id,amountTotal:row.amount_cents,currency:'HKD',orderToken:signingToken(c,row),mode:c.live?'live':'sandbox'};
 }

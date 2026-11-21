@@ -1,6 +1,7 @@
 'use strict';
 // Persist a minimal server-side snapshot before sending customers to Airwallex.
 // No API secrets, payment credentials or uploaded image base64 are saved.
+const {ensureProductionQueue}=require('./production-queue');
 const {neon}=require('@neondatabase/serverless');
 const {summary}=require('./airwallex-checkout');
 const fail=(message,status=409)=>Object.assign(new Error(message),{status});
@@ -73,8 +74,14 @@ async function recordPaid(order,linkId){
  if(!stored)return {legacy:true};
  if(stored.payment_link_id!==linkId||stored.order_binding!==summaryData.binding||stored.amount_cents!==summaryData.totalCents)
   throw fail('付款链接与原订单记录不匹配，请联系商户核查',409);
- await sql`UPDATE tsun_airwallex_orders SET status='paid',paid_at=COALESCE(paid_at,now())
- WHERE merchant_order_id=${summaryData.orderId} AND payment_link_id=${linkId}`;
+ await ensureProductionQueue(sql);
+ await sql`WITH paid AS (
+  UPDATE tsun_airwallex_orders SET status='paid',paid_at=COALESCE(paid_at,now())
+ WHERE merchant_order_id=${summaryData.orderId} AND payment_link_id=${linkId} RETURNING merchant_order_id
+ )
+  INSERT INTO tsun_production_jobs (merchant_order_id, payment_provider)
+  SELECT merchant_order_id, 'airwallex' FROM paid
+  ON CONFLICT (merchant_order_id) DO NOTHING`;
  return {legacy:false};
 }
 module.exports={begin,complete,abort,recordPaid,db,schema};
