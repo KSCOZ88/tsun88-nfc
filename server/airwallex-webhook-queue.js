@@ -90,9 +90,9 @@ async function processEvent(eventId){
    last_error='unmatched historical order' WHERE event_id=${eventId}`;
    return {status:'unmatched'};
   }
-  if(!process.env.SMTP_APP_PASSWORD)throw fail('SMTP not configured',503);
   await verify(row.payment_link_id,row.order_snapshot);
   await recordPaid(row.order_snapshot,row.payment_link_id);
+  if(!process.env.SMTP_APP_PASSWORD)throw fail('SMTP not configured',503);
   await receipts(sql,row);
   const [mail]=await sql`SELECT customer_sent,merchant_sent FROM tsun_airwallex_mail WHERE merchant_order_id=${row.merchant_order_id} AND stage='payment_received'`;
   if(!mail?.customer_sent||!mail?.merchant_sent)throw fail('Mail delivery incomplete',503);
