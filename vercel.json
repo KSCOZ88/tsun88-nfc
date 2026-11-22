@@ -26,9 +26,6 @@
     },
     "api/paid-order-email.js": {
       "maxDuration": 60
-    },
-    "api/merchant-order.js": {
-      "maxDuration": 30
     }
   },
   "rewrites": [

@@ -1,6 +1,7 @@
 const {createHmac,timingSafeEqual,createHash}=require('node:crypto');
 const {render,escape,safeUrl}=require('../server/email-template');
 const {sendGmail:sendEmail,GMAIL_ADDRESS}=require('../server/gmail-mailer');
+const merchantPreview=require('../server/merchant-preview').makeHandler();
 const STAGES=new Set(['payment_received','order_completed','in_production','shipped']);
 const emailValid=value=>typeof value==='string'&&value.length<=254&&/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value);
 function verifiedServerRequest(req,body){
@@ -23,6 +24,7 @@ function pngAttachments(list,inline=false){
   });
 }
 module.exports=async function handler(req,res){
+  if(req.query?.merchantPreview==='1')return merchantPreview(req,res);
   res.setHeader('Cache-Control','no-store');
   if(req.method!=='POST')return res.status(405).json({error:'仅支持 POST 请求'});
   let body;

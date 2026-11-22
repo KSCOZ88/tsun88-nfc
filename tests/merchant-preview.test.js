@@ -100,3 +100,39 @@ test('validated orders only capture one merchant notification and replay the sam
   assert.equal((await send(handler, {body: {action: 'submit', order: changed}, cookie})).status, 409);
   assert.equal((await send(handler, {body: {action: 'submit', order: {...order, id: 'LIVE-ORDER'}}, cookie})).status, 422);
 });
+
+test('preview handler can submit and retrieve a fictional order from isolated Supabase', {
+  skip: process.env.MERCHANT_PREVIEW_VERIFY !== '1'
+}, async () => {
+  const handler = require('../api/order-email');
+  const sendPreview = options => send(handler, {
+    ...options, query: {...options.query, merchantPreview: '1'}
+  });
+  const payload = {action: 'submit', order};
+  assert.equal((await sendPreview({body: payload})).status, 401);
+  const login = await sendPreview({body: {action: 'login', key: process.env.MERCHANT_PREVIEW_ACCESS_KEY}});
+  assert.equal(login.status, 200);
+  const cookie = login.headers['Set-Cookie'];
+  const first = await sendPreview({body: payload, cookie});
+  assert.equal(first.status, 200, first.data.error);
+  assert.equal(first.data.notificationStatus, 'captured');
+  assert.equal(first.data.queueStatus, 'awaiting_assets');
+  const slug = new URL(first.data.profiles[0].url).searchParams.get('p');
+  const profile = await sendPreview({method: 'GET', query: {profile: slug}, cookie});
+  assert.equal(profile.status, 200, profile.data.error);
+  assert.equal(profile.data.diet, 'No chocolate');
+  assert.equal(Object.hasOwn(profile.data, 'edit_token'), false);
+  const retry = await sendPreview({body: payload, cookie});
+  assert.deepEqual(retry.data, first.data);
+  const logout = await sendPreview({body: {action: 'logout'}, cookie});
+  assert.match(logout.headers['Set-Cookie'], /Max-Age=0/);
+});
+
+test('legacy email API still handles the existing demo flow', async () => {
+  const legacy = await send(require('../api/order-email'), {body: {
+    demo: true, type: 'payment_received', order: {customerEmail: 'customer@example.test'}
+  }});
+  assert.equal(legacy.status, 200);
+  assert.equal(legacy.data.customerSent, false);
+  assert.equal(legacy.data.merchantSent, false);
+});

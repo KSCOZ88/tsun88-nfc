@@ -9,6 +9,7 @@
   const shipping = byId('postPaymentShippingForm');
   const email = byId('customerEmailField');
   const summary = checkout.querySelector('.payment-checkout');
+  const endpoint = '/api/order-email?merchantPreview=1';
   const dialog = document.createElement('dialog');
   let submissionId;
   let lastPayload;
@@ -59,7 +60,7 @@
   }
 
   async function request(body) {
-    const response = await fetch('/api/merchant-order', body ? {
+    const response = await fetch(endpoint, body ? {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body)
