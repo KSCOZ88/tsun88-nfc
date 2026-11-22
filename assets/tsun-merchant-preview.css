@@ -1,0 +1,53 @@
+html[data-merchant-preview="locked"] body > :not(#merchantLogin):not(script):not(style) {
+  visibility: hidden;
+}
+
+[data-merchant-preview] #checkout :is(
+  .ts-policy-notice, .checkout-final-total, #checkoutFinalReference, #mobileCheckoutPricing,
+  #tsunSpecificPaymentMethods, #paypalPaymentPanel, #stripePaymentPanel,
+  #airwallexPaymentPanel, #localPostPaymentPreview
+),
+[data-merchant-preview] #confirm :is(#orderPricingDetails, .ts-policy-notice, .payment-profile-hint) {
+  display: none !important;
+}
+
+[data-merchant-preview] #checkout .checkout-final-layout {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 54rem;
+  margin-inline: auto;
+}
+
+#merchantLogin {
+  width: min(calc(100% - 2rem), 27rem);
+  box-sizing: border-box;
+  border: 1px solid #dbe6e9;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  background: white;
+  color: #234250;
+}
+
+#merchantLogin form {
+  display: grid;
+  gap: 0.75rem;
+}
+#merchantLogin h2, #merchantLogin p {
+  margin: 0;
+}
+
+#merchantLogin input {
+  width: 100%;
+}
+
+#merchantPreviewStatus {
+  min-height: 1.5em;
+  margin-block: 0.75rem;
+}
+
+#merchantPreviewReceipt ul {
+  padding-inline-start: 1.25rem;
+}
+
+#merchantPreviewReceipt a {
+  color: #17604e;
+}

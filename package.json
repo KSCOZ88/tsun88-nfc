@@ -9,6 +9,6 @@
     "pg": "8.23.1"
   },
   "scripts": {
-    "postinstall": "python3 scripts/patch-airwallex-payment-links.py && python3 scripts/patch-stripe-checkout.py && python3 scripts/patch-payment-method-choice.py && python3 scripts/patch-stripe-return-home-reset.py && node --check assets/tsun-payment-method-choice.js && node --test tests/airwallex-payment-links.test.js tests/airwallex-webhook.test.mjs tests/airwallex-mail-status.test.js tests/airwallex-confirmation-notifier.test.js tests/airwallex-live-webhook.test.js tests/stripe-orders.test.js"
+    "postinstall": "python3 scripts/patch-airwallex-payment-links.py && python3 scripts/patch-stripe-checkout.py && python3 scripts/patch-payment-method-choice.py && python3 scripts/patch-stripe-return-home-reset.py && python3 scripts/patch-merchant-preview.py && node --check assets/tsun-payment-method-choice.js && node --test tests/airwallex-payment-links.test.js tests/airwallex-webhook.test.mjs tests/airwallex-mail-status.test.js tests/airwallex-confirmation-notifier.test.js tests/airwallex-live-webhook.test.js tests/stripe-orders.test.js tests/merchant-preview.test.js"
   }
 }

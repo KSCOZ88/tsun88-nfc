@@ -26,12 +26,23 @@
     },
     "api/paid-order-email.js": {
       "maxDuration": 60
+    },
+    "api/merchant-order.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [
     {
       "source": "/",
       "destination": "/index.html"
+    },
+    {
+      "source": "/merchant",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/merchant-profile",
+      "destination": "/lucky88.html"
     }
   ],
   "headers": [
@@ -41,6 +52,40 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/merchant",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "connect-src 'self'; form-action 'self'; frame-ancestors 'none'"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    },
+    {
+      "source": "/merchant-profile",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "connect-src 'self'; form-action 'self'; frame-ancestors 'none'"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
         }
       ]
     }
