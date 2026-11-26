@@ -37,6 +37,7 @@ html[data-merchant-preview="locked"] body > :not(#merchantLogin):not(script):not
   justify-content: flex-end;
 }
 
+[data-merchant-preview] .merchant-home-link,
 [data-merchant-preview] .merchant-nav > :is(a, button) {
   display: inline-flex;
   align-items: center;
@@ -49,9 +50,17 @@ html[data-merchant-preview="locked"] body > :not(#merchantLogin):not(script):not
   white-space: nowrap;
 }
 
+[data-merchant-preview] .merchant-home-link:hover,
 [data-merchant-preview] .merchant-nav > :is(a, button):hover {
   background: #eaf5f9;
   border-radius: .625rem;
+}
+
+[data-merchant-preview] .merchant-name-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
 
 [data-merchant-preview] #checkout :is(.section-title, .checkout-final-layout) {

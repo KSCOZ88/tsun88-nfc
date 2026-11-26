@@ -80,6 +80,14 @@
   merchantNav.hidden = true;
   merchantNav.append(orderList, logout);
   const topNav = document.querySelector('.topbar nav');
+  const homeLink = document.createElement('a');
+  homeLink.href = '/';
+  homeLink.className = 'merchant-home-link';
+  homeLink.translate = false;
+  topNav.querySelector('button[data-go="home"]').replaceWith(homeLink);
+  const nameBackLink = homeLink.cloneNode();
+  nameBackLink.className = 'secondary merchant-name-back';
+  byId('name').querySelector('button[data-go="home"]').replaceWith(nameBackLink);
   topNav.append(merchantNav);
 
   const receiptLink = byId('merchantReceiptReview');
@@ -107,6 +115,8 @@
     byId('merchantSignIn').textContent = local('登入', 'Sign in');
     byId('merchantSubmit').textContent = previewMode ? local('提交測試訂單', 'Submit test order') : local('提交訂單', 'Submit order');
     byId('merchantNewOrder').textContent = previewMode ? local('建立下一筆測試訂單', 'Start another test order') : local('建立下一筆訂單', 'Start another order');
+    homeLink.textContent = local('網站首頁', 'Storefront');
+    nameBackLink.textContent = local('返回網站首頁', 'Back to storefront');
     logout.textContent = local('商家登出', 'Merchant sign out');
     orderList.textContent = local('訂單後台', 'Order dashboard');
     receiptLink.textContent = local('查看訂單詳情', 'View order details');
@@ -151,6 +161,7 @@
     merchantNav.hidden = false;
     dialog.close();
     if (isOrders) window.openMerchantOrderReview();
+    else if (byId('home').classList.contains('active')) go('name');
   }
 
   byId('merchantLoginForm').addEventListener('submit', async event => {
@@ -203,10 +214,9 @@
   });
 
   topNav.addEventListener('click', event => {
-    if (!receipt) return;
-    const destination = event.target.closest('button[data-go]')?.dataset.go;
-    if (destination === 'home' || destination === 'name') resetCheckout();
-    if (destination === 'name') resetHomeCustomization();
+    if (!receipt || !event.target.closest('button[data-go="name"]')) return;
+    resetCheckout();
+    resetHomeCustomization();
   }, {capture: true});
 
   function clearFieldError() {
