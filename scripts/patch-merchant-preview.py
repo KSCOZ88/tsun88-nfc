@@ -14,16 +14,17 @@ def replace(page, old, new):
 index = Path("index.html")
 source = index.read_text(encoding="utf-8")
 anchor = "if(PROFILE_PREVIEW_MODE)enableProfilePreviewMode();"
-source = replace(source, anchor, anchor + """
-const MERCHANT_ORDER_PREVIEW=location.pathname.replace(/\/$/,'')==='/merchant';
+source = replace(source, anchor, anchor + r"""
+const MERCHANT_ORDER_PREVIEW=/^\/merchant(?:\/orders)?\/?$/.test(location.pathname);
 if(MERCHANT_ORDER_PREVIEW){
   document.documentElement.dataset.merchantPreview='locked';
+  if(location.pathname.replace(/\/$/,'')==='/merchant/orders')document.documentElement.dataset.merchantOrders='1';
   PROFILE_PREVIEW_MODE=true;
 }""")
 anchor = """  button.textContent=ready?TsunI18n.t(nfcEditingPaidOrder?'保存并返回配送资料':'下一步：付款'):(en?'Preview first':'先查看預覽');"""
 source = replace(source, anchor, anchor + """
   if(ready&&MERCHANT_ORDER_PREVIEW)button.textContent=en?'Continue to delivery':'下一步：配送資料';""")
-source = replace(source, "</body>", '<script src="/assets/tsun-merchant-preview.js" defer></script>\n</body>')
+source = replace(source, "</body>", '<script src="/assets/tsun-merchant-order-review.js" defer></script>\n<script src="/assets/tsun-merchant-preview.js" defer></script>\n</body>')
 source = replace(source, "</head>", '<link rel="stylesheet" href="/assets/tsun-merchant-preview.css">\n</head>')
 index.write_text(source, encoding="utf-8")
 

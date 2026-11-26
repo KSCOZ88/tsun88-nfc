@@ -1,3 +1,4 @@
+const {publishPaidReview} = require('../server/order-review');
 const p=require('../server/paypal-orders');
 const {deliver}=require('../server/airwallex-order-mailer');
 const STAGES=new Set(['payment_received','order_completed','in_production','shipped']);
@@ -8,6 +9,8 @@ module.exports=async(req,res)=>{
     if(!STAGES.has(stage))return res.status(422).json({error:'通知类型不正确'});
     const order=body.order||{},id=String(order.id||'');
     const {row,sql}=await p.verifiedPaid(id,String(body.paypalOrderId||''),String(body.orderToken||''),order);
+    const mailOrder={...order,payMethod:'PayPal',paymentStatus:'paid',paymentTransactionId:row.capture_id,paidAmountCents:row.amount_cents};
+    if(stage==='order_completed')await publishPaidReview('paypal',mailOrder,body.previews);
     if(!process.env.SMTP_APP_PASSWORD)return res.status(503).json({error:'邮件服务尚未设置'});
     await sql`INSERT INTO tsun_paypal_mail(merchant_order_id,stage) VALUES (${id},${stage}) ON CONFLICT DO NOTHING`;
     const claimed=await sql`UPDATE tsun_paypal_mail SET processing_until=now()+interval '4 minutes'
@@ -21,7 +24,6 @@ module.exports=async(req,res)=>{
     }
     const state=claimed[0];
     try{
-      const mailOrder={...order,payMethod:'PayPal',paymentStatus:'paid',paymentTransactionId:row.capture_id,paidAmountCents:row.amount_cents};
       const result=await deliver(stage,mailOrder,body.previews||[],body.attachments||[],{skipCustomer:state.customer_sent,skipMerchant:state.merchant_sent});
       const customerDone=!!(state.customer_sent||result.customerSent);
       const merchantDone=!!(state.merchant_sent||result.merchantSent||stage!=='order_completed');

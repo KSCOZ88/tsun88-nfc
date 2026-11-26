@@ -1,5 +1,5 @@
 const {createHash}=require('node:crypto');
-const {render,escape,safeUrl}=require('./email-template');
+const {render,escape,safeUrl,merchantReviewLink}=require('./email-template');
 const {sendGmail,GMAIL_ADDRESS}=require('./gmail-mailer');
 function pngAttachments(list,inline=false){
   if(!Array.isArray(list)||list.length>60)throw new Error('订单图片数量不正确');
@@ -17,7 +17,7 @@ async function deliver(stage,order,previews,attachments=[],options={}){
   if(stage==='order_completed'&&options.skipMerchant){merchant={sent:true,skipped:true};}
   else if(stage==='order_completed'){
     const files=pngAttachments(attachments);const merchantEmail=process.env.MERCHANT_EMAIL||GMAIL_ADDRESS;if(!files.length)throw new Error('生产文件不完整');
-    merchant=await sendGmail({...shared,to:[merchantEmail],subject:'尊八八制作订单｜'+order.id,html:`<h2>已付款，资料已收齐</h2><p>订单号：${escape(order.id)}<br>客户邮箱：${escape(order.customerEmail)}<br>金额：HK$${(order.paidAmountCents/100).toFixed(2)}<br>收货人：${escape(order.shipName)}<br>联系电话：${escape(order.shipPhone)}<br>地址：${escape(order.shipAddress)}</p><p>NFC 档案：<a href="${escape(safeUrl(order.cloudProfile?.publicUrl))}">${escape(safeUrl(order.cloudProfile?.publicUrl))}</a></p><p>请将档案网址写入 NFC；生产图片见附件。</p>`,attachments:files},'tsun-merchant-'+identity);
+    merchant=await sendGmail({...shared,to:[merchantEmail],subject:'尊八八制作订单｜'+order.id,html:`<h2>已付款，资料已收齐</h2><p>订单号：${escape(order.id)}<br>客户邮箱：${escape(order.customerEmail)}<br>金额：HK$${(order.paidAmountCents/100).toFixed(2)}<br>收货人：${escape(order.shipName)}<br>联系电话：${escape(order.shipPhone)}<br>地址：${escape(order.shipAddress)}</p><p>NFC 档案：<a href="${escape(safeUrl(order.cloudProfile?.publicUrl))}">${escape(safeUrl(order.cloudProfile?.publicUrl))}</a></p>${merchantReviewLink(order.id, order.language)}<p>请将档案网址写入 NFC；生产图片见附件。</p>`,attachments:files},'tsun-merchant-'+identity);
   }
   return {customerSent:customer.sent,merchantSent:merchant.sent,customer,merchant};
 }

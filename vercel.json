@@ -40,6 +40,10 @@
     {
       "source": "/merchant-profile",
       "destination": "/lucky88.html"
+    },
+    {
+      "source": "/merchant/orders",
+      "destination": "/index.html"
     }
   ],
   "headers": [
@@ -71,6 +75,23 @@
     },
     {
       "source": "/merchant-profile",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "connect-src 'self'; form-action 'self'; frame-ancestors 'none'"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    },
+    {
+      "source": "/merchant/orders",
       "headers": [
         {
           "key": "X-Robots-Tag",

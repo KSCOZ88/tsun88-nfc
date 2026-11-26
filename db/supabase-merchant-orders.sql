@@ -19,6 +19,8 @@ create table public.tsun_merchant_orders (
 alter table public.tsun_merchant_orders enable row level security;
 revoke all on table public.tsun_merchant_orders from public, anon, authenticated;
 
+-- On production, provision the separate LOGIN role merchant_order_store with
+-- INHERIT membership in this role. Use the login only for the merchant API.
 create role merchant_order_preview nologin noinherit;
 grant usage on schema public to merchant_order_preview;
 grant select, insert, update (profile_slugs, notification_status, notification_message)
@@ -50,7 +52,7 @@ declare
   slug text;
   slugs text[] := '{}';
 begin
-  if order_id !~ '^TEST-M-[0-9a-f]{32}$' or
+  if order_id !~ '^(TEST-)?M-[0-9a-f]{32}$' or
      submitted_hash !~ '^[0-9a-f]{64}$' or
      jsonb_typeof(profiles) is distinct from 'array' then
     raise exception using errcode = '22023', message = 'Invalid preview order';

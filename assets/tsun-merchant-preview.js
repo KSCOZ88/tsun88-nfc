@@ -1,7 +1,9 @@
 'use strict';
 
 (function () {
-  if (!window.location.pathname.match(/^\/merchant\/?$/)) return;
+  const route = window.location.pathname.replace(/\/$/, '');
+  if (route !== '/merchant' && route !== '/merchant/orders') return;
+  const isOrders = route === '/merchant/orders';
 
   const byId = id => document.getElementById(id);
   const local = (zh, en) => document.documentElement.lang.toLowerCase().startsWith('zh') ? zh : en;
@@ -15,6 +17,7 @@
   let lastPayload;
   let receipt;
   let signedIn = false;
+  let previewMode = true;
   let invalidField;
   const fieldError = document.createElement('p');
   fieldError.id = 'merchantFieldError';
@@ -46,7 +49,13 @@
   logout.type = 'button';
   logout.id = 'merchantSignOut';
   logout.hidden = true;
-  document.querySelector('.topbar nav').append(logout);
+  const orderList = document.createElement('a');
+  orderList.href = '/merchant/orders';
+  orderList.hidden = true;
+  document.querySelector('.topbar nav').append(orderList, logout);
+  const receiptLink = document.createElement('a');
+  receiptLink.id = 'merchantReceiptReview';
+  byId('merchantProfileLinks').after(receiptLink);
 
   function labels() {
     const profileSteps = byId('petProfile')?.querySelector('.section-title p');
@@ -56,17 +65,30 @@
     }
     checkout.querySelector('.section-title h2').textContent = local('確認商家訂單', 'Confirm merchant order');
     checkout.querySelector('.section-title p').textContent = local(
-      '預覽測試。請填寫配送資料後提交，無需付款。', 'Preview test. Enter delivery details and submit without payment.');
+      previewMode ? '預覽測試。請填寫配送資料後提交，無需付款。' : '請填寫配送資料後提交，無需付款。',
+      previewMode ? 'Preview test. Enter delivery details and submit without payment.' : 'Enter delivery details and submit without payment.');
     byId('customerEmailHelp').textContent = local('客戶電郵會隨訂單保存。', 'The customer email is saved with the order.');
     byId('merchantLoginTitle').textContent = local('8TSUN8 商家登入', '8TSUN8 merchant sign-in');
-    byId('merchantLoginHelp').textContent = local('請使用預覽存取金鑰。測試時請填寫虛構資料。', 'Use the preview access key and enter fictional test details.');
+    byId('merchantLoginHelp').textContent = previewMode
+      ? local('請使用預覽存取金鑰。測試時請填寫虛構資料。', 'Use the preview access key and enter fictional test details.')
+      : local('請使用商家存取金鑰。', 'Use your merchant access key.');
     byId('merchantAccessLabel').textContent = local('商家存取金鑰', 'Merchant access key');
     byId('merchantSignIn').textContent = local('登入', 'Sign in');
-    byId('merchantSubmit').textContent = local('提交測試訂單', 'Submit test order');
-    byId('merchantNewOrder').textContent = local('建立下一筆測試訂單', 'Start another test order');
+    byId('merchantSubmit').textContent = previewMode ? local('提交測試訂單', 'Submit test order') : local('提交訂單', 'Submit order');
+    byId('merchantNewOrder').textContent = previewMode ? local('建立下一筆測試訂單', 'Start another test order') : local('建立下一筆訂單', 'Start another order');
     logout.textContent = local('商家登出', 'Merchant sign out');
-    if (receipt) byId('merchantPreviewStatus').textContent = local(
-      '測試訂單及檔案已保存，已加入預覽隊列。商家郵件已記錄。', 'Test order and profiles saved, preview job queued, and merchant email captured.');
+    orderList.textContent = local('訂單後台', 'Order dashboard');
+    receiptLink.textContent = local('在後台查看正反面及檔案', 'View tag images and NFC profiles in dashboard');
+    if (receipt) {
+      const mail = receipt.notificationStatus === 'sent'
+        ? local('商家郵件已寄出。', 'Merchant email sent.')
+        : receipt.notificationStatus === 'captured'
+          ? local('商家測試郵件已記錄。', 'Merchant test email captured.')
+          : local('商家郵件待發送。', 'Merchant email pending.');
+      byId('merchantPreviewStatus').textContent = local(
+        previewMode ? '測試訂單、正反面及檔案已保存，已加入預覽隊列。' : '訂單、正反面及檔案已保存，已加入生產隊列。',
+        previewMode ? 'Test order, tag images, and profiles saved. Preview job queued.' : 'Order, tag images, and profiles saved. Production job queued.') + ' ' + mail;
+    }
   }
 
   async function request(body) {
@@ -83,6 +105,7 @@
   function lock(available = true) {
     signedIn = false;
     document.documentElement.dataset.merchantPreview = 'locked';
+    if (isOrders) byId('merchantOrderReview').hidden = true;
     if (!dialog.open) dialog.showModal();
     byId('merchantSignIn').disabled = !available;
     if (!available) byId('merchantLoginStatus').textContent = local(
@@ -92,8 +115,9 @@
   function unlock() {
     signedIn = true;
     document.documentElement.dataset.merchantPreview = 'active';
-    logout.hidden = false;
+    logout.hidden = orderList.hidden = false;
     dialog.close();
+    if (isOrders) window.openMerchantOrderReview();
   }
 
   byId('merchantLoginForm').addEventListener('submit', async event => {
@@ -103,7 +127,9 @@
     button.disabled = true;
     byId('merchantLoginStatus').textContent = '';
     try {
-      await request({action: 'login', key: input.value});
+      const result = await request({action: 'login', key: input.value});
+      previewMode = result.preview !== false;
+      labels();
       unlock();
     } catch (error) {
       byId('merchantLoginStatus').textContent = error.status === 401
@@ -194,6 +220,17 @@
     return {name, phone, address};
   }
 
+  async function saveReviewImages(order, alreadySaved = new Set()) {
+    const previews = await prepareEmailPreviews(order);
+    for (let index = 0; index < order.items.length; index += 1) {
+      const tagNumber = index + 1;
+      if (alreadySaved.has(tagNumber + ':front') && alreadySaved.has(tagNumber + ':back')) continue;
+      await request({action: 'save-review-images', orderId: order.id, tagNumber, previews: previews.slice(index * 2, index * 2 + 2)});
+    }
+  }
+
+  window.saveMerchantOrderPreviewImages = saveReviewImages;
+
   async function submit() {
     if (!signedIn || receipt || !currentOrder || !ensureCheckoutProfiles() ||
         !validateOrderPhoneConfirmations(currentOrder.items) || !validateCustomerEmail()) return;
@@ -203,7 +240,8 @@
     if (!shippingData) return;
     const button = byId('merchantSubmit');
     button.disabled = true;
-    status.textContent = local('正在保存測試訂單…', 'Saving test order…');
+    status.textContent = previewMode ? local('正在保存測試訂單…', 'Saving test order…') : local('正在保存訂單…', 'Saving order…');
+    let submitting = false;
     try {
       const order = {
         customerEmail: state.customerEmail,
@@ -221,11 +259,19 @@
         status.textContent = local('資料已變更。請先恢復上次送出的資料，再重試。', 'Details changed. Restore the last submitted details before retrying.');
         return;
       }
-      if (!submissionId) submissionId = 'TEST-M-' + crypto.randomUUID().replaceAll('-', '');
+      if (!submissionId) submissionId = (previewMode ? 'TEST-M-' : 'M-') + crypto.randomUUID().replaceAll('-', '');
+      const reviewOrder = {id: submissionId, items: currentOrder.items};
+      // Build the pictures first so a renderer failure never creates a partial order.
+      await prepareEmailPreviews(reviewOrder);
       lastPayload = payload;
-      const saved = await request({action: 'submit', order: {...order, id: submissionId}});
+      submitting = true;
+      await request({action: 'submit', review: true, order: {...order, id: submissionId}});
+      submitting = false;
+      await saveReviewImages(reviewOrder);
+      const saved = await request({action: 'finish-review', orderId: submissionId});
       receipt = saved;
       byId('merchantSavedReference').textContent = saved.id;
+      receiptLink.href = '/merchant/orders?order=' + encodeURIComponent(saved.id);
       const links = saved.profiles.map(profile => {
         const li = document.createElement('li');
         const a = document.createElement('a');
@@ -241,9 +287,13 @@
       button.parentElement.hidden = shipping.hidden = email.hidden = actions.hidden = true;
       labels();
     } catch (error) {
+      if (!lastPayload) submissionId = undefined;
       if (error.status === 401) lock();
       if (error.status === 422 || error.status === 413) {
-        lastPayload = undefined;
+        if (submitting) {
+          lastPayload = undefined;
+          submissionId = undefined;
+        }
         if (error.code === 'invalid_shipping_phone') {
           status.textContent = '';
           showFieldError(byId('shipPhone'), deliveryPhoneError());
@@ -268,6 +318,8 @@
   labels();
   lock();
   request().then(result => {
+    previewMode = result.preview !== false;
+    labels();
     if (result.authenticated) unlock();
   }).catch(() => lock(false));
 })();

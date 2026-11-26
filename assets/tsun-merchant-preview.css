@@ -51,3 +51,71 @@ html[data-merchant-preview="locked"] body > :not(#merchantLogin):not(script):not
 #merchantPreviewReceipt a {
   color: #17604e;
 }
+
+#merchantReceiptReview {
+  display: inline-block;
+  margin: 0 0 1rem;
+  color: #17604e;
+}
+
+[data-merchant-orders] body > :is(.app, footer, .site-footer) {
+  display: none !important;
+}
+
+#merchantOrderReview {
+  box-sizing: border-box;
+  max-width: 74rem;
+  padding: 2rem 1rem;
+  margin: auto;
+  color: #234250;
+}
+
+#merchantOrderReview nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+#merchantOrderReview a {
+  color: #17604e;
+}
+
+#merchantOrderReview table {
+  width: 100%;
+  background: white;
+  border-collapse: collapse;
+  overflow-wrap: anywhere;
+}
+
+#merchantOrderReview :is(th, td) {
+  text-align: left;
+  padding: .7rem;
+  border-bottom: 1px solid #dce8eb;
+}
+
+#merchantOrderReview section {
+  margin: 1.25rem 0 2rem;
+}
+
+.merchant-tag-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 1rem;
+}
+
+.merchant-tag-gallery figure {
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid #dce8eb;
+  border-radius: .75rem;
+  background: white;
+}
+
+.merchant-tag-gallery img {
+  width: 100%;
+  max-width: 350px;
+  height: auto;
+  display: block;
+  margin: .75rem auto 0;
+}

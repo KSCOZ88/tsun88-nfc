@@ -2,7 +2,8 @@
 
 const {createHash, createHmac, timingSafeEqual} = require('node:crypto');
 const {escape, safeUrl} = require('./email-template');
-const {GMAIL_ADDRESS} = require('./gmail-mailer');
+const {GMAIL_ADDRESS, sendGmail} = require('./gmail-mailer');
+const {saveMerchantImages, listReviews, loadReview, loadImage} = require('./order-review');
 const {postgres} = require('./postgres');
 
 const COOKIE = '__Host-tsun_merchant_preview';
@@ -13,23 +14,30 @@ function failure(status, code) {
 }
 
 function configuration(env = process.env) {
-  if (env.VERCEL_ENV !== 'preview' || !env.MERCHANT_PREVIEW_DATABASE_URL ||
-      !/^[0-9a-f]{64}$/.test(env.MERCHANT_PREVIEW_ACCESS_KEY || '') ||
-      !/^[0-9a-f]{64}$/.test(env.MERCHANT_PREVIEW_SESSION_SECRET || '')) {
+  const preview = env.VERCEL_ENV === 'preview';
+  const production = env.VERCEL_ENV === 'production' && env.MERCHANT_ORDERS_ENABLED === '1';
+  const connection = preview ? env.MERCHANT_PREVIEW_DATABASE_URL : env.MERCHANT_ORDERS_DATABASE_URL;
+  const key = preview ? env.MERCHANT_PREVIEW_ACCESS_KEY : env.MERCHANT_ORDERS_ACCESS_KEY;
+  const signingKey = preview ? env.MERCHANT_PREVIEW_SESSION_SECRET : env.MERCHANT_ORDERS_SESSION_SECRET;
+  if ((!preview && !production) || !connection ||
+      !/^[0-9a-f]{64}$/.test(key || '') || !/^[0-9a-f]{64}$/.test(signingKey || '')) {
     throw failure(404, 'not_available');
   }
-  const connection = new URL(env.MERCHANT_PREVIEW_DATABASE_URL);
-  if (!connection.hostname.endsWith('.pooler.supabase.com') ||
-      !/^merchant_order_preview\.[a-z]{20}$/.test(connection.username) ||
-      connection.username.endsWith('.zujdfvnhxbalyhjmmmtl') ||
-      connection.searchParams.get('sslmode') !== 'verify-full') {
+  const db = new URL(connection);
+  const productionProject = 'zujdfvnhxbalyhjmmmtl';
+  const correctUser = preview
+    ? /^merchant_order_preview\.[a-z]{20}$/.test(db.username) && !db.username.endsWith('.' + productionProject)
+    : db.username === 'merchant_order_store.' + productionProject;
+  if (db.protocol !== 'postgresql:' || !db.hostname.endsWith('.pooler.supabase.com') ||
+      !correctUser || db.searchParams.get('sslmode') !== 'verify-full') {
     throw failure(503, 'invalid_preview_database');
   }
-  return {
-    connection: env.MERCHANT_PREVIEW_DATABASE_URL,
-    key: env.MERCHANT_PREVIEW_ACCESS_KEY,
-    signingKey: env.MERCHANT_PREVIEW_SESSION_SECRET
-  };
+  return {connection, key, signingKey, preview};
+}
+
+function validOrderId(id, preview) {
+  const pattern = preview ? /^TEST-M-[0-9a-f]{32}$/ : /^M-[0-9a-f]{32}$/;
+  return typeof id === 'string' && pattern.test(id);
 }
 
 function equal(left, right) {
@@ -80,9 +88,9 @@ const profileFields = {
 const profileRequired = new Set(['pet_name', 'breed', 'owner_phone', 'backup_owner_name', 'backup_phone']);
 const designFields = ['contactFont', 'baseVariant', 'baseLabel', 'faceKey', 'selectedBreedKey', 'selectedBreedColor'];
 
-function validateSubmission(input) {
+function validateSubmission(input, preview = true) {
   const {id, customerEmail, shipping, items} = input || {};
-  if (typeof id !== 'string' || !/^TEST-M-[0-9a-f]{32}$/.test(id)) throw failure(422, 'invalid_id');
+  if (!validOrderId(id, preview)) throw failure(422, 'invalid_id');
   if (!Array.isArray(items) || items.length < 1 || items.length > 20) throw failure(422, 'invalid_items');
   const email = field(customerEmail, 254, 'customer_email', true);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw failure(422, 'invalid_customer_email');
@@ -133,29 +141,78 @@ function validateSubmission(input) {
   return {id, order, profiles, hash};
 }
 
-function profileLinks(saved, origin) {
+function profileLinks(saved, origin, preview = true) {
   return saved.profile_slugs.map((slug, index) => {
     const design = saved.order_details.items[index];
-    const url = new URL('/merchant-profile', origin);
+    const url = preview ? new URL('/merchant-profile', origin) : new URL('https://www.8tsun8.com/lucky88.html');
     url.searchParams.set('p', slug);
     url.searchParams.set('base', design.baseVariant);
     return {name: design.petName, url: url.href};
   });
 }
 
-function buildMerchantMessage(id, order, links) {
+function buildMerchantMessage(id, order, links, origin, preview = true) {
   const profiles = links.map(({name, url}) =>
     `<li><a href="${escape(safeUrl(url))}">${escape(name)}</a></li>`).join('');
   const address = [order.shipName, order.shipPhone, order.shipAddress].map(escape).join('<br>');
+  const review = new URL('/merchant/orders', origin);
+  review.searchParams.set('order', id);
   return {
     to: [process.env.MERCHANT_EMAIL || GMAIL_ADDRESS],
-    subject: '[測試] 8TSUN8 商家免付款訂單 | ' + id,
-    html: `<h2>商家免付款訂單</h2><p>訂單編號 ${escape(id)}<br>狗牌 ${links.length} 件<br>客戶電郵 ${escape(order.customerEmail)}</p><p>${address}</p><h3>NFC 寵物檔案</h3><ul>${profiles}</ul><p>測試訂單已進入預覽生產隊列，狀態為等待素材。</p>`
+    subject: (preview ? '[測試] ' : '') + '8TSUN8 商家免付款訂單 | ' + id,
+    html: `<h2>商家免付款訂單</h2><p>訂單編號 ${escape(id)}<br>狗牌 ${links.length} 件<br>客戶電郵 ${escape(order.customerEmail)}</p><p>${address}</p><h3>NFC 寵物檔案</h3><ul>${profiles}</ul><p><a href="${escape(review.href)}">在商家後台查看狗牌正反面和檔案</a></p><p>${preview ? '測試訂單已進入預覽生產隊列。' : '訂單已進入生產隊列。'}</p>`
   };
 }
 
-async function createOrder(sql, input, origin) {
-  const {id, hash, order, profiles} = validateSubmission(input);
+function receipt(saved, origin, notificationStatus, preview) {
+  return {id: saved.merchant_order_id, paymentStatus: 'not_required', queueStatus: 'awaiting_assets',
+    notificationStatus, profiles: profileLinks(saved, origin, preview)};
+}
+
+async function captureNotice(sql, id, saved, origin) {
+  if (saved.notification_status !== 'pending') return saved.notification_status;
+  const message = buildMerchantMessage(id, saved.order_details, profileLinks(saved, origin), origin);
+  await sql`update public.tsun_merchant_orders
+    set notification_status = 'captured', notification_message = ${JSON.stringify(message)}::jsonb
+    where merchant_order_id = ${id} and notification_status = 'pending'`;
+  return 'captured';
+}
+
+async function notifyReviewedOrder(sql, id, saved, origin, env = process.env, deliver = sendGmail) {
+  const preview = env.VERCEL_ENV !== 'production';
+  // A branch can deliver a test message only to its explicitly configured
+  // merchant mailbox. Normal preview deployments capture the message locally.
+  if (preview && env.MERCHANT_REVIEW_EMAIL_MODE !== 'smtp') {
+    return captureNotice(sql, id, saved, origin);
+  }
+  if (saved.notification_status === 'sent') return 'sent';
+  const recipient = preview ? env.MERCHANT_REVIEW_TEST_RECIPIENT : env.MERCHANT_EMAIL || GMAIL_ADDRESS;
+  if (!recipient || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(recipient) || !env.SMTP_APP_PASSWORD) {
+    return 'pending';
+  }
+  const message = buildMerchantMessage(id, saved.order_details, profileLinks(saved, origin, preview), origin, preview);
+  message.to = [recipient];
+  const [claim] = await sql`update public.tsun_merchant_orders
+    set notification_status = 'sending', notification_lease_until = now() + interval '2 minutes',
+        notification_message = ${JSON.stringify(message)}::jsonb
+    where merchant_order_id = ${id} and (notification_status in ('pending', 'captured')
+      or (notification_status = 'sending' and notification_lease_until < now()))
+    returning merchant_order_id`;
+  if (!claim) return 'sending';
+  let delivered = false;
+  try {
+    delivered = (await deliver(message, 'tsun-merchant-' + id)).sent;
+  } catch (error) {
+    console.error('[Merchant order] SMTP delivery failed', /^[a-z0-9_]{1,40}$/i.test(error?.code || '') ? error.code : 'unknown');
+  }
+  const status = delivered ? 'sent' : 'pending';
+  await sql`update public.tsun_merchant_orders set notification_status = ${status}, notification_lease_until = null
+    where merchant_order_id = ${id} and notification_status = 'sending'`;
+  return status;
+}
+
+async function createOrder(sql, input, origin, deferNotice, preview) {
+  const {id, hash, order, profiles} = validateSubmission(input, preview);
   let saved;
   try {
     [saved] = await sql`select * from public.create_merchant_preview_order(
@@ -164,14 +221,18 @@ async function createOrder(sql, input, origin) {
     if (error.code === '23505') throw failure(409, 'order_changed');
     throw error;
   }
-  const links = profileLinks(saved, origin);
-  if (saved.notification_status === 'pending') {
-    const message = buildMerchantMessage(id, saved.order_details, links);
-    await sql`update public.tsun_merchant_orders
-      set notification_status = 'captured', notification_message = ${JSON.stringify(message)}::jsonb
-      where merchant_order_id = ${id} and notification_status = 'pending'`;
-  }
-  return {id, paymentStatus: 'not_required', queueStatus: 'awaiting_assets', notificationStatus: 'captured', profiles: links};
+  const status = deferNotice ? saved.notification_status : await captureNotice(sql, id, saved, origin);
+  return receipt({...saved, merchant_order_id: id}, origin, status, preview);
+}
+
+async function finishReview(sql, id, origin, preview) {
+  if (!validOrderId(id, preview)) throw failure(422, 'invalid_id');
+  const [saved] = await sql`select * from public.tsun_merchant_orders where merchant_order_id = ${id}`;
+  if (!saved) throw failure(404, 'order_missing');
+  const [images] = await sql`select count(*)::integer as total from public.tsun_order_review_images
+    where merchant_order_id = ${id}`;
+  if (images.total !== saved.profile_slugs.length * 2) throw failure(409, 'images_incomplete');
+  return receipt(saved, origin, await notifyReviewedOrder(sql, id, saved, origin), preview);
 }
 
 async function loadProfile(sql, slug) {
@@ -189,33 +250,58 @@ function makeHandler({getConfig = configuration, getDb = postgres} = {}) {
     try {
       const config = getConfig();
       const authenticated = isSignedIn(req.headers.cookie, config);
+      const preview = config.preview !== false;
+      const origin = 'https://' + req.headers.host;
       if (req.method === 'GET') {
         if (req.query?.profile) {
           if (!authenticated) throw failure(401, 'sign_in_required');
           return res.status(200).json(await loadProfile(getDb(config.connection), req.query.profile));
         }
-        return res.status(200).json({authenticated});
+        if (req.query?.reviews === '1' || req.query?.review || req.query?.image) {
+          if (!authenticated) throw failure(401, 'sign_in_required');
+          const sql = getDb(config.connection);
+          if (req.query.image) {
+            const image = await loadImage(sql, req.query.image, req.query.tag, req.query.side);
+            res.setHeader('Content-Type', 'image/png');
+            res.setHeader('X-Content-Type-Options', 'nosniff');
+            return res.status(200).send(image);
+          }
+          if (req.query.review) {
+            const detail = await loadReview(sql, req.query.review);
+            const {merchant, paid, ...review} = detail;
+            const profiles = merchant ? profileLinks({profile_slugs: merchant.profile_slugs,
+              order_details: {items: merchant.items}}, origin, preview) : paid?.profiles || [];
+            return res.status(200).json({...review, profiles, items: merchant?.items || paid?.items || []});
+          }
+          return res.status(200).json({orders: await listReviews(sql)});
+        }
+        return res.status(200).json({authenticated, preview});
       }
       if (req.method !== 'POST') {
         res.setHeader('Allow', 'GET, POST');
         throw failure(405, 'method_not_allowed');
       }
-      const origin = 'https://' + req.headers.host;
       if (req.headers.origin !== origin || !/^application\/json(?:;|$)/i.test(req.headers['content-type'] || '')) {
         throw failure(403, 'invalid_origin');
       }
       if (req.body?.action === 'login') {
         res.setHeader('Set-Cookie', signIn(req.body.key, config));
-        return res.status(200).json({authenticated: true});
+        return res.status(200).json({authenticated: true, preview});
       }
       if (req.body?.action === 'logout') {
         res.setHeader('Set-Cookie', sessionCookie('', 0));
         return res.status(200).json({authenticated: false});
       }
       if (!authenticated) throw failure(401, 'sign_in_required');
-      if (req.body?.action !== 'submit') throw failure(400, 'invalid_action');
-      const result = await createOrder(getDb(config.connection), req.body.order, origin);
-      return res.status(200).json(result);
+      const sql = getDb(config.connection);
+      const {action, order, review, orderId, tagNumber, previews} = req.body || {};
+      if (action === 'save-review-images') {
+        await saveMerchantImages(sql, orderId, tagNumber, previews);
+        return res.status(200).json({saved: true});
+      }
+      if (action === 'finish-review') return res.status(200).json(await finishReview(sql, orderId, origin, preview));
+      if (action !== 'submit') throw failure(400, 'invalid_action');
+      return res.status(200).json(await createOrder(sql, order, origin, !preview || review === true, preview));
     } catch (error) {
       if (!error.status) console.error('[Merchant preview]', /^[a-z0-9_]{1,50}$/i.test(error.code || '') ? error.code : 'unknown');
       return res.status(error.status || 503).json({error: error.status ? error.code : 'temporarily_unavailable'});
@@ -223,4 +309,4 @@ function makeHandler({getConfig = configuration, getDb = postgres} = {}) {
   };
 }
 
-module.exports = {makeHandler, configuration, signIn, isSignedIn, validateSubmission};
+module.exports = {makeHandler, configuration, signIn, isSignedIn, validateSubmission, notifyReviewedOrder};
