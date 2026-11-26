@@ -15,6 +15,11 @@
   let lastPayload;
   let receipt;
   let signedIn = false;
+  let invalidField;
+  const fieldError = document.createElement('p');
+  fieldError.id = 'merchantFieldError';
+  fieldError.setAttribute('role', 'alert');
+  fieldError.style.color = '#9b2424';
 
   dialog.id = 'merchantLogin';
   dialog.setAttribute('aria-labelledby', 'merchantLoginTitle');
@@ -44,6 +49,11 @@
   document.querySelector('.topbar nav').append(logout);
 
   function labels() {
+    const profileSteps = byId('petProfile')?.querySelector('.section-title p');
+    if (profileSteps) {
+      profileSteps.setAttribute('translate', 'no');
+      profileSteps.textContent = local('正反面預覽 → NFC 檔案 → 配送資料', 'Front & back preview → NFC profile → Delivery details');
+    }
     checkout.querySelector('.section-title h2').textContent = local('確認商家訂單', 'Confirm merchant order');
     checkout.querySelector('.section-title p').textContent = local(
       '預覽測試。請填寫配送資料後提交，無需付款。', 'Preview test. Enter delivery details and submit without payment.');
@@ -66,7 +76,7 @@
       body: JSON.stringify(body)
     } : {});
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw Object.assign(new Error(result.error), {status: response.status});
+    if (!response.ok) throw Object.assign(new Error(result.error), {status: response.status, code: result.error});
     return result;
   }
 
@@ -115,6 +125,7 @@
   });
 
   function resetCheckout() {
+    clearFieldError();
     submissionId = undefined;
     lastPayload = undefined;
     receipt = undefined;
@@ -131,31 +142,66 @@
     for (const id of ['customerEmail', 'smartAddress', 'shipName', 'shipPhone', 'shipAddress']) byId(id).value = '';
   });
 
+  function clearFieldError() {
+    if (!invalidField) return;
+    invalidField.removeAttribute('aria-invalid');
+    const descriptions = (invalidField.getAttribute('aria-describedby') || '').split(' ')
+      .filter(id => id && id !== fieldError.id).join(' ');
+    if (descriptions) invalidField.setAttribute('aria-describedby', descriptions);
+    else invalidField.removeAttribute('aria-describedby');
+    invalidField = undefined;
+    fieldError.remove();
+  }
+
+  function showFieldError(field, message) {
+    clearFieldError();
+    invalidField = field;
+    field.setAttribute('aria-invalid', 'true');
+    const descriptions = field.getAttribute('aria-describedby');
+    field.setAttribute('aria-describedby', descriptions ? descriptions + ' ' + fieldError.id : fieldError.id);
+    fieldError.textContent = message;
+    field.after(fieldError);
+    field.focus();
+    field.scrollIntoView({block: 'center'});
+  }
+
+  function deliveryPhoneError() {
+    return local('請輸入有效的配送電話，至少要有 8 位數字。', 'Enter a valid delivery phone number with at least 8 digits.');
+  }
+
   function shippingDetails() {
+    clearFieldError();
     const fields = {name: byId('shipName'), phone: byId('shipPhone'), address: byId('shipAddress')};
-    for (const field of Object.values(fields)) {
-      if (!field.value.trim()) {
-        field.focus();
-        toast(local('請填寫完整配送資料。', 'Enter all delivery details.'));
-        return null;
-      }
-    }
-    const addressIssue = shippingAddressIssue(fields.address.value);
-    if (addressIssue) {
-      fields.address.focus();
-      toast(addressIssue, 7000);
+    const name = fields.name.value.trim();
+    const phone = fields.phone.value.trim();
+    const address = fields.address.value.trim();
+    if (!name || name.length > 120) {
+      showFieldError(fields.name, local('請填寫收件人姓名（最多 120 個字元）。', 'Enter the recipient name (up to 120 characters).'));
       return null;
     }
-    return Object.fromEntries(Object.entries(fields).map(([key, field]) => [key, field.value.trim()]));
+    if (!/^\+?[\d ()-]{8,24}$/.test(phone) || phone.replace(/\D/g, '').length < 8) {
+      showFieldError(fields.phone, deliveryPhoneError());
+      return null;
+    }
+    const addressIssue = shippingAddressIssue(address);
+    if (!address || address.length > 1000 || addressIssue) {
+      const message = !address || address.length > 1000
+        ? local('請填寫完整配送地址（最多 1,000 個字元）。', 'Enter the full delivery address (up to 1,000 characters).')
+        : local('請補充樓層和室號，或註明整層、店舖等實際配送位置。', 'Add a floor and flat number, or specify the exact delivery location.');
+      showFieldError(fields.address, message);
+      return null;
+    }
+    return {name, phone, address};
   }
 
   async function submit() {
     if (!signedIn || receipt || !currentOrder || !ensureCheckoutProfiles() ||
         !validateOrderPhoneConfirmations(currentOrder.items) || !validateCustomerEmail()) return;
+    const status = byId('merchantPreviewStatus');
+    status.textContent = '';
     const shippingData = shippingDetails();
     if (!shippingData) return;
     const button = byId('merchantSubmit');
-    const status = byId('merchantPreviewStatus');
     button.disabled = true;
     status.textContent = local('正在保存測試訂單…', 'Saving test order…');
     try {
@@ -196,9 +242,16 @@
       labels();
     } catch (error) {
       if (error.status === 401) lock();
-      if (error.status === 422) {
+      if (error.status === 422 || error.status === 413) {
         lastPayload = undefined;
-        status.textContent = local('有欄位未填妥或照片過大，請檢查後重試。', 'Check the order fields and photo size, then try again.');
+        if (error.code === 'invalid_shipping_phone') {
+          status.textContent = '';
+          showFieldError(byId('shipPhone'), deliveryPhoneError());
+        } else if (error.code === 'invalid_photo_data' || error.status === 413) {
+          status.textContent = local('請返回寵物檔案，換用較小的 PNG、JPG 或 WebP 照片後再試。', 'Return to the pet profile and try a smaller PNG, JPG, or WebP photo.');
+        } else {
+          status.textContent = local('請檢查配送資料及寵物檔案的必填欄位。', 'Check the required delivery and pet profile fields.');
+        }
       } else {
         status.textContent = local('提交暫時失敗。請保留資料並重試。', 'Submission temporarily failed. Keep your details and retry.');
       }
@@ -207,6 +260,9 @@
     }
   }
 
+  shipping.addEventListener('input', event => {
+    if (event.target === invalidField) clearFieldError();
+  });
   byId('merchantSubmit').addEventListener('click', submit);
   new MutationObserver(labels).observe(document.documentElement, {attributes: true, attributeFilter: ['lang']});
   labels();
