@@ -36,26 +36,56 @@
   document.body.append(dialog);
   dialog.addEventListener('cancel', event => event.preventDefault());
 
-  const controls = document.createElement('div');
-  controls.innerHTML = `<div class="action-row"><button type="button" class="primary" id="merchantSubmit"></button></div>
-    <p id="merchantPreviewStatus" role="status"></p>
-    <div id="merchantPreviewReceipt" hidden>
-      <p id="merchantSavedReference" translate="no"></p><ul id="merchantProfileLinks"></ul>
+  const checkoutForm = document.createElement('div');
+  checkoutForm.id = 'merchantCheckoutForm';
+  const actions = summary.querySelector('.action-row');
+  actions.classList.add('merchant-edit-actions');
+  const submitButton = document.createElement('button');
+  submitButton.type = 'button';
+  submitButton.className = 'primary';
+  submitButton.id = 'merchantSubmit';
+  const status = document.createElement('p');
+  status.id = 'merchantPreviewStatus';
+  status.setAttribute('role', 'status');
+  const formActions = document.createElement('div');
+  formActions.className = 'merchant-form-actions';
+  formActions.append(actions, submitButton);
+  checkoutForm.append(email, shipping, status, formActions);
+
+  const receiptPanel = document.createElement('section');
+  receiptPanel.id = 'merchantPreviewReceipt';
+  receiptPanel.hidden = true;
+  receiptPanel.innerHTML = `<p id="merchantReceiptStatus" role="status"></p>
+    <dl class="merchant-order-reference">
+      <dt id="merchantReferenceLabel"></dt>
+      <dd id="merchantSavedReference" translate="no"></dd>
+    </dl>
+    <div class="merchant-receipt-profiles">
+      <h3 id="merchantProfilesHeading"></h3>
+      <ul id="merchantProfileLinks"></ul>
+    </div>
+    <div class="merchant-receipt-actions">
+      <a id="merchantReceiptReview" class="primary"></a>
       <button type="button" class="secondary" id="merchantNewOrder"></button>
     </div>`;
-  const actions = summary.querySelector('.action-row');
-  actions.before(shipping, controls);
+  summary.append(checkoutForm, receiptPanel);
+
   const logout = document.createElement('button');
   logout.type = 'button';
   logout.id = 'merchantSignOut';
-  logout.hidden = true;
   const orderList = document.createElement('a');
   orderList.href = '/merchant/orders';
-  orderList.hidden = true;
-  document.querySelector('.topbar nav').append(orderList, logout);
-  const receiptLink = document.createElement('a');
-  receiptLink.id = 'merchantReceiptReview';
-  byId('merchantProfileLinks').after(receiptLink);
+  const merchantNav = document.createElement('div');
+  merchantNav.className = 'merchant-nav';
+  merchantNav.hidden = true;
+  merchantNav.append(orderList, logout);
+  const topNav = document.querySelector('.topbar nav');
+  topNav.append(merchantNav);
+
+  const receiptLink = byId('merchantReceiptReview');
+  const checkoutTitle = checkout.querySelector('.section-title h2');
+  const checkoutSubtitle = checkout.querySelector('.section-title p');
+  checkoutTitle.translate = checkoutSubtitle.translate = false;
 
   function labels() {
     const profileSteps = byId('petProfile')?.querySelector('.section-title p');
@@ -63,8 +93,9 @@
       profileSteps.setAttribute('translate', 'no');
       profileSteps.textContent = local('正反面預覽 → NFC 檔案 → 配送資料', 'Front & back preview → NFC profile → Delivery details');
     }
-    checkout.querySelector('.section-title h2').textContent = local('確認商家訂單', 'Confirm merchant order');
-    checkout.querySelector('.section-title p').textContent = local(
+    checkoutTitle.textContent = receipt ? local('訂單已完成', 'Order complete') : local('確認商家訂單', 'Confirm merchant order');
+    checkoutSubtitle.hidden = Boolean(receipt);
+    checkoutSubtitle.textContent = local(
       previewMode ? '預覽測試。請填寫配送資料後提交，無需付款。' : '請填寫配送資料後提交，無需付款。',
       previewMode ? 'Preview test. Enter delivery details and submit without payment.' : 'Enter delivery details and submit without payment.');
     byId('customerEmailHelp').textContent = local('客戶電郵會隨訂單保存。', 'The customer email is saved with the order.');
@@ -78,14 +109,16 @@
     byId('merchantNewOrder').textContent = previewMode ? local('建立下一筆測試訂單', 'Start another test order') : local('建立下一筆訂單', 'Start another order');
     logout.textContent = local('商家登出', 'Merchant sign out');
     orderList.textContent = local('訂單後台', 'Order dashboard');
-    receiptLink.textContent = local('在後台查看正反面及檔案', 'View tag images and NFC profiles in dashboard');
+    receiptLink.textContent = local('查看訂單詳情', 'View order details');
+    byId('merchantReferenceLabel').textContent = local('訂單編號', 'Order number');
+    byId('merchantProfilesHeading').textContent = local('NFC 寵物檔案', 'NFC pet profiles');
     if (receipt) {
       const mail = receipt.notificationStatus === 'sent'
         ? local('商家郵件已寄出。', 'Merchant email sent.')
         : receipt.notificationStatus === 'captured'
           ? local('商家測試郵件已記錄。', 'Merchant test email captured.')
           : local('商家郵件待發送。', 'Merchant email pending.');
-      byId('merchantPreviewStatus').textContent = local(
+      byId('merchantReceiptStatus').textContent = local(
         previewMode ? '測試訂單、正反面及檔案已保存，已加入預覽隊列。' : '訂單、正反面及檔案已保存，已加入生產隊列。',
         previewMode ? 'Test order, tag images, and profiles saved. Preview job queued.' : 'Order, tag images, and profiles saved. Production job queued.') + ' ' + mail;
     }
@@ -115,7 +148,7 @@
   function unlock() {
     signedIn = true;
     document.documentElement.dataset.merchantPreview = 'active';
-    logout.hidden = orderList.hidden = false;
+    merchantNav.hidden = false;
     dialog.close();
     if (isOrders) window.openMerchantOrderReview();
   }
@@ -155,18 +188,26 @@
     submissionId = undefined;
     lastPayload = undefined;
     receipt = undefined;
-    byId('merchantPreviewReceipt').hidden = true;
-    byId('merchantPreviewStatus').textContent = '';
-    byId('merchantSubmit').disabled = false;
-    byId('merchantSubmit').parentElement.hidden = false;
-    actions.hidden = shipping.hidden = email.hidden = false;
+    receiptPanel.hidden = true;
+    checkoutForm.hidden = false;
+    status.textContent = '';
+    submitButton.disabled = false;
+    labels();
   }
 
   byId('merchantNewOrder').addEventListener('click', () => {
     resetCheckout();
-    go('home');
-    for (const id of ['customerEmail', 'smartAddress', 'shipName', 'shipPhone', 'shipAddress']) byId(id).value = '';
+    resetHomeCustomization();
+    go('name');
+    byId('firstName').focus({preventScroll: true});
   });
+
+  topNav.addEventListener('click', event => {
+    if (!receipt) return;
+    const destination = event.target.closest('button[data-go]')?.dataset.go;
+    if (destination === 'home' || destination === 'name') resetCheckout();
+    if (destination === 'name') resetHomeCustomization();
+  }, {capture: true});
 
   function clearFieldError() {
     if (!invalidField) return;
@@ -234,12 +275,10 @@
   async function submit() {
     if (!signedIn || receipt || !currentOrder || !ensureCheckoutProfiles() ||
         !validateOrderPhoneConfirmations(currentOrder.items) || !validateCustomerEmail()) return;
-    const status = byId('merchantPreviewStatus');
     status.textContent = '';
     const shippingData = shippingDetails();
     if (!shippingData) return;
-    const button = byId('merchantSubmit');
-    button.disabled = true;
+    submitButton.disabled = true;
     status.textContent = previewMode ? local('正在保存測試訂單…', 'Saving test order…') : local('正在保存訂單…', 'Saving order…');
     let submitting = false;
     try {
@@ -283,9 +322,12 @@
         return li;
       });
       byId('merchantProfileLinks').replaceChildren(...links);
-      byId('merchantPreviewReceipt').hidden = false;
-      button.parentElement.hidden = shipping.hidden = email.hidden = actions.hidden = true;
+      checkoutForm.hidden = true;
+      receiptPanel.hidden = false;
       labels();
+      checkoutTitle.tabIndex = -1;
+      checkoutTitle.focus({preventScroll: true});
+      window.scrollTo({top: 0, behavior: 'instant'});
     } catch (error) {
       if (!lastPayload) submissionId = undefined;
       if (error.status === 401) lock();
@@ -306,14 +348,14 @@
         status.textContent = local('提交暫時失敗。請保留資料並重試。', 'Submission temporarily failed. Keep your details and retry.');
       }
     } finally {
-      button.disabled = false;
+      submitButton.disabled = false;
     }
   }
 
   shipping.addEventListener('input', event => {
     if (event.target === invalidField) clearFieldError();
   });
-  byId('merchantSubmit').addEventListener('click', submit);
+  submitButton.addEventListener('click', submit);
   new MutationObserver(labels).observe(document.documentElement, {attributes: true, attributeFilter: ['lang']});
   labels();
   lock();
