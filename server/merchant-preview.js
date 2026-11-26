@@ -213,10 +213,11 @@ async function notifyReviewedOrder(sql, id, saved, origin, env = process.env, de
 
 async function createOrder(sql, input, origin, deferNotice, preview) {
   const {id, hash, order, profiles} = validateSubmission(input, preview);
+  const localizedProfiles = profiles.map(profile => ({...profile, profile_language: order.language}));
   let saved;
   try {
     [saved] = await sql`select * from public.create_merchant_preview_order(
-      ${id}, ${hash}, ${JSON.stringify(order)}::jsonb, ${JSON.stringify(profiles)}::jsonb)`;
+      ${id}, ${hash}, ${JSON.stringify(order)}::jsonb, ${JSON.stringify(localizedProfiles)}::jsonb)`;
   } catch (error) {
     if (error.code === '23505') throw failure(409, 'order_changed');
     throw error;

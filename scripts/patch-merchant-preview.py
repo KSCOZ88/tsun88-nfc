@@ -43,12 +43,3 @@ source = replace(source, anchor, anchor + """
 source = replace(source, "</body>", '<script src="/assets/tsun-merchant-order-review.js" defer></script>\n<script src="/assets/tsun-merchant-preview.js" defer></script>\n</body>')
 source = replace(source, "</head>", '<link rel="stylesheet" href="/assets/tsun-merchant-preview.css">\n</head>')
 index.write_text(source, encoding="utf-8")
-
-profile = Path("lucky88.html")
-source = profile.read_text(encoding="utf-8")
-anchor = """  const response=await fetch(SUPABASE_URL+'/rest/v1/rpc/get_pet_profile',{method:'POST',headers:{apikey:SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},body:JSON.stringify({p_slug:slug})});"""
-source = replace(source, anchor, """  const merchantPreview=location.pathname==='/merchant-profile';
-  const response=merchantPreview
-    ? await fetch('/api/order-email?merchantPreview=1&profile='+encodeURIComponent(slug))
-    : await fetch(SUPABASE_URL+'/rest/v1/rpc/get_pet_profile',{method:'POST',headers:{apikey:SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},body:JSON.stringify({p_slug:slug})});""")
-profile.write_text(source, encoding="utf-8")

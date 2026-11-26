@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<html lang="zh-Hant"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lucky 的萌宠档案</title>
+<title>Lucky 的寵物檔案</title>
 <style>
   :root{
     --primary:#ff8a3d;
@@ -22,7 +22,7 @@
   *{margin:0;padding:0;box-sizing:border-box;}
   html{scroll-behavior:smooth;}
   body{
-    font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC","Helvetica Neue",Arial,sans-serif;
+    font-family:"PingFang HK","Microsoft JhengHei","Noto Sans TC","Helvetica Neue",Arial,sans-serif;
     background:var(--bg);
     color:var(--ink);
     line-height:1.7;
@@ -59,6 +59,7 @@
     border:5px solid rgba(255,255,255,.55);
   }
   .avatar img{width:100%;height:100%;object-fit:cover;object-position:center;border-radius:50%;display:none;}
+  html[data-loading-profile] :is(.hero,.wrap){visibility:hidden;}
   .profile-status{display:none;position:fixed;left:16px;right:16px;top:14px;z-index:100;background:#fff;border:1px solid #f2c9a7;border-radius:14px;padding:11px 14px;box-shadow:var(--shadow);text-align:center;font-size:13px;color:var(--primary-dark);}
   .hero h1{font-size:26px;font-weight:800;letter-spacing:1px;text-shadow:0 2px 6px rgba(0,0,0,.12);}
   .hero .tags{margin-top:8px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}
@@ -131,18 +132,24 @@
     .info-table th{width:95px;}
   }
 </style>
+<script>
+  if (new URLSearchParams(location.search).get('p')) {
+    document.documentElement.dataset.loadingProfile = '';
+    document.title = '8TSUN8';
+  }
+</script>
 </head>
 <body>
 
 <!-- ================= HERO ================= -->
 <header class="hero">
-  <div class="badge-qr">📌 宠物电子档案 · 二维码宠物牌</div>
-  <div class="avatar"><span id="avatarDefault">🐕</span><img id="avatarImage" alt="宠物照片"></div>
-  <h1 id="heroTitle">🐾 Lucky 的萌宠档案</h1>
+  <div class="badge-qr" data-copy="badge">📌 NFC 寵物檔案 · 8TSUN8</div>
+  <div class="avatar"><span id="avatarDefault">🐕</span><img id="avatarImage" alt="寵物照片"></div>
+  <h1 id="heroTitle">🐾 Lucky 的寵物檔案</h1>
   <div class="tags">
-    <span class="tag" id="tagColor">五红特征：嘴、鼻、眼睑、爪和肛门呈红色</span>
+    <span class="tag" id="tagColor">五紅特徵：嘴、鼻、眼瞼、爪和肛門呈紅色</span>
     <span class="tag" id="tagGender">男孩 ♂</span>
-    <span class="tag" id="tagNeutered">已绝育 ✂️</span>
+    <span class="tag" id="tagNeutered">已絕育 ✂️</span>
   </div>
 </header>
 
@@ -151,9 +158,9 @@
   <!-- ================= LOST BANNER ================= -->
   <div class="card">
     <div class="lost-banner">
-      <div class="lb-title">🚨 紧急求助：我走丢了！</div>
-      <div class="lb-sub">请点击下方按钮联系我的主人</div>
-      <a class="lb-btn" href="#emergency">⚠️ 我找到了 <span id="bannerName">Lucky</span>，点这里联系主人</a>
+      <div class="lb-title" data-copy="lostHeading">🚨 緊急求助：我走失了！</div>
+      <div class="lb-sub" data-copy="lostHelp">請點下方按鈕聯絡我的主人</div>
+      <a class="lb-btn" href="#emergency" id="lostAction">⚠️ 我找到了 Lucky，點此聯絡主人</a>
     </div>
   </div>
 
@@ -161,17 +168,17 @@
   <section class="section">
     <div class="sec-title">
       <div class="icon" style="background:var(--primary-light);">📋</div>
-      <h2>基本信息</h2>
-      <span class="en">宠物档案</span>
+      <h2 data-copy="basic">基本資料</h2>
+      <span class="en" data-copy="about">寵物檔案</span>
     </div>
     <div class="card" style="margin-top:0;">
       <table class="info-table">
-        <tbody><tr><th>宠物名字</th><td><span data-field="petName">Lucky</span></td></tr>
-        <tr><th>性别</th><td><span data-field="gender">男孩 ♂</span></td></tr>
-        <tr><th>绝育情况</th><td><span data-field="neutered">已绝育 ✂️</span></td></tr>
-        <tr><th>品种</th><td><span data-field="breed">中华田园犬（五红犬）</span></td></tr>
-        <tr><th>出生日期</th><td><span data-field="birth">2023-02-01</span></td></tr>
-        <tr><th>毛色与特征</th><td><span data-field="color">五红特征：嘴、鼻、眼睑、爪和肛门呈红色</span></td></tr>
+        <tbody><tr><th data-copy="petName">寵物名字</th><td><span data-field="petName">Lucky</span></td></tr>
+        <tr><th data-copy="gender">性別</th><td><span data-field="gender">男孩 ♂</span></td></tr>
+        <tr><th data-copy="neutered">絕育狀況</th><td><span data-field="neutered">已絕育 ✂️</span></td></tr>
+        <tr><th data-copy="breed">品種</th><td><span data-field="breed">中華田園犬（五紅犬）</span></td></tr>
+        <tr><th data-copy="birth">出生日期</th><td><span data-field="birth">2023-02-01</span></td></tr>
+        <tr><th data-copy="color">毛色與特徵</th><td><span data-field="color">五紅特徵：嘴、鼻、眼瞼、爪和肛門呈紅色</span></td></tr>
       </tbody></table>
     </div>
   </section>
@@ -180,24 +187,24 @@
   <section class="section" id="emergency">
     <div class="sec-title">
       <div class="icon" style="background:var(--danger-light);">📞</div>
-      <h2>紧急联系人</h2>
-      <span class="en">主人留言</span>
+      <h2 data-copy="contacts">緊急聯絡人</h2>
+      <span class="en" data-copy="contactHeading">主人留言</span>
     </div>
     <div class="card" style="margin-top:0;">
       <table class="info-table">
-        <tbody><tr><th>主人</th><td>
+        <tbody><tr><th data-copy="owner">主人</th><td>
           <span data-field="owner1">Ann 女士</span><br>
           <a data-tel="phone1" href="tel:85298449165" style="color:var(--primary-dark);text-decoration:none;font-family:Courier New,monospace;letter-spacing:1px;" data-field="phone1">+852 98449165</a>
         </td></tr>
-        <tr><th>备用联系人</th><td>
+        <tr><th data-copy="backup">後備聯絡人</th><td>
           <span data-field="owner2">CHEUNG 先生</span><br>
           <a data-tel="phone2" href="tel:85295189171" style="color:var(--primary-dark);text-decoration:none;font-family:Courier New,monospace;letter-spacing:1px;" data-field="phone2">+852 95189171</a>
         </td></tr>
-        <tr><th>所在地区</th><td><span data-field="region">香港柏道</span></td></tr>
+        <tr><th data-copy="region">所在區域</th><td><span data-field="region">香港柏道</span></td></tr>
       </tbody></table>
       <div class="note-box" style="margin-top:14px;">
-        <span class="quote-mark">💬 主人留言</span><br>
-        <span data-field="message">“如果您找到了我的狗狗，请尽快与我联系。我们会酬谢您的帮助，非常感谢！”</span>
+        <span class="quote-mark" data-copy="ownerMessage">💬 主人留言</span><br>
+        <span data-field="message">“如果您找到了我的狗狗，请尽快与我联系。我們會酬謝您的幫助，非常感謝！”</span>
       </div>
     </div>
   </section>
@@ -206,22 +213,22 @@
   <section class="section">
     <div class="sec-title">
       <div class="icon" style="background:var(--accent-light);">💡</div>
-      <h2>健康与照护</h2>
-      <span class="en">注意事项</span>
+      <h2 data-copy="care">健康與照護</h2>
+      <span class="en" data-copy="careNotes">注意事項</span>
     </div>
     <div class="card" style="margin-top:0;">
       <div class="health-grid">
         <div class="health-item warn">
-          <div class="h-label">🍗 饮食与过敏</div>
-          <div class="h-value"><span data-field="diet">对巧克力等过敏；只吃鸡肉和三文鱼配方狗粮。</span></div>
+          <div class="h-label" data-copy="diet">🍗 飲食與過敏</div>
+          <div class="h-value"><span data-field="diet">對朱古力等過敏，並只吃雞肉和三文魚配方狗糧。</span></div>
         </div>
         <div class="health-item">
-          <div class="h-label">🐾 性格特点</div>
-          <div class="h-value"><span data-field="personality">贪吃，害怕雷声和鞭炮声，对陌生狗狗比较警惕。</span></div>
+          <div class="h-label" data-copy="personality">🐾 性格特點</div>
+          <div class="h-value"><span data-field="personality">貪吃，害怕雷聲和鞭炮聲，對陌生狗狗比較警惕。</span></div>
         </div>
         <div class="health-item">
-          <div class="h-label">🏥 常去宠物医院</div>
-          <div class="h-value"><span data-field="clinic">四爪动物医院</span><br>
+          <div class="h-label" data-copy="clinic">🏥 常去的獸醫診所</div>
+          <div class="h-value"><span data-field="clinic">四爪動物醫院</span><br>
           <span style="font-family:Courier New,monospace;letter-spacing:1px;" data-field="clinicPhone">+852 92748331</span></div>
         </div>
       </div>
@@ -230,41 +237,150 @@
 
   <!-- ================= BRAND FOOTER ================= -->
   <footer class="brand-footer">
-    <div>本档案由 <span class="brand-name">TSUN LAB</span> 提供支持 🏅</div>
-    <a class="cta-btn" href="https://tsun88-nfc-l86b.vercel.app/">🛒 定制同款宠物牌</a>
-    <div style="margin-top:20px;opacity:.7;">
-      由宠物牌服务生成 · 为宠物与主人提供贴心体验
+    <div><span data-copy="poweredBy">檔案由</span> <span class="brand-name">TSUN LAB</span> <span data-copy="poweredByEnd">提供支援 🏅</span></div>
+    <a class="cta-btn" href="https://www.8tsun8.com/" data-copy="store">🛒 訂製同款寵物牌</a>
+    <div style="margin-top:20px;opacity:.7;" data-copy="footer">
+      由寵物牌服務生成 · 為寵物與主人提供貼心服務
     </div>
   </footer>
 
 </div>
-<div class="profile-status" id="profileStatus"></div>
+<div class="profile-status" id="profileStatus" role="status"></div>
 <script>
 const SUPABASE_URL='https://zujdfvnhxbalyhjmmmtl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_w1uZ3XHIO_QhB4bDdZCPfg_48EiAGvl';
 const slug=new URLSearchParams(location.search).get('p')||'';
 const fieldMap={petName:'pet_name',gender:'gender',neutered:'neutered',breed:'breed',birth:'birth_date',color:'coat_marks',owner1:'owner_name',phone1:'owner_phone',owner2:'backup_owner_name',phone2:'backup_phone',region:'location',message:'owner_message',diet:'diet',personality:'personality',clinic:'clinic',clinicPhone:'clinic_phone'};
-function clean(value){return value==null?'':String(value).trim();}
-// Translate stored select values as well as labels; free-text data stays intact.
-function profileDisplayValue(key,value){
-  const text=clean(value);
-  const options={
-    gender:{'Boy ♂':'男孩 ♂','Girl ♀':'女孩 ♀','Boy':'男孩','Girl':'女孩','Male':'男孩','Female':'女孩','Unknown':'不清楚'},
-    neutered:{'Neutered ✂️':'已绝育 ✂️','Neutered':'已绝育','Not neutered':'未绝育','Unknown':'不清楚'}
-  };
-  return options[key]?.[text]||text;
+const englishLabels = {
+  badge: "📌 NFC pet profile · 8TSUN8",
+  lostHeading: "🚨 I’m lost!",
+  lostHelp: "Tap below to contact my owner.",
+  basic: "Basic information",
+  about: "Pet profile",
+  petName: "Pet name",
+  gender: "Sex",
+  neutered: "Neutering status",
+  breed: "Breed",
+  birth: "Date of birth",
+  color: "Coat colour and markings",
+  contacts: "Emergency contacts",
+  contactHeading: "Owner’s message",
+  owner: "Owner",
+  backup: "Backup contact",
+  region: "Area",
+  ownerMessage: "💬 Owner’s message",
+  care: "Health and care",
+  careNotes: "Care notes",
+  diet: "🍗 Diet and allergies",
+  personality: "🐾 Personality",
+  clinic: "🏥 Usual veterinary clinic",
+  footer: "Created with 8TSUN8’s pet tag service.",
+  store: "🛒 Personalise a pet tag",
+  poweredBy: 'Profile supported by',
+  poweredByEnd: '🏅',
+};
+const profileCopy = {
+  en: {
+    title: name => name + '’s pet profile',
+    found: name => '⚠️ I found ' + name + ' · Contact the owner',
+    pet: 'Pet',
+    photo: 'Pet photo',
+    empty: 'Not provided',
+    noCoat: 'Coat and markings not provided',
+    noGender: 'Sex not provided',
+    noNeutered: 'Neutering status not provided',
+    missing: 'This pet profile could not be found.',
+    unavailable: 'The pet profile could not load. Please try again.',
+    options: {male:'Male', female:'Female', neutered:'Neutered', intact:'Not neutered', unknown:'Unknown'},
+  },
+  'zh-Hant': {
+    title: name => name + ' 的寵物檔案',
+    found: name => '⚠️ 我找到了 ' + name + '，點此聯絡主人',
+    pet: '寵物',
+    photo: '寵物照片',
+    empty: '未填寫',
+    noCoat: '未填寫毛色與特徵',
+    noGender: '未填寫性別',
+    noNeutered: '未填寫絕育狀況',
+    missing: '找不到這份寵物檔案。',
+    unavailable: '無法載入寵物檔案，請稍後再試。',
+    options: {male:'男孩', female:'女孩', neutered:'已絕育', intact:'未絕育', unknown:'不清楚'},
+  },
+};
+const genderOptions = new Map([
+  ['boy','male'], ['male','male'], ['男孩','male'],
+  ['girl','female'], ['female','female'], ['女孩','female'],
+  ['unknown','unknown'], ['不清楚','unknown'],
+]);
+const neuterOptions = new Map([
+  ['neutered','neutered'], ['已绝育','neutered'], ['已絕育','neutered'],
+  ['not neutered','intact'], ['未绝育','intact'], ['未絕育','intact'],
+  ['unknown','unknown'], ['不清楚','unknown'],
+]);
+
+function clean(value) {
+  return value == null ? '' : String(value).trim();
 }
-function showStatus(message){const el=document.getElementById('profileStatus');el.textContent=message;el.style.display='block';}
-function applyProfile(data){
-  document.querySelectorAll('[data-field]').forEach(el=>{const key=fieldMap[el.dataset.field],value=profileDisplayValue(key,data[key]);el.textContent=value||'未填写';if(el.dataset.tel){if(value)el.href='tel:'+value.replace(/[^+\d]/g,'');else el.removeAttribute('href');}});
-  const name=clean(data.pet_name)||'宠物';document.getElementById('heroTitle').textContent='🐾 '+name+' 的萌宠档案' ;document.getElementById('bannerName').textContent=name;document.getElementById('tagColor').textContent=clean(data.coat_marks)||'未填写毛色与特征';document.getElementById('tagGender').textContent=profileDisplayValue('gender',data.gender)||'未填写性别';document.getElementById('tagNeutered').textContent=profileDisplayValue('neutered',data.neutered)||'未填写绝育情况';document.title=name+' 的萌宠档案' ;
-  if(clean(data.photo_data)){const img=document.getElementById('avatarImage');img.src=data.photo_data;img.style.display='block';document.getElementById('avatarDefault').style.display='none';}
+function displayValue(key, value, copy) {
+  const text = clean(value);
+  const choices = key === 'gender' ? genderOptions : key === 'neutered' ? neuterOptions : null;
+  if (!choices) return text;
+  const option = choices.get(text.replace(/[♂♀✂️]/gu, '').trim().toLowerCase());
+  return option ? copy.options[option] : text;
 }
-async function loadLockedProfile(){
-  if(!slug)return;
-  const response=await fetch(SUPABASE_URL+'/rest/v1/rpc/get_pet_profile',{method:'POST',headers:{apikey:SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},body:JSON.stringify({p_slug:slug})});
-  const data=await response.json().catch(()=>null);if(!response.ok||!data)throw new Error('未找到这份宠物档案。');applyProfile(data);
+function showStatus(message) {
+  const status = document.getElementById('profileStatus');
+  status.textContent = message;
+  status.style.display = 'block';
 }
-loadLockedProfile().catch(error=>showStatus(error.message==='未找到这份宠物档案。'?error.message:'宠物档案加载失败，请稍后重试。'));
+function applyProfile(data) {
+  const language = data.profile_language === 'en' ? 'en' : 'zh-Hant';
+  const copy = profileCopy[language];
+  const name = clean(data.pet_name) || copy.pet;
+  const avatar = document.getElementById('avatarImage');
+  document.documentElement.lang = language;
+  if (language === 'en') {
+    document.querySelectorAll('[data-copy]').forEach(el => {
+      el.textContent = englishLabels[el.dataset.copy];
+    });
+  }
+  document.querySelectorAll('[data-field]').forEach(el => {
+    const value = displayValue(fieldMap[el.dataset.field], data[fieldMap[el.dataset.field]], copy);
+    el.textContent = value || copy.empty;
+    if (el.dataset.tel) {
+      if (value) el.href = 'tel:' + value.replace(/[^+\d]/g, '');
+      else el.removeAttribute('href');
+    }
+  });
+  document.title = copy.title(name);
+  document.getElementById('heroTitle').textContent = '🐾 ' + document.title;
+  document.getElementById('lostAction').textContent = copy.found(name);
+  document.getElementById('tagColor').textContent = clean(data.coat_marks) || copy.noCoat;
+  document.getElementById('tagGender').textContent = displayValue('gender', data.gender, copy) || copy.noGender;
+  document.getElementById('tagNeutered').textContent = displayValue('neutered', data.neutered, copy) || copy.noNeutered;
+  avatar.alt = copy.photo;
+  if (clean(data.photo_data)) {
+    avatar.src = data.photo_data;
+    avatar.style.display = 'block';
+    document.getElementById('avatarDefault').style.display = 'none';
+  }
+  delete document.documentElement.dataset.loadingProfile;
+}
+async function loadLockedProfile() {
+  if (!slug) return;
+  const merchantPreview=location.pathname==='/merchant-profile';
+  const response=merchantPreview
+    ? await fetch('/api/order-email?merchantPreview=1&profile='+encodeURIComponent(slug))
+    : await fetch(SUPABASE_URL+'/rest/v1/rpc/get_pet_profile',{method:'POST',headers:{apikey:SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},body:JSON.stringify({p_slug:slug})});
+  if (response.status === 404) {
+    showStatus(profileCopy['zh-Hant'].missing);
+    return;
+  }
+  if (!response.ok) throw new Error('profile_load_failed');
+  const data = await response.json();
+  if (data) applyProfile(data);
+  else showStatus(profileCopy['zh-Hant'].missing);
+}
+loadLockedProfile().catch(() => showStatus(profileCopy['zh-Hant'].unavailable));
 </script>
 </body></html>
