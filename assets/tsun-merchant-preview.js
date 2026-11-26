@@ -2,6 +2,25 @@
 
 (function () {
   const route = window.location.pathname.replace(/\/$/, '');
+  if (route === '') {
+    const wordmark = document.getElementById('tsunJourneyHome');
+    let taps = 0;
+    let firstTapAt = 0;
+    wordmark?.addEventListener('click', event => {
+      const now = performance.now();
+      if (!taps || now - firstTapAt > 3000) {
+        firstTapAt = now;
+        taps = 0;
+      }
+      taps += 1;
+      if (taps !== 5) return;
+      taps = 0;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      window.location.assign('/merchant');
+    }, {capture: true});
+    return;
+  }
   if (route !== '/merchant' && route !== '/merchant/orders') return;
   const isOrders = route === '/merchant/orders';
 

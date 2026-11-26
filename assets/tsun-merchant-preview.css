@@ -1,3 +1,7 @@
+#tsunJourneyHome {
+  touch-action: manipulation;
+}
+
 html[data-merchant-preview="locked"] body > :not(#merchantLogin):not(script):not(style) {
   visibility: hidden;
 }
