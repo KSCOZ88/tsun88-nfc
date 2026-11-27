@@ -3,6 +3,7 @@
 const {readFileSync} = require('node:fs');
 const {join} = require('node:path');
 const PDFDocument = require('pdfkit');
+const {hongKongAddressParts} = require('./hong-kong-district');
 const background = readFileSync(join(__dirname, 'print-assets/address-vintage.jpg'));
 const script = readFileSync(join(__dirname, '../node_modules/@fontsource/pinyon-script/files/pinyon-script-latin-400-normal.woff'));
 const latin = /^[\x20-\xff‘’“”–—]+$/;
@@ -53,16 +54,56 @@ function wrap(doc, lines, size) {
   return rows;
 }
 
-function drawLabel(doc, artwork, rows, slot, index, total, size) {
+function addressLabels(doc, lines) {
+  let layout;
+  for (const size of [12, 11, 10, 9]) {
+    const rows = wrap(doc, lines, size);
+    layout = {rows, size};
+    if (rows.length <= addressLineOffsets.length) break;
+  }
+  const {rows, size} = layout;
+  const labels = [];
+  for (let i = 0; i < rows.length; i += addressLineOffsets.length) {
+    labels.push(rows.slice(i, i + addressLineOffsets.length)
+      .map((row, index) => ({...row, size, offset: addressLineOffsets[index]})));
+  }
+  return labels;
+}
+
+function hongKongLabels(doc, name, {street, district, country}) {
+  const recipient = wrap(doc, [name], 11.84);
+  const streetText = street.split(/[,，;；\r\n]+/).map(line => line.trim()).filter(Boolean).join(', ');
+  const address = [...recipient.slice(1).map(row => row.text), streetText].filter(Boolean);
+  const fullSize = wrap(doc, address, 11.48);
+  const size = fullSize.length > 1 ? 8.5 : 11.48;
+  const rows = fullSize.length > 1 ? wrap(doc, address, size) : fullSize;
+  const locality = [
+    ...(district ? [{text: district, font: 'Script', size: 11.3, offset: addressLineOffsets[2]}] : []),
+    {text: country, font: 'Script', size: 11.3, offset: addressLineOffsets[3]}
+  ];
+  const labels = [];
+  for (let i = 0; i < Math.max(1, rows.length); i += 2) {
+    const streetRows = rows.slice(i, i + 2);
+    const offsets = streetRows.length === 2 ? [81, 89] : [addressLineOffsets[1]];
+    labels.push([
+      {...recipient[0], size: 11.84, offset: addressLineOffsets[0]},
+      ...streetRows.map((row, index) => ({...row, size, offset: offsets[index]})),
+      ...locality
+    ]);
+  }
+  return labels;
+}
+
+function drawLabel(doc, artwork, rows, slot, index, total) {
   const col = slot % 3;
   const row = Math.floor(slot / 3);
   const x = 12.5 * mm + col * (labelWidth + 4 * mm);
   const y = 69.926 + row * 157.005;
   doc.image(artwork, x, y, {width: labelWidth, height: labelHeight});
-  rows.forEach(({text, font}, i) => {
-    doc.fillColor(ink).font(font).fontSize(size).text(text, x + left, y + addressLineOffsets[i],
+  for (const {text, font, size, offset} of rows) {
+    doc.fillColor(ink).font(font).fontSize(size).text(text, x + left, y + offset,
       {lineBreak: false, baseline: 'alphabetic'});
-  });
+  }
   if (total > 1) {
     doc.fillColor(ink).font('Times-Roman').fontSize(7)
       .text((index + 1) + ' / ' + total, x + 216, y + 65, {lineBreak: false});
@@ -74,6 +115,7 @@ async function shippingLabelAttachment(order, {threeAcross = false} = {}) {
   const address = typeof order?.shipAddress === 'string' ? order.shipAddress.trim() : '';
   if (!name || name.length > 120 || !address || address.length > 1000) return null;
 
+  const locality = hongKongAddressParts(address);
   const lines = [name, ...addressLines(address)].map(line => line.replace(/\s+/g, ' '));
   const doc = new PDFDocument({
     size: 'A4', layout: 'landscape', margin: 0, autoFirstPage: false,
@@ -90,24 +132,15 @@ async function shippingLabelAttachment(order, {threeAcross = false} = {}) {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
   });
-  const variants = [12, 11, 10, 9];
-  const perLabel = addressLineOffsets.length;
-  let layout;
-  for (const size of variants) {
-    const rows = wrap(doc, lines, size);
-    layout = {rows, size};
-    if (rows.length <= perLabel) break;
-  }
-  const {rows, size} = layout;
+  const labels = locality ? hongKongLabels(doc, lines[0], locality) : addressLabels(doc, lines);
   const artwork = doc.openImage(background);
-  const total = Math.ceil(rows.length / perLabel);
+  const total = labels.length;
   const copies = threeAcross ? 3 : 1;
   for (let i = 0; i < total; i++) {
     const slot = (i * copies) % 9;
     if (slot === 0) doc.addPage();
-    const section = rows.slice(i * perLabel, (i + 1) * perLabel);
     for (let copy = 0; copy < copies; copy++) {
-      drawLabel(doc, artwork, section, slot + copy, i, total, size);
+      drawLabel(doc, artwork, labels[i], slot + copy, i, total);
     }
   }
 

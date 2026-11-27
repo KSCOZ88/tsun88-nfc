@@ -21,7 +21,7 @@ async function simulateRequest(handler, method, query, body, cookie) {
 async function verify(env = process.env) {
   if (env.VERCEL_ENV === 'preview' || env.VERCEL_ENV === 'production') {
     const example = await completeHongKongAddress({shipAddress: '2 Tim Mei Avenue'});
-    console.log('Hong Kong district lookup:', example.shipAddress.endsWith('Central and Western District, Hong Kong')
+    console.log('Hong Kong district lookup:', example.shipAddress.endsWith('Central and Western District\nHong Kong')
       ? 'public address verified' : 'public address could not be verified');
   }
   if (env.VERCEL_ENV !== 'production' || env.MERCHANT_ORDERS_ENABLED !== '1') return;

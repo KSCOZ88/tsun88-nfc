@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const {PNG} = require('pngjs');
 const {inflateSync} = require('node:zlib');
-const {completeHongKongAddress} = require('../server/hong-kong-district');
+const {completeHongKongAddress, hongKongAddressParts} = require('../server/hong-kong-district');
 const {combinePrintSides} = require('../server/print-layout');
 const {salesItems, salesSummary} = require('../server/merchant-sales');
 const {listReviews, storePaidReview, publishPaidReview, saveMerchantImages, loadMerchantPrintFiles} = require('../server/order-review');
@@ -339,7 +339,7 @@ test('Hong Kong district lookup sends only the building details and adds an exac
       record({...en, EngStreet: {...en.EngStreet, StreetName: "QUEEN'S ROAD WEST"}}), record(en)
     ]})};
   });
-  assert.equal(result.shipAddress, 'Flat 12, 4/F, 88 Queen’s Road Central\nCentral and Western District, Hong Kong');
+  assert.equal(result.shipAddress, 'Flat 12, 4/F, 88 Queen’s Road Central\nCentral and Western District\nHong Kong');
   assert.equal(result.shipName, order.shipName);
 });
 
@@ -353,7 +353,7 @@ test('Hong Kong district lookup supports a Chinese street and respects districts
         StreetName: '皇后大道中', BuildingNoFrom: '88', BuildingNoTo: '88'}}
     }}}]})};
   });
-  assert.equal(result.shipAddress, order.shipAddress + '\nCentral and Western District, Hong Kong');
+  assert.equal(result.shipAddress, '中環皇后大道中88號12樓\nCentral and Western District\nHong Kong');
   const withDistrict = {shipAddress: order.shipAddress + ', 中西區'};
   assert.equal(await completeHongKongAddress(withDistrict, () => assert.fail('address already has a district')), withDistrict);
 });
@@ -375,4 +375,19 @@ test('fuzzy, conflicting or unavailable address results keep the original addres
     assert.equal(unchanged.shipAddress, order.shipAddress);
     assert.equal(unchanged.shippingDistrictUnverified, true);
   }
+});
+
+
+test('Hong Kong labels separate the district and country for manual and automatically formatted addresses', () => {
+  const locality = {street: '88 Example Road', district: 'Central and Western District', country: 'Hong Kong'};
+  assert.deepEqual(hongKongAddressParts('88 Example Road, Central & Western District, Hong Kong'), locality);
+  assert.deepEqual(hongKongAddressParts('88 Example Road\nCentral and Western District\nHong Kong'), locality);
+  assert.deepEqual(hongKongAddressParts('香港中西區示範街18號'), {...locality, street:'示範街18號'});
+  assert.deepEqual(hongKongAddressParts('88 Example Road, Hong Kong'),
+    {street:'88 Example Road', district:undefined, country:'Hong Kong'});
+  assert.deepEqual(hongKongAddressParts('North District Hospital, Hong Kong'),
+    {street:'North District Hospital', district:undefined, country:'Hong Kong'});
+  assert.deepEqual(hongKongAddressParts('香港大學, 中西區, 香港'),
+    {...locality, street:'香港大學'});
+  assert.equal(hongKongAddressParts('台灣台南市北區示範路18號'), null);
 });
