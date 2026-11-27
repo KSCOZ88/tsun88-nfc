@@ -156,13 +156,37 @@ function profileLinks(saved, origin, preview = true) {
   });
 }
 
+function addressKey(value) {
+  return value.normalize('NFKC').toLowerCase().replace(/[\s,，]+/g, ' ').trim();
+}
+
+function merchantDeliveryDetails(order, profiles) {
+  const reference = profiles[0];
+  const location = reference?.location?.trim();
+  const address = location?.normalize('NFKC');
+  const street = /\b\d+[a-z]?(?:[-/]\d+[a-z]?)?\s+[^\r\n]{1,120}\b(?:road|rd|street|st|lane|ln|avenue|ave|drive|dr|court|ct|way|place|pl|terrace|close|crescent|boulevard|blvd)\b/i;
+  const number = /\d+\s*[a-z]?\s*[號号樓楼室]/i;
+  if (!address || (!street.test(address) && !number.test(address)) ||
+      !profiles.every(profile => profile?.location?.trim() === location)) return order;
+  const orderAddress = addressKey(order.shipAddress || '');
+  const profileAddress = addressKey(location);
+  const includesProfileAddress = /[\p{Script=Han}]/u.test(location)
+    ? orderAddress.replaceAll(' ', '').includes(profileAddress.replaceAll(' ', ''))
+    : (' ' + orderAddress + ' ').includes(' ' + profileAddress + ' ');
+  // Preserve locality and postal details from checkout when it names the same address.
+  const shipAddress = includesProfileAddress && orderAddress.length > profileAddress.length
+    ? order.shipAddress : location;
+  return {...order, shipName: reference.owner_name?.trim() || order.shipName,
+    shipPhone: reference.owner_phone?.trim() || '', shipAddress};
+}
+
 function buildMerchantMessage(id, order, links, origin, preview = true, hasAttachments = false, addressLabel = false) {
   const language = order.language === 'zh-Hant' ? '繁體中文' : 'English';
   const profiles = links.map(({name, url}) => {
     const profileUrl = escape(safeUrl(url));
     return `<li>${escape(name)}（${language}）<br><a href="${profileUrl}">${profileUrl}</a></li>`;
   }).join('');
-  const address = [order.shipName, order.shipPhone, order.shipAddress].map(escape).join('<br>');
+  const address = [order.shipName, order.shipPhone, order.shipAddress].filter(Boolean).map(escape).join('<br>');
   const review = new URL('/merchant/orders', origin);
   review.searchParams.set('order', id);
   return {
@@ -179,8 +203,9 @@ function receipt(saved, origin, notificationStatus, preview) {
 
 async function captureNotice(sql, id, saved, origin, attachments = []) {
   if (saved.notification_status !== 'pending') return saved.notification_status;
-  const addressLabel = await shippingLabelAttachment(saved.order_details);
-  const message = buildMerchantMessage(id, saved.order_details, profileLinks(saved, origin), origin, true,
+  const order = saved.delivery || saved.order_details;
+  const addressLabel = await shippingLabelAttachment(order, {threeAcross: true});
+  const message = buildMerchantMessage(id, order, profileLinks(saved, origin), origin, true,
     attachments.length > 0, Boolean(addressLabel));
   const files = addressLabel ? [...attachments, addressLabel] : attachments;
   if (files.length) message.attachments = files.map(({filename, content_type}) => ({filename, content_type}));
@@ -218,8 +243,9 @@ async function notifyReviewedOrder(sql, id, saved, origin, attachments, env = pr
   if (!recipient || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(recipient) || !env.SMTP_APP_PASSWORD) {
     return 'pending';
   }
-  const addressLabel = await shippingLabelAttachment(saved.order_details);
-  const message = buildMerchantMessage(id, saved.order_details, profileLinks(saved, origin, preview), origin, preview, true);
+  const order = saved.delivery || saved.order_details;
+  const addressLabel = await shippingLabelAttachment(order, {threeAcross: true});
+  const message = buildMerchantMessage(id, order, profileLinks(saved, origin, preview), origin, preview, true);
   message.to = [recipient];
   const [claim] = await sql`update public.tsun_merchant_orders
     set notification_status = 'sending', notification_lease_until = now() + interval '2 minutes',
@@ -275,6 +301,7 @@ async function createOrder(sql, input, origin, deferNotice, preview) {
     if (error.code === '23505') throw failure(409, 'order_changed');
     throw error;
   }
+  if (!deferNotice) saved.delivery = merchantDeliveryDetails(saved.order_details, localizedProfiles);
   const status = deferNotice ? saved.notification_status : await captureNotice(sql, id, saved, origin);
   return receipt({...saved, merchant_order_id: id}, origin, status, preview);
 }
@@ -288,6 +315,12 @@ async function finishReview(sql, id, origin, preview) {
     where merchant_order_id = ${id} and side in ('front', 'back')`;
   if (images.total !== saved.profile_slugs.length * 2) throw failure(409, 'images_incomplete');
   const attachments = await loadMerchantPrintFiles(sql, id, saved.order_details.items);
+  const profiles = await sql`select profile->>'location' as location, profile->>'owner_name' as owner_name,
+      profile->>'owner_phone' as owner_phone
+    from unnest(${saved.profile_slugs}::text[]) with ordinality as slugs(slug, tag_number)
+    cross join lateral (select public.get_pet_profile(slug) as profile offset 0) as pet
+    order by tag_number`;
+  saved.delivery = merchantDeliveryDetails(saved.order_details, profiles);
   return receipt(saved, origin, await notifyReviewedOrder(sql, id, saved, origin, attachments), preview);
 }
 
@@ -372,4 +405,4 @@ function makeHandler({getConfig = configuration, getDb = postgres} = {}) {
   };
 }
 
-module.exports = {makeHandler, configuration, signIn, isSignedIn, validateSubmission, profileLinks, buildMerchantMessage, notifyReviewedOrder};
+module.exports = {makeHandler, configuration, signIn, isSignedIn, validateSubmission, merchantDeliveryDetails, profileLinks, buildMerchantMessage, notifyReviewedOrder};

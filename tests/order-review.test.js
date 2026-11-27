@@ -3,10 +3,11 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const {PNG} = require('pngjs');
+const {inflateSync} = require('node:zlib');
 const {combinePrintSides} = require('../server/print-layout');
 const {salesItems, salesSummary} = require('../server/merchant-sales');
 const {listReviews, storePaidReview, publishPaidReview, saveMerchantImages, loadMerchantPrintFiles} = require('../server/order-review');
-const {notifyReviewedOrder, makeHandler, signIn, profileLinks, buildMerchantMessage} = require('../server/merchant-preview');
+const {notifyReviewedOrder, makeHandler, signIn, merchantDeliveryDetails, profileLinks, buildMerchantMessage} = require('../server/merchant-preview');
 
 function makePng(width, height, colour) {
   const image = new PNG({width, height, fill: true});
@@ -150,7 +151,11 @@ test('merchant notification includes four images, the NFC link and a PDF of the 
     assert.equal(label.content_type, 'application/pdf');
     const pdf = Buffer.from(label.content, 'base64');
     assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
-    assert.match(pdf.toString('latin1'), /MediaBox \[0 0 841\.89 595\.28\]/);
+    const raw = pdf.toString('latin1');
+    assert.match(raw, /MediaBox \[0 0 841\.89 595\.28\]/);
+    const streams = [...raw.matchAll(/\/Filter \/FlateDecode[\s\S]*?stream\n([\s\S]*?)\nendstream/g)];
+    const text = streams.map(([, value]) => inflateSync(Buffer.from(value, 'latin1')).toString()).join('\n');
+    assert.equal([...text.matchAll(/0 0 249\.448819 143\.433071 re/g)].length, 3);
     assert.match(message.html, /100% 實際大小/);
     assert.match(message.html, /(?:merchant-profile\?p=ABCDEF012345|p\/lucky-ann-ABCDEF012345)/);
     assert.match(message.html, /merchant\/orders\?order=TEST-M-/);
@@ -293,4 +298,18 @@ test('merchant email shows the named profile URL, selected palette and saved che
     assert.ok(html.includes(language === 'en' ? 'LOKI（English）' : 'LOKI（繁體中文）'));
     assert.match(html, /四張透明 PNG/);
   }
+});
+
+test('merchant labels use a specific pet profile address and retain matching checkout details', () => {
+  const profile = {location: '52 Example Road', owner_name: 'Ann', owner_phone: '12345678'};
+  const order = {shipName: 'Checkout name', shipPhone: '11111111', shipAddress: 'Other delivery address'};
+  assert.deepEqual(merchantDeliveryDetails(order, [profile]), {
+    shipName: 'Ann', shipPhone: '12345678', shipAddress: '52 Example Road'
+  });
+  const complete = {...order, shipAddress: '52 Example Road, Sample City, EX1 1XX'};
+  assert.equal(merchantDeliveryDetails(complete, [profile]).shipAddress, complete.shipAddress);
+  assert.equal(merchantDeliveryDetails(order, [{location: '九龍'}]), order);
+  assert.equal(merchantDeliveryDetails(order, [profile, {location: '12 Other Road'}]), order);
+  assert.equal(merchantDeliveryDetails(order, [{location: '九龍示範街18號', owner_name: '陳小明'}]).shipAddress,
+    '九龍示範街18號');
 });

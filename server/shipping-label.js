@@ -62,8 +62,7 @@ function paw(doc, x, y) {
   doc.restore();
 }
 
-function drawLabel(doc, rows, index, total, size) {
-  const slot = index % 9;
+function drawLabel(doc, rows, slot, index, total, size) {
   const col = slot % 3;
   const row = Math.floor(slot / 3);
   const gap = 11;
@@ -96,7 +95,7 @@ function drawLabel(doc, rows, index, total, size) {
   doc.restore();
 }
 
-async function shippingLabelAttachment(order) {
+async function shippingLabelAttachment(order, {threeAcross = false} = {}) {
   const name = typeof order?.shipName === 'string' ? order.shipName.trim() : '';
   const address = typeof order?.shipAddress === 'string' ? order.shipAddress.trim() : '';
   if (!name || name.length > 120 || !address || address.length > 1000) return null;
@@ -128,9 +127,14 @@ async function shippingLabelAttachment(order) {
   }
   const {rows, perLabel, size} = layout;
   const total = Math.ceil(rows.length / perLabel);
+  const copies = threeAcross ? 3 : 1;
   for (let i = 0; i < total; i++) {
-    if (i % 9 === 0) doc.addPage();
-    drawLabel(doc, rows.slice(i * perLabel, (i + 1) * perLabel), i, total, size);
+    const slot = (i * copies) % 9;
+    if (slot === 0) doc.addPage();
+    const section = rows.slice(i * perLabel, (i + 1) * perLabel);
+    for (let copy = 0; copy < copies; copy++) {
+      drawLabel(doc, section, slot + copy, i, total, size);
+    }
   }
 
   doc.end();
