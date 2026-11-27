@@ -1,10 +1,10 @@
 'use strict';
 
 const {readFileSync} = require('node:fs');
-const {dirname, join} = require('node:path');
+const {join} = require('node:path');
 const PDFDocument = require('pdfkit');
 const serif = 'Times-Italic';
-const script = readFileSync(require.resolve('@fontsource/pinyon-script/files/pinyon-script-latin-400-normal.woff'));
+const script = readFileSync(join(__dirname, '../node_modules/@fontsource/pinyon-script/files/pinyon-script-latin-400-normal.woff'));
 const latin = /^[\x20-\xff‘’“”–—]+$/;
 let hantFont;
 
@@ -99,7 +99,7 @@ function drawLabel(doc, rows, index, total, size) {
 async function shippingLabelAttachment(order) {
   const name = typeof order?.shipName === 'string' ? order.shipName.trim() : '';
   const address = typeof order?.shipAddress === 'string' ? order.shipAddress.trim() : '';
-  if (!name || !address) return null;
+  if (!name || name.length > 120 || !address || address.length > 1000) return null;
 
   const lines = [{text: name.replace(/\s+/g, ' '), name: true},
     ...addressLines(address).map(text => ({text: text.replace(/\s+/g, ' ')}))];
@@ -109,7 +109,7 @@ async function shippingLabelAttachment(order) {
   });
   doc.registerFont('Script', script);
   if (lines.some(({text}) => !latin.test(text))) {
-    hantFont ??= readFileSync(join(dirname(require.resolve('@embedpdf/fonts-tc')), '../fonts/NotoSansHant-Regular.otf'));
+    hantFont ??= readFileSync(join(__dirname, '../node_modules/@embedpdf/fonts-tc/fonts/NotoSansHant-Regular.otf'));
     doc.registerFont('Hant', hantFont);
   }
   const pdf = new Promise((resolve, reject) => {
