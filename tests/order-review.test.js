@@ -5,8 +5,8 @@ const test = require('node:test');
 const {PNG} = require('pngjs');
 const {combinePrintSides} = require('../server/print-layout');
 const {salesItems, salesSummary} = require('../server/merchant-sales');
-const {storePaidReview, publishPaidReview, saveMerchantImages, loadMerchantPrintFiles} = require('../server/order-review');
-const {notifyReviewedOrder, makeHandler, signIn} = require('../server/merchant-preview');
+const {listReviews, storePaidReview, publishPaidReview, saveMerchantImages, loadMerchantPrintFiles} = require('../server/order-review');
+const {notifyReviewedOrder, makeHandler, signIn, profileLinks, buildMerchantMessage} = require('../server/merchant-preview');
 
 function makePng(width, height, colour) {
   const image = new PNG({width, height, fill: true});
@@ -260,4 +260,26 @@ test('sales filters pass only explicitly supported sources and Hong Kong date ra
   assert.deepEqual(await salesSummary(sql, {source: 'online', days: '7'}), summary);
   await assert.rejects(salesSummary(() => assert.fail('unexpected query'), {source: 'online', days: '-1'}),
     {code: 'invalid_sales_filter'});
+});
+
+test('order history sorts by the newest order time before paginating and keeps permanent order numbers', async () => {
+  const sql = async (strings, ...values) => {
+    assert.match(strings.join('?'), /order by created_at desc, n\.order_number desc limit \? offset \?/);
+    assert.deepEqual(values.slice(-2), [101, 100]);
+    return [{order_number: '3'}];
+  };
+  assert.deepEqual(await listReviews(sql, '', 2), [{order_number: '3'}]);
+});
+
+test('merchant email shows the named profile URL, selected palette and saved checkout language', () => {
+  for (const language of ['en', 'zh-Hant']) {
+    const order = {language, items: [{petName: 'LOKI', ownerName: 'ANN', baseVariant: 'green2'}]};
+    const links = profileLinks({profile_slugs: ['000BC3E24C4C'], order_details: order}, origin, false);
+    const url = 'https://www.8tsun8.com/p/loki-ann-000BC3E24C4C?base=green2';
+    assert.deepEqual(links, [{name:'LOKI', url}]);
+    const {html} = buildMerchantMessage(id, order, links, origin, false, true);
+    assert.ok(html.includes('<a href="' + url + '">' + url + '</a>'));
+    assert.ok(html.includes(language === 'en' ? 'LOKI（English）' : 'LOKI（繁體中文）'));
+    assert.match(html, /四張透明 PNG/);
+  }
 });

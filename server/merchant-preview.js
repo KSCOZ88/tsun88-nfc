@@ -156,8 +156,11 @@ function profileLinks(saved, origin, preview = true) {
 }
 
 function buildMerchantMessage(id, order, links, origin, preview = true, hasAttachments = false) {
-  const profiles = links.map(({name, url}) =>
-    `<li><a href="${escape(safeUrl(url))}">${escape(name)}</a></li>`).join('');
+  const language = order.language === 'zh-Hant' ? '繁體中文' : 'English';
+  const profiles = links.map(({name, url}) => {
+    const profileUrl = escape(safeUrl(url));
+    return `<li>${escape(name)}（${language}）<br><a href="${profileUrl}">${profileUrl}</a></li>`;
+  }).join('');
   const address = [order.shipName, order.shipPhone, order.shipAddress].map(escape).join('<br>');
   const review = new URL('/merchant/orders', origin);
   review.searchParams.set('order', id);
@@ -361,4 +364,4 @@ function makeHandler({getConfig = configuration, getDb = postgres} = {}) {
   };
 }
 
-module.exports = {makeHandler, configuration, signIn, isSignedIn, validateSubmission, notifyReviewedOrder};
+module.exports = {makeHandler, configuration, signIn, isSignedIn, validateSubmission, profileLinks, buildMerchantMessage, notifyReviewedOrder};

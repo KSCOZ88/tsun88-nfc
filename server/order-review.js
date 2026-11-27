@@ -179,7 +179,7 @@ async function listReviews(sql, orderId = '', page = 1) {
   left join public.tsun_order_reviews r using (merchant_order_id)
   left join public.tsun_production_jobs q using (merchant_order_id)
   where (${orderId} = '' or e.merchant_order_id = ${orderId})
-  order by n.order_number limit ${historyPageSize + 1} offset ${(page - 1) * historyPageSize}`;
+  order by created_at desc, n.order_number desc limit ${historyPageSize + 1} offset ${(page - 1) * historyPageSize}`;
 }
 
 async function loadReview(sql, orderId) {

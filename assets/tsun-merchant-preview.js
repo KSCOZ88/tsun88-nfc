@@ -24,6 +24,16 @@
   if (route !== '/merchant' && route !== '/merchant/orders') return;
   const isOrders = route === '/merchant/orders';
 
+  const localeKey = 'tsun88.merchant.locale';
+  try {
+    const preferred = localStorage.getItem(localeKey);
+    if (preferred === 'en' || preferred === 'zh-Hant') window.TsunI18n.setLocale(preferred);
+  } catch {}
+  window.addEventListener('tsun-language-change', event => {
+    try { localStorage.setItem(localeKey, event.detail.locale); } catch {}
+  });
+
+
   const byId = id => document.getElementById(id);
   const local = (zh, en) => document.documentElement.lang.toLowerCase().startsWith('zh') ? zh : en;
   const checkout = byId('checkout');
@@ -358,13 +368,14 @@
     status.textContent = previewMode ? local('正在保存測試訂單…', 'Saving test order…') : local('正在保存訂單…', 'Saving order…');
     let submitting = false;
     try {
+      const language = window.TsunI18n?.locale === 'zh-Hant' ? 'zh-Hant' : 'en';
       const order = {
         customerEmail: state.customerEmail,
         shipping: shippingData,
-        language: window.TsunI18n?.locale,
+        language,
         items: currentOrder.items.map(item => {
           const {nfcProfile, phoneConfirmation, ...design} = item;
-          const profile = petProfilePayload(item);
+          const profile = petProfilePayload({...item, language});
           delete profile.order_id;
           return {...design, profile};
         })

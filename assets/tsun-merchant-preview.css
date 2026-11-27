@@ -420,3 +420,43 @@ html[data-merchant-preview="locked"] body > :not(#merchantLogin):not(script):not
   font-size: .9rem;
   margin: 1rem 0 0;
 }
+
+.merchant-review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .6rem 1rem;
+}
+
+.merchant-review-header h1 {
+  margin: 0;
+}
+
+.merchant-review-language {
+  display: inline-flex;
+  align-items: center;
+  gap: .15rem;
+  padding: .2rem;
+  border: 1px solid #c9dde3;
+  border-radius: 2rem;
+  background: white;
+}
+
+.merchant-review-language button {
+  min-height: 2.5rem;
+  padding: .35rem .8rem;
+  border: 0;
+  border-radius: 2rem;
+  background: transparent;
+  color: #235060;
+  cursor: pointer;
+  font: inherit;
+  font-size: .9rem;
+  font-weight: 650;
+}
+
+.merchant-review-language button[aria-pressed="true"] {
+  background: #dceff5;
+  color: #163b4b;
+}

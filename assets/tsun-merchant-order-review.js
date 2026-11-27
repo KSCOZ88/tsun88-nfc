@@ -6,6 +6,7 @@
   const endpoint = '/api/order-email?merchantPreview=1';
   const page = document.createElement('main');
   page.id = 'merchantOrderReview';
+  page.translate = false;
   page.hidden = true;
   document.body.append(page);
 
@@ -21,15 +22,55 @@
     timeZone: 'Asia/Hong_Kong', year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
   });
-  const heading = element('h1', salesView ? local('銷售分析', 'Sales analytics') : local('商家訂單', 'Merchant orders'));
+  const heading = element('h1');
+  const header = element('header');
+  header.className = 'merchant-review-header';
   const nav = element('nav');
-  nav.append(link('/merchant', local('建立免付款訂單', 'Create a no-payment order')));
-  if (orderId || salesView) nav.append(link(historyUrl, local('訂單歷史', 'Order history')));
-  if (!salesView) nav.append(link(salesUrl, local('銷售分析', 'Sales analytics')));
+  const languageSwitch = element('div');
+  languageSwitch.className = 'merchant-review-language';
+  languageSwitch.setAttribute('role', 'group');
+  for (const [locale, label] of [['zh-Hant', '繁體中文'], ['en', 'English']]) {
+    const button = element('button', label);
+    button.type = 'button';
+    button.lang = locale;
+    button.dataset.locale = locale;
+    button.addEventListener('click', () => window.TsunI18n.setLocale(locale));
+    languageSwitch.append(button);
+  }
   const status = element('p');
   status.setAttribute('role', 'status');
   const content = element('div');
-  page.append(heading, nav, status, content);
+  let result;
+  let statusMessage = ['', ''];
+  header.append(heading, languageSwitch);
+  page.append(header, nav, status, content);
+
+  function report(zh = '', en = '') {
+    statusMessage = [zh, en];
+    status.textContent = local(zh, en);
+  }
+
+  function render() {
+    heading.textContent = salesView ? local('銷售分析', 'Sales analytics')
+      : orderId ? local('訂單詳情', 'Order details') : local('商家訂單', 'Merchant orders');
+    const navigation = [link('/merchant', local('建立免付款訂單', 'Create a no-payment order'))];
+    if (orderId || salesView) navigation.push(link(historyUrl, local('訂單歷史', 'Order history')));
+    if (!salesView) navigation.push(link(salesUrl, local('銷售分析', 'Sales analytics')));
+    nav.replaceChildren(...navigation);
+    languageSwitch.setAttribute('aria-label', local('商家後台語言', 'Dashboard language'));
+    for (const button of languageSwitch.children) {
+      button.setAttribute('aria-pressed', String(button.dataset.locale === document.documentElement.lang));
+    }
+    report(...statusMessage);
+    if (!result) return;
+    if (orderId) showDetail(result);
+    else if (salesView) showSales(result);
+    else showList(result);
+  }
+
+  window.addEventListener('tsun-language-change', () => {
+    if (!page.hidden) render();
+  });
 
   function element(tag, label) {
     const node = document.createElement(tag);
@@ -252,7 +293,12 @@
         '缺少配色或犬種的記錄只計入有資料的排行，訂單仍計入時段。',
         'Rankings omit missing colours or breeds. These orders still count in the time charts.'));
     }
-    content.replaceChildren(salesFilters(), metrics, ...(peakText ? [peakText] : []), grid, scope);
+    const filters = salesFilters();
+    for (const field of ['days', 'source']) {
+      const selected = content.querySelector('select[name=' + field + ']');
+      if (selected) filters.elements.namedItem(field).value = selected.value;
+    }
+    content.replaceChildren(filters, metrics, ...(peakText ? [peakText] : []), grid, scope);
   }
 
   function showDetail(order) {
@@ -306,12 +352,12 @@
       button.type = 'button';
       button.addEventListener('click', async () => {
         button.disabled = true;
-        status.textContent = local('正在生成狗牌圖片…', 'Generating tag images…');
+        report('正在生成狗牌圖片…', 'Generating tag images…');
         try {
           await window.saveMerchantOrderPreviewImages({id: order.id, items: order.items}, haveImages);
           await load();
         } catch {
-          status.textContent = local('暫時未能生成圖片，請重試。', 'Unable to generate the images. Please retry.');
+          report('暫時未能生成圖片，請重試。', 'Unable to generate the images. Please retry.');
         } finally {
           button.disabled = false;
         }
@@ -328,13 +374,11 @@
         try {
           const receipt = await request('', {action: 'finish-review', orderId: order.id});
           await load();
-          status.textContent = receipt.notificationStatus === 'sent'
-            ? local('商家郵件已寄出。', 'Merchant email sent.')
-            : receipt.notificationStatus === 'captured'
-              ? local('商家測試郵件已記錄。', 'Merchant test email captured.')
-              : local('郵件待發送。請稍後重試。', 'Email is pending. Try again later.');
+          if (receipt.notificationStatus === 'sent') report('商家郵件已寄出。', 'Merchant email sent.');
+          else if (receipt.notificationStatus === 'captured') report('商家測試郵件已記錄。', 'Merchant test email captured.');
+          else report('郵件待發送。請稍後重試。', 'Email is pending. Try again later.');
         } catch {
-          status.textContent = local('暫時無法發送商家郵件。', 'Unable to send the merchant email.');
+          report('暫時無法發送商家郵件。', 'Unable to send the merchant email.');
         } finally {
           retry.disabled = false;
         }
@@ -345,26 +389,27 @@
   }
 
   async function load() {
-    status.textContent = salesView ? local('正在讀取銷售資料…', 'Loading sales data…')
-      : local('正在讀取訂單…', 'Loading orders…');
+    if (salesView) report('正在讀取銷售資料…', 'Loading sales data…');
+    else report('正在讀取訂單…', 'Loading orders…');
     try {
-      if (orderId) showDetail(await request('&review=' + encodeURIComponent(orderId)));
-      else if (salesView) showSales(await request('&sales=1&days=' + period + '&source=' + source));
+      if (orderId) result = await request('&review=' + encodeURIComponent(orderId));
+      else if (salesView) result = await request('&sales=1&days=' + period + '&source=' + source);
       else {
         const current = params.get('page');
         const pageQuery = current && /^[1-9][0-9]{0,5}$/.test(current) ? '&page=' + current : '';
-        showList(await request('&reviews=1' + pageQuery));
+        result = await request('&reviews=1' + pageQuery);
       }
-      status.textContent = '';
+      report();
+      render();
     } catch (error) {
-      status.textContent = error.status === 404
-        ? local('找不到這筆訂單。', 'Order not found.')
-        : local('暫時無法讀取訂單。請重新載入，並確認已登入。', 'Unable to load orders. Reload and check that you are signed in.');
+      if (error.status === 404) report('找不到這筆訂單。', 'Order not found.');
+      else report('暫時無法讀取訂單。請重新載入，並確認已登入。', 'Unable to load orders. Reload and check that you are signed in.');
     }
   }
 
   window.openMerchantOrderReview = () => {
     page.hidden = false;
+    render();
     load();
   };
 })();
