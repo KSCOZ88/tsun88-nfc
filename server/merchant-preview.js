@@ -5,6 +5,7 @@ const {escape, safeUrl} = require('./email-template');
 const {GMAIL_ADDRESS, sendGmail} = require('./gmail-mailer');
 const {saveMerchantImages, loadMerchantPrintFiles, listReviews, loadReview, loadImage} = require('./order-review');
 const {postgres} = require('./postgres');
+const {namedPath} = require('../assets/tsun-profile-url');
 
 const COOKIE = '__Host-tsun_merchant_preview';
 const SESSION_SECONDS = 60 * 60;
@@ -144,8 +145,10 @@ function validateSubmission(input, preview = true) {
 function profileLinks(saved, origin, preview = true) {
   return saved.profile_slugs.map((slug, index) => {
     const design = saved.order_details.items[index];
-    const url = preview ? new URL('/merchant-profile', origin) : new URL('https://www.8tsun8.com/lucky88.html');
-    url.searchParams.set('p', slug);
+    const url = preview
+      ? new URL('/merchant-profile', origin)
+      : new URL(namedPath(slug, design.petName, design.ownerName), 'https://www.8tsun8.com');
+    if (preview) url.searchParams.set('p', slug);
     url.searchParams.set('base', design.baseVariant);
     return {name: design.petName, url: url.href};
   });

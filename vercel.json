@@ -34,6 +34,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/p/:profile",
+      "destination": "/lucky88.html"
+    },
+    {
       "source": "/merchant",
       "destination": "/index.html"
     },
@@ -53,6 +57,23 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/p/:profile",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
         }
       ]
     },

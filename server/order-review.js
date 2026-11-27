@@ -2,6 +2,7 @@
 
 const {postgres} = require('./postgres');
 const {combinePrintSides} = require('./print-layout');
+const {namedPath, readSlug} = require('../assets/tsun-profile-url');
 
 const providers = new Set(['stripe', 'paypal', 'airwallex', 'merchant']);
 const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -102,17 +103,21 @@ function paidProfiles(order) {
   const profile = order.cloudProfile;
   try {
     const url = new URL(profile?.publicUrl);
-    const slug = url.searchParams.get('p');
+    const slug = readSlug(url);
+    const legacy = url.pathname === '/lucky88.html';
     if (url.protocol !== 'https:' || !['8tsun8.com', 'www.8tsun8.com', 'tsun88-nfc-l86b.vercel.app'].includes(url.host) ||
-        url.username || url.password || url.pathname !== '/lucky88.html' ||
-        !/^[A-F0-9]{12}$/.test(slug || '') || (profile.publicSlug && profile.publicSlug !== slug)) {
+        url.username || url.password || (!legacy && !url.pathname.startsWith('/p/')) ||
+        !slug || (profile.publicSlug && profile.publicSlug !== slug)) {
       throw new Error('Invalid profile');
     }
-    const profileUrl = new URL('/lucky88.html', 'https://www.8tsun8.com');
-    profileUrl.searchParams.set('p', slug);
+    const item = order.items?.[0];
+    const name = String(order.petName || item?.petName || 'Pet').slice(0, 80);
+    const path = legacy ? '/lucky88.html' : namedPath(slug, name, order.ownerName || item?.ownerName);
+    const profileUrl = new URL(path, 'https://www.8tsun8.com');
+    if (legacy) profileUrl.searchParams.set('p', slug);
     const base = [url.searchParams.get('b'), url.searchParams.get('base')].find(value => value && /^[a-z0-9_-]{1,40}$/i.test(value));
     if (base) profileUrl.searchParams.set('base', base);
-    return [{name: String(order.petName || order.items?.[0]?.petName || 'Pet').slice(0, 80), url: profileUrl.href}];
+    return [{name, url: profileUrl.href}];
   } catch {
     throw fail(422, 'invalid_review_profile');
   }
@@ -140,7 +145,7 @@ async function publishPaidReview(provider, order, previews, env = process.env) {
   if (!env.PRODUCTION_QUEUE_DATABASE_URL) throw fail(503, 'order_review_unavailable');
   const sql = postgres(env.PRODUCTION_QUEUE_DATABASE_URL);
   const [profile] = paidProfiles(order);
-  const slug = new URL(profile.url).searchParams.get('p');
+  const slug = readSlug(new URL(profile.url));
   const linked = await sql`select public_slug from public.pet_profiles
     where order_id = ${checkOrderId(order.id)} and public_slug = ${slug} and is_published`;
   if (!linked.length) throw fail(422, 'invalid_review_profile');

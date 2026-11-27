@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {readFileSync} = require('node:fs');
 const test = require('node:test');
 const {runInNewContext} = require('node:vm');
+const profileUrl = require('../assets/tsun-profile-url');
 
 test('public profile renders the same board palettes as the checkout', () => {
   const page = readFileSync('lucky88.html', 'utf-8');
@@ -11,9 +12,12 @@ test('public profile renders the same board palettes as the checkout', () => {
   const shared = storefront.match(/<script id="tsun88-profile-theme">([\s\S]*?)<\/script>/)[0];
   assert.ok(page.includes(shared));
   assert.match(page, /:root\[data-pet-palette\] \.hero\{background:linear-gradient/);
-  const window = {};
-  runInNewContext(shared.slice(shared.indexOf('>') + 1, shared.lastIndexOf('</script>')), {window});
+  const window = {TsunProfileUrl: profileUrl};
+  runInNewContext(shared.slice(shared.indexOf('>') + 1, shared.lastIndexOf('</script>')), {window, URL, location: {href: 'https://www.8tsun8.com/'}});
   const theme = window.TsunProfileTheme;
+  assert.match(page, /var\(--pet-accent\) 0 34px,var\(--pet-primary\) 34px calc\(100% - 42px\),var\(--pet-accent\) calc\(100% - 42px\) 100%/);
+  assert.equal(theme.publicUrl('/lucky88.html', '000BC3E24C4C', 'green2', 'Loki', 'ANN'),
+    'https://www.8tsun8.com/p/loki-ann-000BC3E24C4C?b=green2');
   const applySource = page.slice(page.indexOf('function applyProfile(data)'), page.indexOf('  const language = data.profile_language')) + '}';
   const check = (search, saved, expected) => {
     const colors = {};
@@ -36,4 +40,21 @@ test('public profile renders the same board palettes as the checkout', () => {
   check('b=invalid&base=white3', {}, 'white3');
   check('b=white3', {base_variant:'green2'}, 'green2');
   check('b=rgb(0,0,0)', {}, undefined);
+});
+
+test('named links preserve the profile ID and support Chinese and legacy URLs', () => {
+  const base = 'https://www.8tsun8.com';
+  const slug = '000BC3E24C4C';
+  const path = profileUrl.namedPath(slug, ' LOKI ', ' ANN ');
+  assert.equal(path, '/p/loki-ann-000BC3E24C4C');
+  const traditional = profileUrl.namedPath(slug, '多多', '陳小姐');
+  assert.equal(decodeURI(traditional), '/p/多多-陳小姐-000BC3E24C4C');
+  assert.equal(profileUrl.readSlug(new URL(traditional, base)), slug);
+  assert.equal(profileUrl.readSlug(new URL('/lucky88.html?p=' + slug.toLowerCase(), base)), slug);
+  assert.equal(profileUrl.readSlug(new URL('/merchant-profile?p=' + slug, base)), slug);
+  assert.equal(profileUrl.readSlug(new URL('/p/loki-ann-invalid?p=' + slug, base)), null);
+  assert.equal(profileUrl.readSlug(new URL('/orders?p=' + slug, base)), null);
+  assert.equal(profileUrl.namedPath('invalid', 'Loki', 'ANN'), null);
+  const routes = JSON.parse(readFileSync('vercel.json', 'utf-8'));
+  assert.ok(routes.rewrites.some(route => route.source === '/p/:profile' && route.destination === '/lucky88.html'));
 });

@@ -47,6 +47,18 @@ test('paid review links retain the palette from the checkout URL', async () => {
   assert.match(JSON.parse(stored[0][2])[0].url, /base=green2$/);
 });
 
+test('paid reviews keep the named route and rebuild its label from the verified order', async () => {
+  const sql = (_strings, ...values) => values;
+  let stored;
+  sql.transaction = async statements => { stored = statements; };
+  await storePaidReview(sql, 'stripe', {...order, ownerName:'ANN', cloudProfile:{
+    publicSlug:'ABCDEF012345',
+    publicUrl:'https://www.8tsun8.com/p/other-label-ABCDEF012345?b=green2'
+  }}, previews);
+  assert.deepEqual(JSON.parse(stored[0][2]), [{name:'Lucky',
+    url:'https://www.8tsun8.com/p/lucky-ann-ABCDEF012345?base=green2'}]);
+});
+
 test('no production connection is opened by a paid preview', async () => {
   await publishPaidReview('stripe', order, previews, {
     VERCEL_ENV: 'preview', MERCHANT_ORDER_REVIEW_ENABLED: '1',
@@ -105,7 +117,7 @@ test('merchant print layers are saved together and all three are required before
 
 test('merchant test mode captures by default and delivery sends one merchant-only email with both links', async () => {
   const row = {notification_status: 'pending', profile_slugs: ['ABCDEF012345'],
-    order_details: {items: [{petName: 'Lucky', baseVariant: 'green3'}], customerEmail: 'customer@example.test'}};
+    order_details: {items: [{petName: 'Lucky', ownerName: 'ANN', baseVariant: 'green3'}], customerEmail: 'customer@example.test'}};
   let sent = 0;
   const attachments = ['front', 'back', 'dog', 'combined'].map(side => ({
     filename: side + '.png', content: png.split(',')[1], content_type: 'image/png'
@@ -129,7 +141,7 @@ test('merchant test mode captures by default and delivery sends one merchant-onl
     sent += 1;
     assert.deepEqual(message.to, [sent < 3 ? 'merchant@example.test' : 'tsunlab888@gmail.com']);
     assert.deepEqual(message.attachments, attachments);
-    assert.match(message.html, /(?:merchant-profile|lucky88\.html)\?p=ABCDEF012345/);
+    assert.match(message.html, /(?:merchant-profile\?p=ABCDEF012345|p\/lucky-ann-ABCDEF012345)/);
     assert.match(message.html, /merchant\/orders\?order=TEST-M-/);
     return {sent: sent > 1};
   };
