@@ -392,7 +392,7 @@ test('Hong Kong labels separate the district and country for manual and automati
   assert.equal(hongKongAddressParts('台灣台南市北區示範路18號'), null);
 });
 
-test('merchant sign-in and checkout initialize even when the PDF renderer is unavailable', () => {
+test('sign-in works without PDF assets and labels only use their embedded fonts', () => {
   const {execFileSync} = require('node:child_process');
   execFileSync(process.execPath, ['-e', `
     const assert = require('node:assert/strict');
@@ -445,6 +445,20 @@ test('merchant sign-in and checkout initialize even when the PDF renderer is una
       assert.equal(signIn.status, 200);
       const session = await respond('GET', undefined, signIn.headers['Set-Cookie'].split(';')[0]);
       assert.deepEqual(session.body, {authenticated: true, preview: false});
+
+      fs.readFileSync = originalRead;
+      delete require.cache[require.resolve('./server/shipping-label')];
+      Module._load = function (request, ...rest) {
+        if (request.includes('standard-fonts/')) throw new Error('PDFKit standard fonts unavailable');
+        return originalLoad.call(this, request, ...rest);
+      };
+      const {shippingLabelAttachment} = require('./server/shipping-label');
+      const label = await shippingLabelAttachment({
+        shipName: '陳小明',
+        shipAddress: ['示範道8號', 'Central and Western District', 'Hong Kong'].join(String.fromCharCode(10))
+      }, {threeAcross: true});
+      assert.equal(label.content_type, 'application/pdf');
+      assert.equal(Buffer.from(label.content, 'base64').subarray(0, 5).toString(), '%PDF-');
     }
     check().catch(error => { console.error(error); process.exitCode = 1; });
   `], {cwd: require('node:path').join(__dirname, '..'), stdio: 'pipe'});

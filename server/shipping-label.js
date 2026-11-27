@@ -104,7 +104,7 @@ function drawLabel(doc, artwork, rows, slot, index, total) {
       {lineBreak: false, baseline: 'alphabetic'});
   }
   if (total > 1) {
-    doc.fillColor(ink).font('Times-Roman').fontSize(7)
+    doc.fillColor(ink).font('Script').fontSize(7)
       .text((index + 1) + ' / ' + total, x + 216, y + 65, {lineBreak: false});
   }
 }
@@ -121,7 +121,7 @@ async function shippingLabelAttachment(order, {threeAcross = false} = {}) {
   background ??= readFileSync(join(process.cwd(), 'server/print-assets/address-vintage.jpg'));
   script ??= readFileSync(join(process.cwd(), 'node_modules/@fontsource/pinyon-script/files/pinyon-script-latin-400-normal.woff'));
   const doc = new PDFDocument({
-    size: 'A4', layout: 'landscape', margin: 0, autoFirstPage: false,
+    size: 'A4', layout: 'landscape', margin: 0, autoFirstPage: false, font: script,
     displayTitle: true, info: {Title: '8TSUN8 Shipping Address', Creator: '8TSUN8'}
   });
   doc.registerFont('Script', script);
