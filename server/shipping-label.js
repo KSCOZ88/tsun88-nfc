@@ -2,11 +2,10 @@
 
 const {readFileSync} = require('node:fs');
 const {join} = require('node:path');
-const PDFDocument = require('pdfkit');
 const {hongKongAddressParts} = require('./hong-kong-district');
-const background = readFileSync(join(__dirname, 'print-assets/address-vintage.jpg'));
-const script = readFileSync(join(__dirname, '../node_modules/@fontsource/pinyon-script/files/pinyon-script-latin-400-normal.woff'));
 const latin = /^[\x20-\xff‘’“”–—]+$/;
+let background;
+let script;
 let hantFont;
 
 const mm = 72 / 25.4;
@@ -117,13 +116,17 @@ async function shippingLabelAttachment(order, {threeAcross = false} = {}) {
 
   const locality = hongKongAddressParts(address);
   const lines = [name, ...addressLines(address)].map(line => line.replace(/\s+/g, ' '));
+  // Checkout and sign-in share this module. Load the renderer and its assets only for PDFs.
+  const PDFDocument = require('pdfkit');
+  background ??= readFileSync(join(process.cwd(), 'server/print-assets/address-vintage.jpg'));
+  script ??= readFileSync(join(process.cwd(), 'node_modules/@fontsource/pinyon-script/files/pinyon-script-latin-400-normal.woff'));
   const doc = new PDFDocument({
     size: 'A4', layout: 'landscape', margin: 0, autoFirstPage: false,
     displayTitle: true, info: {Title: '8TSUN8 Shipping Address', Creator: '8TSUN8'}
   });
   doc.registerFont('Script', script);
   if (lines.some(text => !latin.test(text))) {
-    hantFont ??= readFileSync(join(__dirname, '../node_modules/@embedpdf/fonts-tc/fonts/NotoSansHant-Regular.otf'));
+    hantFont ??= readFileSync(join(process.cwd(), 'node_modules/@embedpdf/fonts-tc/fonts/NotoSansHant-Regular.otf'));
     doc.registerFont('Hant', hantFont);
   }
   const pdf = new Promise((resolve, reject) => {

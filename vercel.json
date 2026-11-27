@@ -1,22 +1,26 @@
 {
   "functions": {
     "api/order-email.js": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": "{server/print-assets/address-vintage.jpg,node_modules/@fontsource/pinyon-script/files/pinyon-script-latin-400-normal.woff,node_modules/@embedpdf/fonts-tc/fonts/NotoSansHant-Regular.otf}"
     },
     "api/airwallex-create-session.js": {
       "maxDuration": 30
     },
     "api/airwallex-confirm-session.js": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": "{server/print-assets/address-vintage.jpg,node_modules/@fontsource/pinyon-script/files/pinyon-script-latin-400-normal.woff,node_modules/@embedpdf/fonts-tc/fonts/NotoSansHant-Regular.otf}"
     },
     "api/airwallex-paid-order-email.js": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": "{server/print-assets/address-vintage.jpg,node_modules/@fontsource/pinyon-script/files/pinyon-script-latin-400-normal.woff,node_modules/@embedpdf/fonts-tc/fonts/NotoSansHant-Regular.otf}"
     },
     "api/airwallex-webhook.mjs": {
       "maxDuration": 60
     },
     "api/stripe-webhook.js": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": "{server/print-assets/address-vintage.jpg,node_modules/@fontsource/pinyon-script/files/pinyon-script-latin-400-normal.woff,node_modules/@embedpdf/fonts-tc/fonts/NotoSansHant-Regular.otf}"
     },
     "api/create-checkout-session.js": {
       "maxDuration": 30
@@ -24,8 +28,12 @@
     "api/confirm-paid-order.js": {
       "maxDuration": 60
     },
+    "api/paypal-paid-order-email.js": {
+      "includeFiles": "{server/print-assets/address-vintage.jpg,node_modules/@fontsource/pinyon-script/files/pinyon-script-latin-400-normal.woff,node_modules/@embedpdf/fonts-tc/fonts/NotoSansHant-Regular.otf}"
+    },
     "api/paid-order-email.js": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": "{server/print-assets/address-vintage.jpg,node_modules/@fontsource/pinyon-script/files/pinyon-script-latin-400-normal.woff,node_modules/@embedpdf/fonts-tc/fonts/NotoSansHant-Regular.otf}"
     }
   },
   "rewrites": [

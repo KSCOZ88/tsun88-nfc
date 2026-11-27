@@ -391,3 +391,61 @@ test('Hong Kong labels separate the district and country for manual and automati
     {...locality, street:'香港大學'});
   assert.equal(hongKongAddressParts('台灣台南市北區示範路18號'), null);
 });
+
+test('merchant sign-in and checkout initialize even when the PDF renderer is unavailable', () => {
+  const {execFileSync} = require('node:child_process');
+  execFileSync(process.execPath, ['-e', `
+    const assert = require('node:assert/strict');
+    const Module = require('node:module');
+    const originalLoad = Module._load;
+    Module._load = function (request, ...rest) {
+      if (request === 'pdfkit') throw new Error('PDF renderer unavailable');
+      return originalLoad.call(this, request, ...rest);
+    };
+    const fs = require('node:fs');
+    const originalRead = fs.readFileSync;
+    fs.readFileSync = function (path, ...rest) {
+      if (/address-vintage|pinyon-script|NotoSansHant/.test(String(path))) {
+        throw new Error('PDF assets unavailable');
+      }
+      return originalRead.call(this, path, ...rest);
+    };
+
+    Object.assign(process.env, {
+      VERCEL_ENV: 'production',
+      MERCHANT_ORDERS_ENABLED: '1',
+      MERCHANT_ORDERS_ACCESS_KEY: 'a'.repeat(64),
+      MERCHANT_ORDERS_SESSION_SECRET: 'b'.repeat(64),
+      MERCHANT_ORDERS_DATABASE_URL:
+        'postgresql://merchant_order_store.zujdfvnhxbalyhjmmmtl:fake@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=verify-full'
+    });
+    const handler = require('./api/order-email');
+    assert.equal(typeof require('./api/create-checkout-session'), 'function');
+
+    async function respond(method, body, cookie) {
+      const headers = {
+        host: 'www.8tsun8.com',
+        origin: 'https://www.8tsun8.com',
+        'content-type': 'application/json',
+        cookie
+      };
+      const result = {headers: {}};
+      await handler({method, body, headers, query: {merchantPreview: '1'}}, {
+        setHeader(name, value) { result.headers[name] = value; },
+        status(status) { result.status = status; return this; },
+        json(data) { result.body = data; }
+      });
+      return result;
+    }
+    async function check() {
+      const initial = await respond('GET');
+      assert.equal(initial.status, 200);
+      assert.deepEqual(initial.body, {authenticated: false, preview: false});
+      const signIn = await respond('POST', {action: 'login', key: 'a'.repeat(64)});
+      assert.equal(signIn.status, 200);
+      const session = await respond('GET', undefined, signIn.headers['Set-Cookie'].split(';')[0]);
+      assert.deepEqual(session.body, {authenticated: true, preview: false});
+    }
+    check().catch(error => { console.error(error); process.exitCode = 1; });
+  `], {cwd: require('node:path').join(__dirname, '..'), stdio: 'pipe'});
+});

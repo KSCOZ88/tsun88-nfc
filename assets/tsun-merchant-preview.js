@@ -46,7 +46,7 @@
   let lastPayload;
   let receipt;
   let signedIn = false;
-  let previewMode = true;
+  let previewMode = false;
   let invalidField;
   const fieldError = document.createElement('p');
   fieldError.id = 'merchantFieldError';
@@ -452,5 +452,12 @@
     previewMode = result.preview !== false;
     labels();
     if (result.authenticated) unlock();
-  }).catch(() => lock(false));
+  }).catch(error => {
+    if (error.code === 'not_available') {
+      lock(false);
+      return;
+    }
+    byId('merchantLoginStatus').textContent = local(
+      '暫時無法確認登入狀態，請重試登入。', 'Unable to check sign-in status. Please try signing in.');
+  });
 })();
