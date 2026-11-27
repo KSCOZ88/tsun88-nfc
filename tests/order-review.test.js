@@ -2,10 +2,18 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const {PNG} = require('pngjs');
+const {combinePrintSides} = require('../server/print-layout');
 const {storePaidReview, publishPaidReview, saveMerchantImages, loadMerchantPrintFiles} = require('../server/order-review');
 const {notifyReviewedOrder, makeHandler, signIn} = require('../server/merchant-preview');
 
-const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD2QAAAAASUVORK5CYII=';
+function makePng(width, height, colour) {
+  const image = new PNG({width, height, fill: true});
+  const center = (Math.floor(height / 2) * width + Math.floor(width / 2)) * 4;
+  Buffer.from(colour).copy(image.data, center);
+  return PNG.sync.write(image);
+}
+const png = 'data:image/png;base64,' + makePng(3, 3, [255, 0, 0, 255]).toString('base64');
 const previews = [{data: png}, {data: png}];
 const id = 'TEST-M-' + 'c'.repeat(32);
 const order = {
@@ -87,9 +95,10 @@ test('merchant print layers are saved together and all three are required before
   assert.deepEqual(written.map(image => image.side), layers);
   const attachments = await loadMerchantPrintFiles(sql, id, [{petName:'LOKI'}]);
   assert.deepEqual(attachments.map(file => file.filename), [
-    '01-LOKI-01-正面底板.png', '01-LOKI-02-完整背面.png', '01-LOKI-03-狗狗頭像.png'
+    '01-LOKI-01-正面底板.png', '01-LOKI-02-完整背面.png', '01-LOKI-03-狗狗頭像.png', '01-LOKI-04-正反面並排.png'
   ]);
-  assert.ok(attachments.every(file => file.content === png.split(',')[1]));
+  assert.ok(attachments.slice(0, 3).every(file => file.content === png.split(',')[1]));
+  assert.ok(attachments.every(file => file.content_type === 'image/png'));
   written.pop();
   await assert.rejects(loadMerchantPrintFiles(sql, id, [{petName:'LOKI'}]), {code:'print_images_incomplete'});
 });
@@ -98,20 +107,21 @@ test('merchant test mode captures by default and delivery sends one merchant-onl
   const row = {notification_status: 'pending', profile_slugs: ['ABCDEF012345'],
     order_details: {items: [{petName: 'Lucky', baseVariant: 'green3'}], customerEmail: 'customer@example.test'}};
   let sent = 0;
-  const attachments = ['front', 'back', 'dog'].map(side => ({
+  const attachments = ['front', 'back', 'dog', 'combined'].map(side => ({
     filename: side + '.png', content: png.split(',')[1], content_type: 'image/png'
   }));
   const sql = async (strings, ...values) => {
     const query = strings.join('');
     if (query.includes("notification_status = 'captured'")) {
       row.notification_status = 'captured';
-      assert.equal(JSON.parse(values[0]).attachments.length, 3);
-    } else if (query.includes('returning merchant_order_id')) {
+      assert.equal(JSON.parse(values[0]).attachments.length, 4);
+    } else if (query.includes("now() + interval")) {
       if (row.notification_status === 'sent') return [];
       row.notification_status = 'sending';
-      return [{merchant_order_id: id}];
+      return [{merchant_order_id: id, lease: '2026-11-27T00:00:00Z', sent_attachment_count: 0}];
     } else {
       row.notification_status = values[0];
+      return [{merchant_order_id: id}];
     }
     return [];
   };
@@ -135,6 +145,49 @@ test('merchant test mode captures by default and delivery sends one merchant-onl
   assert.equal(await notifyReviewedOrder(sql, id, row, origin, attachments,
     {VERCEL_ENV:'production', MERCHANT_EMAIL:'other@example.test', SMTP_APP_PASSWORD:'test-secret'}, delivery), 'sent');
   assert.equal(sent, 3);
+});
+
+test('the combined PNG matches side scale and preserves a transparent gap', () => {
+  const red = [255, 0, 0, 255];
+  const green = [0, 255, 0, 255];
+  const combined = PNG.sync.read(combinePrintSides(makePng(6, 6, red), makePng(3, 3, green)));
+  assert.deepEqual([combined.width, combined.height], [13, 6]);
+  const pixel = (x, y) => [...combined.data.subarray((y * combined.width + x) * 4, (y * combined.width + x + 1) * 4)];
+  assert.deepEqual(pixel(3, 3), red);
+  assert.deepEqual(pixel(9, 3), green);
+  assert.deepEqual(pixel(10, 3), green);
+  assert.deepEqual(pixel(6, 3), [0, 0, 0, 0]);
+  assert.deepEqual(pixel(0, 0), [0, 0, 0, 0]);
+});
+
+test('large merchant mail batches keep four files per tag and retry only unsent tags', async () => {
+  const bigContent = 'A'.repeat(3000000);
+  const names = Array.from({length: 8}, (_, i) => 'tag-file-' + i + '.png');
+  const attachments = names.map(filename => ({filename, content: bigContent, content_type: 'image/png'}));
+  const row = {notification_status: 'pending', profile_slugs: ['ABCDEF012345','ABCDEF012346'],
+    order_details: {items: [{petName:'One', baseVariant:'green2'}, {petName:'Two', baseVariant:'green2'}]}};
+  const attempts = [];
+  let sentCount = 0;
+  const sql = async (strings, ...values) => {
+    if (strings.join('').includes("now() + interval")) {
+      row.notification_status = 'sending';
+      return [{merchant_order_id: id, lease: '2026-11-27T01:00:00Z', sent_attachment_count: sentCount}];
+    }
+    row.notification_status = values[0];
+    sentCount = values[1];
+    return [{merchant_order_id: id}];
+  };
+  const deliver = async (mail, messageId) => {
+    attempts.push({names: mail.attachments.map(file => file.filename), messageId});
+    return {sent: attempts.length !== 2};
+  };
+  const env = {VERCEL_ENV:'production', SMTP_APP_PASSWORD:'test-secret'};
+  assert.equal(await notifyReviewedOrder(sql, id, row, origin, attachments, env, deliver), 'pending');
+  assert.equal(sentCount, 4);
+  assert.equal(await notifyReviewedOrder(sql, id, row, origin, attachments, env, deliver), 'sent');
+  assert.equal(sentCount, 8);
+  assert.deepEqual(attempts.map(item => item.names), [names.slice(0, 4),names.slice(4),names.slice(4)]);
+  assert.equal(attempts[1].messageId, attempts[2].messageId);
 });
 
 test('order listing, detail and images require a merchant session before accessing SQL', async () => {

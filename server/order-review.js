@@ -1,11 +1,12 @@
 'use strict';
 
 const {postgres} = require('./postgres');
+const {combinePrintSides} = require('./print-layout');
 
 const providers = new Set(['stripe', 'paypal', 'airwallex', 'merchant']);
 const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const printSides = ['print_front', 'print_back', 'print_dog'];
-// 20 tags × 3 images × 300 KB stays within one Gmail message after MIME encoding.
+// Keep the individual print exports small enough for upload and email.
 const printImageLimit = 300000;
 
 function fail(status, code) {
@@ -76,11 +77,24 @@ async function loadMerchantPrintFiles(sql, orderId, items) {
     const tag = String(index + 1).padStart(2, '0');
     const name = String(item.petName || 'Tag').replace(/[^\p{L}\p{N}_-]+/gu, '-').slice(0, 50) || 'Tag';
     const labels = ['01-正面底板', '02-完整背面', '03-狗狗頭像'];
-    return printSides.map((side, i) => {
+    const attachments = printSides.map((side, i) => {
       const content = files.get((index + 1) + ':' + side);
       if (!content) throw fail(409, 'print_images_incomplete');
       return {filename: tag + '-' + name + '-' + labels[i] + '.png', content, content_type: 'image/png'};
     });
+    try {
+      const combined = combinePrintSides(
+        Buffer.from(attachments[0].content, 'base64'), Buffer.from(attachments[1].content, 'base64')
+      );
+      attachments.push({
+        filename: tag + '-' + name + '-04-正反面並排.png',
+        content: combined.toString('base64'),
+        content_type: 'image/png'
+      });
+    } catch {
+      throw fail(422, 'invalid_print_image');
+    }
+    return attachments;
   });
 }
 

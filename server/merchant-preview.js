@@ -160,7 +160,7 @@ function buildMerchantMessage(id, order, links, origin, preview = true, hasAttac
   return {
     to: [GMAIL_ADDRESS],
     subject: (preview ? '[測試] ' : '') + '8TSUN8 商家免付款訂單 | ' + id,
-    html: `<h2>商家免付款訂單</h2><p>訂單編號 ${escape(id)}<br>狗牌 ${links.length} 件<br>客戶電郵 ${escape(order.customerEmail)}</p><p>${address}</p>${hasAttachments ? '<p>每枚狗牌附上三張透明 PNG：正面底板、完整背面、獨立狗狗頭像。</p>' : ''}<h3>NFC 寵物檔案</h3><ul>${profiles}</ul><p><a href="${escape(review.href)}">在商家後台查看狗牌正反面和檔案</a></p><p>${preview ? '測試訂單已進入預覽生產隊列。' : '訂單已進入生產隊列。'}</p>`
+    html: `<h2>商家免付款訂單</h2><p>訂單編號 ${escape(id)}<br>狗牌 ${links.length} 件<br>客戶電郵 ${escape(order.customerEmail)}</p><p>${address}</p>${hasAttachments ? '<p>每枚狗牌附上四張透明 PNG：正面底板、完整背面、獨立狗狗頭像及正反面並排圖。</p>' : ''}<h3>NFC 寵物檔案</h3><ul>${profiles}</ul><p><a href="${escape(review.href)}">在商家後台查看狗牌正反面和檔案</a></p><p>${preview ? '測試訂單已進入預覽生產隊列。' : '訂單已進入生產隊列。'}</p>`
   };
 }
 
@@ -179,6 +179,22 @@ async function captureNotice(sql, id, saved, origin, attachments = []) {
   return 'captured';
 }
 
+const printFilesPerTag = 4;
+// Leave room for MIME headers and line wrapping when sending through Gmail.
+const printMailBudget = 23000000;
+
+function nextPrintBatch(attachments, firstAttachment) {
+  let lastAttachment = firstAttachment;
+  let length = 0;
+  for (; lastAttachment < attachments.length; lastAttachment += printFilesPerTag) {
+    const tag = attachments.slice(lastAttachment, lastAttachment + printFilesPerTag);
+    const size = tag.reduce((sum, file) => sum + file.content.length, 0);
+    if (length > 0 && length + size > printMailBudget) break;
+    length += size;
+  }
+  return attachments.slice(firstAttachment, lastAttachment);
+}
+
 async function notifyReviewedOrder(sql, id, saved, origin, attachments, env = process.env, deliver = sendGmail) {
   const preview = env.VERCEL_ENV !== 'production';
   // A branch can deliver a test message only to its explicitly configured
@@ -195,21 +211,40 @@ async function notifyReviewedOrder(sql, id, saved, origin, attachments, env = pr
   message.to = [recipient];
   const [claim] = await sql`update public.tsun_merchant_orders
     set notification_status = 'sending', notification_lease_until = now() + interval '2 minutes',
-        notification_message = ${JSON.stringify(message)}::jsonb
+        notification_message = ${JSON.stringify(message)}::jsonb ||
+          jsonb_build_object('sent_attachment_count', coalesce(notification_message->'sent_attachment_count', '0'::jsonb))
     where merchant_order_id = ${id} and (notification_status in ('pending', 'captured')
       or (notification_status = 'sending' and notification_lease_until < now()))
-    returning merchant_order_id`;
+    returning merchant_order_id, notification_lease_until::text as lease,
+      (notification_message->>'sent_attachment_count')::integer as sent_attachment_count`;
   if (!claim) return 'sending';
-  let delivered = false;
-  try {
-    delivered = (await deliver({...message, attachments}, 'tsun-merchant-' + id)).sent;
-  } catch (error) {
-    console.error('[Merchant order] SMTP delivery failed', /^[a-z0-9_]{1,40}$/i.test(error?.code || '') ? error.code : 'unknown');
+
+  let sent = claim.sent_attachment_count || 0;
+  while (sent < attachments.length) {
+    const files = nextPrintBatch(attachments, sent);
+    const next = sent + files.length;
+    const part = sent || next < attachments.length
+      ? ' ｜ 第 ' + (sent / printFilesPerTag + 1) + '–' + (next / printFilesPerTag) + ' 枚' : '';
+    let delivered = false;
+    try {
+      delivered = (await deliver({...message, subject: message.subject + part, attachments: files},
+        'tsun-merchant-' + id + (sent ? '-' + sent : ''))).sent;
+    } catch (error) {
+      console.error('[Merchant order] SMTP delivery failed', /^[a-z0-9_]{1,40}$/i.test(error?.code || '') ? error.code : 'unknown');
+    }
+    if (delivered) sent = next;
+    const status = !delivered ? 'pending' : sent === attachments.length ? 'sent' : 'sending';
+    const [recorded] = await sql`update public.tsun_merchant_orders
+      set notification_status = ${status},
+          notification_message = jsonb_set(notification_message, '{sent_attachment_count}', to_jsonb(${sent}::integer)),
+          notification_lease_until = case when ${status} = 'sending' then notification_lease_until end
+      where merchant_order_id = ${id} and notification_status = 'sending'
+        and notification_lease_until = ${claim.lease}::timestamptz
+      returning merchant_order_id`;
+    if (!recorded) return 'sending';
+    if (status !== 'sending') return status;
   }
-  const status = delivered ? 'sent' : 'pending';
-  await sql`update public.tsun_merchant_orders set notification_status = ${status}, notification_lease_until = null
-    where merchant_order_id = ${id} and notification_status = 'sending'`;
-  return status;
+  return 'sent';
 }
 
 async function createOrder(sql, input, origin, deferNotice, preview) {
