@@ -72,6 +72,7 @@ test('validated orders only capture one merchant notification and replay the sam
       assert.equal(savedId, id);
       assert.equal(JSON.parse(profiles)[0].diet, 'No chocolate');
       assert.equal(JSON.parse(profiles)[0].profile_language, JSON.parse(details).language);
+      assert.equal(JSON.parse(profiles)[0].base_variant, 'green1');
       if (saved && saved.request_hash !== hash) throw Object.assign(new Error('Changed'), {code: '23505'});
       saved ||= {request_hash: hash, order_details: JSON.parse(details), notification_status: 'pending',
         profile_slugs: ['ABCDEF012345']};

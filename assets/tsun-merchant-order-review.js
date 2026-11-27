@@ -125,8 +125,10 @@
       }
     }
     tags.append(order.items.length ? gallery : element('p', local('此訂單尚未有圖片。', 'No saved images for this order.')));
-    if (order.provider === 'merchant' && order.items.length && haveImages.size !== order.items.length * 2) {
-      const button = element('button', local('從已保存設計生成正反面', 'Generate images from saved design'));
+    const filesReady = order.items.every((_, index) =>
+      ['front', 'back', 'print_front', 'print_back', 'print_dog'].every(side => haveImages.has((index + 1) + ':' + side)));
+    if (order.provider === 'merchant' && order.items.length && !filesReady) {
+      const button = element('button', local('從已保存設計生成印製圖片', 'Generate print images from saved design'));
       button.type = 'button';
       button.addEventListener('click', async () => {
         button.disabled = true;
@@ -144,7 +146,7 @@
     }
     const blocks = [info, profiles, tags];
     if (order.provider === 'merchant' && ['pending', 'sending'].includes(order.notification_status)
-        && order.items.length && haveImages.size === order.items.length * 2) {
+        && order.items.length && filesReady) {
       const retry = element('button', local('重試商家郵件', 'Retry merchant email'));
       retry.type = 'button';
       retry.addEventListener('click', async () => {

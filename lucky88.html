@@ -249,7 +249,8 @@
 <script>
 const SUPABASE_URL='https://zujdfvnhxbalyhjmmmtl.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_w1uZ3XHIO_QhB4bDdZCPfg_48EiAGvl';
-const slug=new URLSearchParams(location.search).get('p')||'';
+const profileParams = new URLSearchParams(location.search);
+const slug = profileParams.get('p') || '';
 const fieldMap={petName:'pet_name',gender:'gender',neutered:'neutered',breed:'breed',birth:'birth_date',color:'coat_marks',owner1:'owner_name',phone1:'owner_phone',owner2:'backup_owner_name',phone2:'backup_phone',region:'location',message:'owner_message',diet:'diet',personality:'personality',clinic:'clinic',clinicPhone:'clinic_phone'};
 const englishLabels = {
   badge: "📌 NFC pet profile · 8TSUN8",
@@ -334,6 +335,10 @@ function showStatus(message) {
   status.style.display = 'block';
 }
 function applyProfile(data) {
+  const theme = window.TsunProfileTheme;
+  const variant = theme?.normalize(data.base_variant) ||
+    theme?.normalize(profileParams.get('b')) || theme?.normalize(profileParams.get('base'));
+  theme?.apply(document.documentElement, variant);
   const language = data.profile_language === 'en' ? 'en' : 'zh-Hant';
   const copy = profileCopy[language];
   const name = clean(data.pet_name) || copy.pet;

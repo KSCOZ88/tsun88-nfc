@@ -4,6 +4,9 @@ const {postgres} = require('./postgres');
 
 const providers = new Set(['stripe', 'paypal', 'airwallex', 'merchant']);
 const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+const printSides = ['print_front', 'print_back', 'print_dog'];
+// 20 tags × 3 images × 300 KB stays within one Gmail message after MIME encoding.
+const printImageLimit = 300000;
 
 function fail(status, code) {
   return Object.assign(new Error(code), {status, code});
@@ -14,19 +17,28 @@ function checkOrderId(value) {
   return value;
 }
 
+function pngContent(file, limit) {
+  const data = file?.data;
+  if (typeof data !== 'string' || data.length > 22 + Math.ceil(limit / 3) * 4 ||
+      !/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(data)) {
+    throw fail(422, 'invalid_review_image');
+  }
+  const content = Buffer.from(data.slice(22), 'base64');
+  if (content.length > limit || !content.subarray(0, 8).equals(pngSignature)) {
+    throw fail(422, 'invalid_review_image');
+  }
+  return content;
+}
+
 function imageRows(previews, start = 1) {
   if (!Array.isArray(previews) || previews.length === 0 || previews.length % 2 || previews.length > 40) {
     throw fail(422, 'invalid_review_images');
   }
-  return previews.map((preview, index) => {
-    const data = preview?.data;
-    if (typeof data !== 'string' || data.length > 800022 || !/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(data)) {
-      throw fail(422, 'invalid_review_image');
-    }
-    const content = Buffer.from(data.slice(22), 'base64');
-    if (!content.subarray(0, 8).equals(pngSignature)) throw fail(422, 'invalid_review_image');
-    return {tag_number: start + Math.floor(index / 2), side: index % 2 ? 'back' : 'front', content: content.toString('base64')};
-  });
+  return previews.map((preview, index) => ({
+    tag_number: start + Math.floor(index / 2),
+    side: index % 2 ? 'back' : 'front',
+    content: pngContent(preview, 600000).toString('base64')
+  }));
 }
 
 function insertImages(sql, orderId, rows) {
@@ -36,15 +48,40 @@ function insertImages(sql, orderId, rows) {
     on conflict do nothing`;
 }
 
-async function saveMerchantImages(sql, orderId, tagNumber, previews) {
+async function saveMerchantImages(sql, orderId, tagNumber, previews, forPrinting = false) {
   checkOrderId(orderId);
-  if (!Number.isInteger(tagNumber) || tagNumber < 1 || tagNumber > 20 || previews?.length !== 2) {
+  if (!Number.isInteger(tagNumber) || tagNumber < 1 || tagNumber > 20 ||
+      !Array.isArray(previews) || previews.length !== (forPrinting ? printSides.length : 2)) {
     throw fail(422, 'invalid_review_images');
   }
   const [order] = await sql`select cardinality(profile_slugs) as tag_count
     from public.tsun_merchant_orders where merchant_order_id = ${orderId}`;
   if (!order || tagNumber > order.tag_count) throw fail(404, 'order_missing');
-  await insertImages(sql, orderId, imageRows(previews, tagNumber));
+  const rows = forPrinting ? printSides.map((side, index) => {
+    const image = pngContent(previews[index], printImageLimit);
+    // PNG colour types 4 and 6 store an alpha channel.
+    if (image.length < 33 || image.toString('ascii', 12, 16) !== 'IHDR' ||
+        ![4, 6].includes(image[25])) throw fail(422, 'invalid_print_image');
+    return {tag_number: tagNumber, side, content: image.toString('base64')};
+  }) : imageRows(previews, tagNumber);
+  await insertImages(sql, orderId, rows);
+}
+
+async function loadMerchantPrintFiles(sql, orderId, items) {
+  const stored = await sql`select tag_number, side, encode(image_png, 'base64') as content
+    from public.tsun_order_review_images
+    where merchant_order_id = ${orderId} and side in ('print_front', 'print_back', 'print_dog')`;
+  const files = new Map(stored.map(file => [file.tag_number + ':' + file.side, file.content]));
+  return items.flatMap((item, index) => {
+    const tag = String(index + 1).padStart(2, '0');
+    const name = String(item.petName || 'Tag').replace(/[^\p{L}\p{N}_-]+/gu, '-').slice(0, 50) || 'Tag';
+    const labels = ['01-正面底板', '02-完整背面', '03-狗狗頭像'];
+    return printSides.map((side, i) => {
+      const content = files.get((index + 1) + ':' + side);
+      if (!content) throw fail(409, 'print_images_incomplete');
+      return {filename: tag + '-' + name + '-' + labels[i] + '.png', content, content_type: 'image/png'};
+    });
+  });
 }
 
 function paidProfiles(order) {
@@ -59,8 +96,8 @@ function paidProfiles(order) {
     }
     const profileUrl = new URL('/lucky88.html', 'https://www.8tsun8.com');
     profileUrl.searchParams.set('p', slug);
-    const base = url.searchParams.get('base');
-    if (base && /^[a-z0-9_-]{1,40}$/i.test(base)) profileUrl.searchParams.set('base', base);
+    const base = [url.searchParams.get('b'), url.searchParams.get('base')].find(value => value && /^[a-z0-9_-]{1,40}$/i.test(value));
+    if (base) profileUrl.searchParams.set('base', base);
     return [{name: String(order.petName || order.items?.[0]?.petName || 'Pet').slice(0, 80), url: profileUrl.href}];
   } catch {
     throw fail(422, 'invalid_review_profile');
@@ -140,4 +177,4 @@ async function loadImage(sql, orderId, tag, side) {
   return row.image_png;
 }
 
-module.exports = {saveMerchantImages, storePaidReview, publishPaidReview, listReviews, loadReview, loadImage};
+module.exports = {saveMerchantImages, loadMerchantPrintFiles, storePaidReview, publishPaidReview, listReviews, loadReview, loadImage};

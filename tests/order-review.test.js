@@ -2,7 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {storePaidReview, publishPaidReview, saveMerchantImages} = require('../server/order-review');
+const {storePaidReview, publishPaidReview, saveMerchantImages, loadMerchantPrintFiles} = require('../server/order-review');
 const {notifyReviewedOrder, makeHandler, signIn} = require('../server/merchant-preview');
 
 const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD2QAAAAASUVORK5CYII=';
@@ -28,6 +28,15 @@ test('verified paid providers store the NFC link and both sides atomically', asy
     assert.equal(images[0].content, png.split(',')[1]);
     assert.match(stored[1].statement, /on conflict do nothing/);
   }
+});
+
+test('paid review links retain the palette from the checkout URL', async () => {
+  const sql = (_strings, ...values) => values;
+  let stored;
+  sql.transaction = async statements => { stored = statements; };
+  const publicUrl = order.cloudProfile.publicUrl.replace('base=green3', 'b=green2');
+  await storePaidReview(sql, 'stripe', {...order, cloudProfile: {...order.cloudProfile, publicUrl}}, previews);
+  assert.match(JSON.parse(stored[0][2])[0].url, /base=green2$/);
 });
 
 test('no production connection is opened by a paid preview', async () => {
@@ -61,14 +70,42 @@ test('merchant review uploads only write a pair for an existing tag', async () =
   assert.deepEqual(written.map(image => image.side), ['front', 'back']);
 });
 
+test('merchant print layers are saved together and all three are required before mail', async () => {
+  let written = [];
+  const sql = async (strings, ...values) => {
+    const statement = strings.join('');
+    if (statement.includes('select cardinality')) return [{tag_count: 1}];
+    if (statement.includes('insert into')) {
+      written = JSON.parse(values[1]);
+      return [];
+    }
+    return written;
+  };
+  const layers = ['print_front', 'print_back', 'print_dog'];
+  await assert.rejects(saveMerchantImages(sql, id, 1, previews, true), {code: 'invalid_review_images'});
+  await saveMerchantImages(sql, id, 1, [...previews, previews[0]], true);
+  assert.deepEqual(written.map(image => image.side), layers);
+  const attachments = await loadMerchantPrintFiles(sql, id, [{petName:'LOKI'}]);
+  assert.deepEqual(attachments.map(file => file.filename), [
+    '01-LOKI-01-正面底板.png', '01-LOKI-02-完整背面.png', '01-LOKI-03-狗狗頭像.png'
+  ]);
+  assert.ok(attachments.every(file => file.content === png.split(',')[1]));
+  written.pop();
+  await assert.rejects(loadMerchantPrintFiles(sql, id, [{petName:'LOKI'}]), {code:'print_images_incomplete'});
+});
+
 test('merchant test mode captures by default and delivery sends one merchant-only email with both links', async () => {
   const row = {notification_status: 'pending', profile_slugs: ['ABCDEF012345'],
     order_details: {items: [{petName: 'Lucky', baseVariant: 'green3'}], customerEmail: 'customer@example.test'}};
   let sent = 0;
+  const attachments = ['front', 'back', 'dog'].map(side => ({
+    filename: side + '.png', content: png.split(',')[1], content_type: 'image/png'
+  }));
   const sql = async (strings, ...values) => {
     const query = strings.join('');
     if (query.includes("notification_status = 'captured'")) {
       row.notification_status = 'captured';
+      assert.equal(JSON.parse(values[0]).attachments.length, 3);
     } else if (query.includes('returning merchant_order_id')) {
       if (row.notification_status === 'sent') return [];
       row.notification_status = 'sending';
@@ -80,19 +117,24 @@ test('merchant test mode captures by default and delivery sends one merchant-onl
   };
   const delivery = async message => {
     sent += 1;
-    assert.deepEqual(message.to, ['merchant@example.test']);
-    assert.match(message.html, /merchant-profile\?p=ABCDEF012345/);
+    assert.deepEqual(message.to, [sent < 3 ? 'merchant@example.test' : 'tsunlab888@gmail.com']);
+    assert.deepEqual(message.attachments, attachments);
+    assert.match(message.html, /(?:merchant-profile|lucky88\.html)\?p=ABCDEF012345/);
     assert.match(message.html, /merchant\/orders\?order=TEST-M-/);
     return {sent: sent > 1};
   };
-  assert.equal(await notifyReviewedOrder(sql, id, row, origin, {}, delivery), 'captured');
+  assert.equal(await notifyReviewedOrder(sql, id, row, origin, attachments, {}, delivery), 'captured');
   assert.equal(sent, 0);
   const env = {VERCEL_ENV: 'preview', MERCHANT_REVIEW_EMAIL_MODE: 'smtp',
     MERCHANT_REVIEW_TEST_RECIPIENT: 'merchant@example.test', SMTP_APP_PASSWORD: 'test-secret'};
-  assert.equal(await notifyReviewedOrder(sql, id, row, origin, env, delivery), 'pending');
-  assert.equal(await notifyReviewedOrder(sql, id, row, origin, env, delivery), 'sent');
-  assert.equal(await notifyReviewedOrder(sql, id, row, origin, env, delivery), 'sent');
+  assert.equal(await notifyReviewedOrder(sql, id, row, origin, attachments, env, delivery), 'pending');
+  assert.equal(await notifyReviewedOrder(sql, id, row, origin, attachments, env, delivery), 'sent');
+  assert.equal(await notifyReviewedOrder(sql, id, row, origin, attachments, env, delivery), 'sent');
   assert.equal(sent, 2);
+  row.notification_status = 'pending';
+  assert.equal(await notifyReviewedOrder(sql, id, row, origin, attachments,
+    {VERCEL_ENV:'production', MERCHANT_EMAIL:'other@example.test', SMTP_APP_PASSWORD:'test-secret'}, delivery), 'sent');
+  assert.equal(sent, 3);
 });
 
 test('order listing, detail and images require a merchant session before accessing SQL', async () => {

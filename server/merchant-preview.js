@@ -3,7 +3,7 @@
 const {createHash, createHmac, timingSafeEqual} = require('node:crypto');
 const {escape, safeUrl} = require('./email-template');
 const {GMAIL_ADDRESS, sendGmail} = require('./gmail-mailer');
-const {saveMerchantImages, listReviews, loadReview, loadImage} = require('./order-review');
+const {saveMerchantImages, loadMerchantPrintFiles, listReviews, loadReview, loadImage} = require('./order-review');
 const {postgres} = require('./postgres');
 
 const COOKIE = '__Host-tsun_merchant_preview';
@@ -151,16 +151,16 @@ function profileLinks(saved, origin, preview = true) {
   });
 }
 
-function buildMerchantMessage(id, order, links, origin, preview = true) {
+function buildMerchantMessage(id, order, links, origin, preview = true, hasAttachments = false) {
   const profiles = links.map(({name, url}) =>
     `<li><a href="${escape(safeUrl(url))}">${escape(name)}</a></li>`).join('');
   const address = [order.shipName, order.shipPhone, order.shipAddress].map(escape).join('<br>');
   const review = new URL('/merchant/orders', origin);
   review.searchParams.set('order', id);
   return {
-    to: [process.env.MERCHANT_EMAIL || GMAIL_ADDRESS],
+    to: [GMAIL_ADDRESS],
     subject: (preview ? '[測試] ' : '') + '8TSUN8 商家免付款訂單 | ' + id,
-    html: `<h2>商家免付款訂單</h2><p>訂單編號 ${escape(id)}<br>狗牌 ${links.length} 件<br>客戶電郵 ${escape(order.customerEmail)}</p><p>${address}</p><h3>NFC 寵物檔案</h3><ul>${profiles}</ul><p><a href="${escape(review.href)}">在商家後台查看狗牌正反面和檔案</a></p><p>${preview ? '測試訂單已進入預覽生產隊列。' : '訂單已進入生產隊列。'}</p>`
+    html: `<h2>商家免付款訂單</h2><p>訂單編號 ${escape(id)}<br>狗牌 ${links.length} 件<br>客戶電郵 ${escape(order.customerEmail)}</p><p>${address}</p>${hasAttachments ? '<p>每枚狗牌附上三張透明 PNG：正面底板、完整背面、獨立狗狗頭像。</p>' : ''}<h3>NFC 寵物檔案</h3><ul>${profiles}</ul><p><a href="${escape(review.href)}">在商家後台查看狗牌正反面和檔案</a></p><p>${preview ? '測試訂單已進入預覽生產隊列。' : '訂單已進入生產隊列。'}</p>`
   };
 }
 
@@ -169,28 +169,29 @@ function receipt(saved, origin, notificationStatus, preview) {
     notificationStatus, profiles: profileLinks(saved, origin, preview)};
 }
 
-async function captureNotice(sql, id, saved, origin) {
+async function captureNotice(sql, id, saved, origin, attachments = []) {
   if (saved.notification_status !== 'pending') return saved.notification_status;
-  const message = buildMerchantMessage(id, saved.order_details, profileLinks(saved, origin), origin);
+  const message = buildMerchantMessage(id, saved.order_details, profileLinks(saved, origin), origin, true, attachments.length > 0);
+  if (attachments.length) message.attachments = attachments.map(({filename, content_type}) => ({filename, content_type}));
   await sql`update public.tsun_merchant_orders
     set notification_status = 'captured', notification_message = ${JSON.stringify(message)}::jsonb
     where merchant_order_id = ${id} and notification_status = 'pending'`;
   return 'captured';
 }
 
-async function notifyReviewedOrder(sql, id, saved, origin, env = process.env, deliver = sendGmail) {
+async function notifyReviewedOrder(sql, id, saved, origin, attachments, env = process.env, deliver = sendGmail) {
   const preview = env.VERCEL_ENV !== 'production';
   // A branch can deliver a test message only to its explicitly configured
   // merchant mailbox. Normal preview deployments capture the message locally.
   if (preview && env.MERCHANT_REVIEW_EMAIL_MODE !== 'smtp') {
-    return captureNotice(sql, id, saved, origin);
+    return captureNotice(sql, id, saved, origin, attachments);
   }
   if (saved.notification_status === 'sent') return 'sent';
-  const recipient = preview ? env.MERCHANT_REVIEW_TEST_RECIPIENT : env.MERCHANT_EMAIL || GMAIL_ADDRESS;
+  const recipient = preview ? env.MERCHANT_REVIEW_TEST_RECIPIENT : GMAIL_ADDRESS;
   if (!recipient || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(recipient) || !env.SMTP_APP_PASSWORD) {
     return 'pending';
   }
-  const message = buildMerchantMessage(id, saved.order_details, profileLinks(saved, origin, preview), origin, preview);
+  const message = buildMerchantMessage(id, saved.order_details, profileLinks(saved, origin, preview), origin, preview, true);
   message.to = [recipient];
   const [claim] = await sql`update public.tsun_merchant_orders
     set notification_status = 'sending', notification_lease_until = now() + interval '2 minutes',
@@ -201,7 +202,7 @@ async function notifyReviewedOrder(sql, id, saved, origin, env = process.env, de
   if (!claim) return 'sending';
   let delivered = false;
   try {
-    delivered = (await deliver(message, 'tsun-merchant-' + id)).sent;
+    delivered = (await deliver({...message, attachments}, 'tsun-merchant-' + id)).sent;
   } catch (error) {
     console.error('[Merchant order] SMTP delivery failed', /^[a-z0-9_]{1,40}$/i.test(error?.code || '') ? error.code : 'unknown');
   }
@@ -213,7 +214,9 @@ async function notifyReviewedOrder(sql, id, saved, origin, env = process.env, de
 
 async function createOrder(sql, input, origin, deferNotice, preview) {
   const {id, hash, order, profiles} = validateSubmission(input, preview);
-  const localizedProfiles = profiles.map(profile => ({...profile, profile_language: order.language}));
+  const localizedProfiles = profiles.map((profile, index) => ({
+    ...profile, profile_language: order.language, base_variant: order.items[index].baseVariant
+  }));
   let saved;
   try {
     [saved] = await sql`select * from public.create_merchant_preview_order(
@@ -230,10 +233,12 @@ async function finishReview(sql, id, origin, preview) {
   if (!validOrderId(id, preview)) throw failure(422, 'invalid_id');
   const [saved] = await sql`select * from public.tsun_merchant_orders where merchant_order_id = ${id}`;
   if (!saved) throw failure(404, 'order_missing');
+  if (saved.notification_status === 'sent') return receipt(saved, origin, 'sent', preview);
   const [images] = await sql`select count(*)::integer as total from public.tsun_order_review_images
-    where merchant_order_id = ${id}`;
+    where merchant_order_id = ${id} and side in ('front', 'back')`;
   if (images.total !== saved.profile_slugs.length * 2) throw failure(409, 'images_incomplete');
-  return receipt(saved, origin, await notifyReviewedOrder(sql, id, saved, origin), preview);
+  const attachments = await loadMerchantPrintFiles(sql, id, saved.order_details.items);
+  return receipt(saved, origin, await notifyReviewedOrder(sql, id, saved, origin, attachments), preview);
 }
 
 async function loadProfile(sql, slug) {
@@ -296,8 +301,8 @@ function makeHandler({getConfig = configuration, getDb = postgres} = {}) {
       if (!authenticated) throw failure(401, 'sign_in_required');
       const sql = getDb(config.connection);
       const {action, order, review, orderId, tagNumber, previews} = req.body || {};
-      if (action === 'save-review-images') {
-        await saveMerchantImages(sql, orderId, tagNumber, previews);
+      if (action === 'save-review-images' || action === 'save-print-images') {
+        await saveMerchantImages(sql, orderId, tagNumber, previews, action === 'save-print-images');
         return res.status(200).json({saved: true});
       }
       if (action === 'finish-review') return res.status(200).json(await finishReview(sql, orderId, origin, preview));

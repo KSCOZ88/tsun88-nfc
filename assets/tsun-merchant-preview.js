@@ -290,16 +290,63 @@
     return {name, phone, address};
   }
 
-  async function saveReviewImages(order, alreadySaved = new Set()) {
-    const previews = await prepareEmailPreviews(order);
-    for (let index = 0; index < order.items.length; index += 1) {
-      const tagNumber = index + 1;
-      if (alreadySaved.has(tagNumber + ':front') && alreadySaved.has(tagNumber + ':back')) continue;
-      await request({action: 'save-review-images', orderId: order.id, tagNumber, previews: previews.slice(index * 2, index * 2 + 2)});
+  const printSides = ['front', 'back', 'dog'];
+
+  async function printPngData(blob) {
+    // Match the server's per-image budget for a single email with up to 20 tags.
+    if (blob.size <= 300000) return blobToDataUrl(blob);
+    const url = URL.createObjectURL(blob);
+    try {
+      const image = await loadExportImage(url);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      let scale = 0.85;
+      do {
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+        blob = await canvasBlob(canvas);
+        scale *= 0.85;
+      } while (blob.size > 300000);
+      return blobToDataUrl(blob);
+    } finally {
+      URL.revokeObjectURL(url);
     }
   }
 
-  window.saveMerchantOrderPreviewImages = saveReviewImages;
+  async function prepareReviewUploads(order, alreadySaved = new Set()) {
+    const tags = order.items.map((_, index) => index + 1);
+    const missingReviews = tags.filter(tag => !['front', 'back'].every(side => alreadySaved.has(tag + ':' + side)));
+    const missingPrints = tags.filter(tag => !printSides.every(side => alreadySaved.has(tag + ':print_' + side)));
+    const uploads = [];
+    if (missingReviews.length) {
+      const previews = await prepareEmailPreviews(order);
+      for (const tagNumber of missingReviews) {
+        uploads.push({action: 'save-review-images', orderId: order.id, tagNumber,
+          previews: previews.slice((tagNumber - 1) * 2, tagNumber * 2)});
+      }
+    }
+    if (missingPrints.length) {
+      const files = await prepareProductionFiles(order);
+      for (const tagNumber of missingPrints) {
+        const key = 'tag' + String(tagNumber).padStart(2, '0') + '_';
+        const previews = await Promise.all(printSides.map(async side => ({
+          data: await printPngData(files[key + side].blob)
+        })));
+        uploads.push({action: 'save-print-images', orderId: order.id, tagNumber, previews});
+      }
+    }
+    return uploads;
+  }
+
+  async function uploadReviewImages(uploads) {
+    for (const upload of uploads) await request(upload);
+  }
+
+  window.saveMerchantOrderPreviewImages = async (order, alreadySaved) => {
+    await uploadReviewImages(await prepareReviewUploads(order, alreadySaved));
+  };
 
   async function submit() {
     if (!signedIn || receipt || !currentOrder || !ensureCheckoutProfiles() ||
@@ -330,12 +377,12 @@
       if (!submissionId) submissionId = (previewMode ? 'TEST-M-' : 'M-') + crypto.randomUUID().replaceAll('-', '');
       const reviewOrder = {id: submissionId, items: currentOrder.items};
       // Build the pictures first so a renderer failure never creates a partial order.
-      await prepareEmailPreviews(reviewOrder);
+      const uploads = await prepareReviewUploads(reviewOrder);
       lastPayload = payload;
       submitting = true;
       await request({action: 'submit', review: true, order: {...order, id: submissionId}});
       submitting = false;
-      await saveReviewImages(reviewOrder);
+      await uploadReviewImages(uploads);
       const saved = await request({action: 'finish-review', orderId: submissionId});
       receipt = saved;
       byId('merchantSavedReference').textContent = saved.id;
@@ -368,6 +415,8 @@
         if (error.code === 'invalid_shipping_phone') {
           status.textContent = '';
           showFieldError(byId('shipPhone'), deliveryPhoneError());
+        } else if (error.code === 'invalid_print_image' || error.code === 'invalid_review_image') {
+          status.textContent = local('未能保存透明印製圖片，請重試。', 'The transparent print images could not be saved. Please retry.');
         } else if (error.code === 'invalid_photo_data' || error.status === 413) {
           status.textContent = local('請返回寵物檔案，換用較小的 PNG、JPG 或 WebP 照片後再試。', 'Return to the pet profile and try a smaller PNG, JPG, or WebP photo.');
         } else {
