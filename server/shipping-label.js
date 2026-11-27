@@ -3,17 +3,18 @@
 const {readFileSync} = require('node:fs');
 const {join} = require('node:path');
 const PDFDocument = require('pdfkit');
-const serif = 'Times-Italic';
+const background = readFileSync(join(__dirname, 'print-assets/address-vintage.jpg'));
 const script = readFileSync(join(__dirname, '../node_modules/@fontsource/pinyon-script/files/pinyon-script-latin-400-normal.woff'));
 const latin = /^[\x20-\xff‘’“”–—]+$/;
 let hantFont;
 
 const mm = 72 / 25.4;
 const labelWidth = 88 * mm;
-const labelHeight = 50.6 * mm;
-const ink = '#193B28';
-const left = 14;
-const contentWidth = 181;
+const labelHeight = labelWidth * 788 / 1390;
+const ink = '#1F3D26';
+const left = 13.818;
+const contentWidth = 164;
+const addressLineOffsets = [68.374, 87.038, 104.804, 123.109];
 const shippingLabelPrintTip = '<p>收件地址 PDF 請用 A4 橫向、100% 實際大小列印。</p>';
 
 function addressLines(value) {
@@ -24,8 +25,8 @@ function addressLines(value) {
 function wrap(doc, lines, size) {
   const rows = [];
   const segmenter = new Intl.Segmenter('zh-Hant', {granularity: 'word'});
-  for (const {text, name} of lines) {
-    const font = latin.test(text) ? (name ? 'Times-BoldItalic' : serif) : 'Hant';
+  for (const text of lines) {
+    const font = latin.test(text) ? 'Script' : 'Hant';
     doc.font(font).fontSize(size);
     let row = '';
     const add = part => { rows.push({text: part, font}); };
@@ -52,47 +53,20 @@ function wrap(doc, lines, size) {
   return rows;
 }
 
-function paw(doc, x, y) {
-  doc.save().translate(x, y).fillColor(ink);
-  doc.ellipse(-7, -4, 1.9, 3).fill();
-  doc.ellipse(-2.5, -7, 2, 3.2).fill();
-  doc.ellipse(2.5, -7, 2, 3.2).fill();
-  doc.ellipse(7, -4, 1.9, 3).fill();
-  doc.path('M -6.7 4 C -5 1 -3 -2 0 -2 C 3 -2 5 1 6.7 4 C 8 7 4.6 9 1.8 7.3 C .7 6.5 -.7 6.5 -1.8 7.3 C -4.6 9 -8 7 -6.7 4 Z').fill();
-  doc.restore();
-}
-
-function drawLabel(doc, rows, slot, index, total, size) {
+function drawLabel(doc, artwork, rows, slot, index, total, size) {
   const col = slot % 3;
   const row = Math.floor(slot / 3);
-  const gap = 11;
-  const x = (doc.page.width - labelWidth * 3 - gap * 2) / 2 + col * (labelWidth + gap);
-  const y = 29 + row * (labelHeight + gap);
-  doc.save().translate(x, y);
-
-  doc.rect(0, 0, labelWidth, labelHeight).fill('#151613');
-  doc.rect(3.6, 3.6, labelWidth - 7.2, labelHeight - 7.2).fill('#FFFDF6');
-  doc.lineWidth(.55).rect(6.7, 6.7, labelWidth - 13.4, labelHeight - 13.4).stroke(ink);
-  doc.lineWidth(.35).rect(8.2, 8.2, labelWidth - 16.4, labelHeight - 16.4).stroke(ink);
-
-  doc.fillColor(ink).font('Script').fontSize(23).text('Please Deliver To:', left, 16, {lineBreak: false});
-  doc.font('Times-BoldItalic').fontSize(17).text('8TSUN8', 170, 15, {lineBreak: false});
-  doc.font('Times-Roman').fontSize(6.3).text('SMART PET TAG', 177, 34, {lineBreak: false});
-  doc.lineWidth(.55).moveTo(left, 45).lineTo(labelWidth - left, 45).stroke(ink);
-
-  doc.save().lineWidth(.75);
-  doc.circle(219, 111, 15.5).stroke(ink);
-  doc.circle(219, 111, 12.8).stroke(ink);
-  paw(doc, 219, 111);
-  doc.restore();
-
+  const x = 12.5 * mm + col * (labelWidth + 4 * mm);
+  const y = 69.926 + row * 157.005;
+  doc.image(artwork, x, y, {width: labelWidth, height: labelHeight});
   rows.forEach(({text, font}, i) => {
-    doc.fillColor(ink).font(font).fontSize(size).text(text, left, 50 + i * (size + 2.8), {lineBreak: false});
+    doc.fillColor(ink).font(font).fontSize(size).text(text, x + left, y + addressLineOffsets[i],
+      {lineBreak: false, baseline: 'alphabetic'});
   });
   if (total > 1) {
-    doc.fillColor(ink).font('Times-Roman').fontSize(7).text((index + 1) + ' / ' + total, 211, 57, {lineBreak: false});
+    doc.fillColor(ink).font('Times-Roman').fontSize(7)
+      .text((index + 1) + ' / ' + total, x + 216, y + 65, {lineBreak: false});
   }
-  doc.restore();
 }
 
 async function shippingLabelAttachment(order, {threeAcross = false} = {}) {
@@ -100,14 +74,13 @@ async function shippingLabelAttachment(order, {threeAcross = false} = {}) {
   const address = typeof order?.shipAddress === 'string' ? order.shipAddress.trim() : '';
   if (!name || name.length > 120 || !address || address.length > 1000) return null;
 
-  const lines = [{text: name.replace(/\s+/g, ' '), name: true},
-    ...addressLines(address).map(text => ({text: text.replace(/\s+/g, ' ')}))];
+  const lines = [name, ...addressLines(address)].map(line => line.replace(/\s+/g, ' '));
   const doc = new PDFDocument({
     size: 'A4', layout: 'landscape', margin: 0, autoFirstPage: false,
     displayTitle: true, info: {Title: '8TSUN8 Shipping Address', Creator: '8TSUN8'}
   });
   doc.registerFont('Script', script);
-  if (lines.some(({text}) => !latin.test(text))) {
+  if (lines.some(text => !latin.test(text))) {
     hantFont ??= readFileSync(join(__dirname, '../node_modules/@embedpdf/fonts-tc/fonts/NotoSansHant-Regular.otf'));
     doc.registerFont('Hant', hantFont);
   }
@@ -118,14 +91,15 @@ async function shippingLabelAttachment(order, {threeAcross = false} = {}) {
     doc.on('error', reject);
   });
   const variants = [12, 11, 10, 9];
+  const perLabel = addressLineOffsets.length;
   let layout;
   for (const size of variants) {
     const rows = wrap(doc, lines, size);
-    const perLabel = Math.floor(82 / (size + 2.8));
-    layout = {rows, perLabel, size};
+    layout = {rows, size};
     if (rows.length <= perLabel) break;
   }
-  const {rows, perLabel, size} = layout;
+  const {rows, size} = layout;
+  const artwork = doc.openImage(background);
   const total = Math.ceil(rows.length / perLabel);
   const copies = threeAcross ? 3 : 1;
   for (let i = 0; i < total; i++) {
@@ -133,7 +107,7 @@ async function shippingLabelAttachment(order, {threeAcross = false} = {}) {
     if (slot === 0) doc.addPage();
     const section = rows.slice(i * perLabel, (i + 1) * perLabel);
     for (let copy = 0; copy < copies; copy++) {
-      drawLabel(doc, section, slot + copy, i, total, size);
+      drawLabel(doc, artwork, section, slot + copy, i, total, size);
     }
   }
 

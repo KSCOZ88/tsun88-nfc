@@ -155,7 +155,7 @@ test('merchant notification includes four images, the NFC link and a PDF of the 
     assert.match(raw, /MediaBox \[0 0 841\.89 595\.28\]/);
     const streams = [...raw.matchAll(/\/Filter \/FlateDecode[\s\S]*?stream\n([\s\S]*?)\nendstream/g)];
     const text = streams.map(([, value]) => inflateSync(Buffer.from(value, 'latin1')).toString()).join('\n');
-    assert.equal([...text.matchAll(/0 0 249\.448819 143\.433071 re/g)].length, 3);
+    assert.equal([...text.matchAll(/\/I1 Do/g)].length, 3);
     assert.match(message.html, /100% 實際大小/);
     assert.match(message.html, /(?:merchant-profile\?p=ABCDEF012345|p\/lucky-ann-ABCDEF012345)/);
     assert.match(message.html, /merchant\/orders\?order=TEST-M-/);
