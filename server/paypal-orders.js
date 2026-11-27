@@ -1,6 +1,7 @@
 'use strict';
 // PayPal Orders v2. Server-side prices; persistent order/capture state in Neon.
 const {ensureProductionQueue,scheduleProductionSync}=require('./production-queue');
+const {salesItems}=require('./merchant-sales');
 const {createHash,createHmac,timingSafeEqual}=require('node:crypto');
 const {neon}=require('@neondatabase/serverless');
 const {summary}=require('./airwallex-checkout');
@@ -134,8 +135,8 @@ async function capture(orderId,paypalOrderId){
   const result=await sql`WITH paid AS (
   UPDATE tsun_paypal_orders SET payment_status='paid',capture_id=${captureData.id},paid_at=COALESCE(paid_at,now()) WHERE merchant_order_id=${orderId} AND paypal_order_id=${paypalOrderId} AND (capture_id IS NULL OR capture_id=${captureData.id}) RETURNING *
  ), queued AS (
-  INSERT INTO tsun_production_outbox (merchant_order_id, payment_provider)
-  SELECT merchant_order_id, 'paypal' FROM paid WHERE ${c.live} AND paid_at = now()
+  INSERT INTO tsun_production_outbox (merchant_order_id, payment_provider, sales_items)
+  SELECT merchant_order_id, 'paypal', ${JSON.stringify(salesItems(row.order_snapshot))}::jsonb FROM paid WHERE ${c.live} AND paid_at = now()
   ON CONFLICT (merchant_order_id) DO NOTHING
  )
   SELECT * FROM paid`;

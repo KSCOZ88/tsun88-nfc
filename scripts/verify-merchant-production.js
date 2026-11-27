@@ -38,9 +38,10 @@ async function verify(env = process.env) {
     has_table_privilege(current_user, 'public.tsun_order_reviews', 'INSERT') as can_save_review,
     has_table_privilege(current_user, 'public.tsun_order_review_images', 'INSERT') as can_save_images,
     has_column_privilege(current_user, 'public.pet_profiles', 'order_id', 'SELECT') as can_check_profile,
-    has_column_privilege(current_user, 'public.tsun_production_jobs', 'merchant_order_id', 'INSERT') as can_enqueue`;
+    has_column_privilege(current_user, 'public.tsun_production_jobs', 'merchant_order_id', 'INSERT') as can_enqueue,
+    has_column_privilege(current_user, 'public.tsun_production_jobs', 'sales_items', 'INSERT') as can_record_sale`;
   assert.equal(paid.role, 'production_queue_writer');
-  assert.ok(paid.can_save_review && paid.can_save_images && paid.can_check_profile && paid.can_enqueue,
+  assert.ok(paid.can_save_review && paid.can_save_images && paid.can_check_profile && paid.can_enqueue && paid.can_record_sale,
     'Payment queue database privileges are incomplete');
 
   const handler = makeHandler();
@@ -52,8 +53,13 @@ async function verify(env = process.env) {
   const authenticated = await simulateRequest(handler, 'GET', {reviews: '1'}, null, login['Set-Cookie']);
   assert.equal(authenticated.status, 200, 'Merchant dashboard could not read the production database');
   assert.ok(Array.isArray(authenticated.body.orders), 'Merchant dashboard did not return an order list');
+  assert.ok(authenticated.body.orders.every(order => Number(order.order_number) > 0 && order.created_at),
+    'Merchant dashboard returned an order without its number or timestamp');
+  const sales = await simulateRequest(handler, 'GET', {sales: '1'}, null, login['Set-Cookie']);
+  assert.equal(sales.status, 200, 'Merchant sales analytics could not read the production database');
+  assert.ok(Number.isInteger(sales.body.order_count), 'Merchant sales analytics returned an invalid order count');
   assert.ok((env.SMTP_APP_PASSWORD || '').replace(/\s/g, ''), 'The merchant mail transport is not configured');
-  console.log('Merchant production preflight passed: isolated roles, dashboard login and paid-order permissions.');
+  console.log('Merchant production preflight passed: isolated roles, order history, sales analytics and paid-order permissions.');
 
   if (!env.MERCHANT_LAUNCH_EMAIL_TEST || env.MERCHANT_LAUNCH_EMAIL_TEST !== env.VERCEL_GIT_COMMIT_SHA) return;
   const recipient = env.MERCHANT_EMAIL || GMAIL_ADDRESS;

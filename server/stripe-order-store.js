@@ -1,5 +1,6 @@
 'use strict';
 const {ensureProductionQueue,scheduleProductionSync}=require('./production-queue');
+const {salesItems}=require('./merchant-sales');
 const {neon}=require('@neondatabase/serverless');
 const {createHash}=require('node:crypto');
 const {sendGmail}=require('./gmail-mailer');
@@ -123,8 +124,8 @@ async function processEvent(eventId){const sql=db();await schema(sql);const [evt
  await sql`WITH paid AS (
   UPDATE tsun_stripe_orders SET status='paid',paid_at=COALESCE(paid_at,now()) WHERE stripe_session_id=${evt.stripe_session_id} RETURNING merchant_order_id, paid_at
  )
-  INSERT INTO tsun_production_outbox (merchant_order_id, payment_provider)
-  SELECT merchant_order_id, 'stripe' FROM paid WHERE ${process.env.VERCEL_ENV==='production'} AND paid_at = now()
+  INSERT INTO tsun_production_outbox (merchant_order_id, payment_provider, sales_items)
+  SELECT merchant_order_id, 'stripe', ${JSON.stringify(salesItems(row.order_snapshot))}::jsonb FROM paid WHERE ${process.env.VERCEL_ENV==='production'} AND paid_at = now()
   ON CONFLICT (merchant_order_id) DO NOTHING`;
  scheduleProductionSync(sql,row.merchant_order_id);
  const order={...row.order_snapshot,paymentStatus:'paid',payMethod:'Stripe',paymentTransactionId:String(session.payment_intent||session.id),paidAmountCents:session.amount_total,paidAt:new Date((session.created||Math.floor(Date.now()/1000))*1000).toISOString()};

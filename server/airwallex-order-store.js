@@ -2,6 +2,7 @@
 // Persist a minimal server-side snapshot before sending customers to Airwallex.
 // No API secrets, payment credentials or uploaded image base64 are saved.
 const {ensureProductionQueue,scheduleProductionSync}=require('./production-queue');
+const {salesItems}=require('./merchant-sales');
 const {neon}=require('@neondatabase/serverless');
 const {summary}=require('./airwallex-checkout');
 const fail=(message,status=409)=>Object.assign(new Error(message),{status});
@@ -70,7 +71,7 @@ async function abort(lease){
 }
 async function recordPaid(order,linkId){
  const summaryData=summary(order),sql=db();await schema(sql);
- const [stored]=await sql`SELECT payment_link_id,order_binding,amount_cents,status FROM tsun_airwallex_orders WHERE merchant_order_id=${summaryData.orderId}`;
+ const [stored]=await sql`SELECT payment_link_id,order_binding,amount_cents,status,order_snapshot FROM tsun_airwallex_orders WHERE merchant_order_id=${summaryData.orderId}`;
  if(!stored)return {legacy:true};
  if(stored.payment_link_id!==linkId||stored.order_binding!==summaryData.binding||stored.amount_cents!==summaryData.totalCents)
   throw fail('付款链接与原订单记录不匹配，请联系商户核查',409);
@@ -79,8 +80,8 @@ async function recordPaid(order,linkId){
   UPDATE tsun_airwallex_orders SET status='paid',paid_at=COALESCE(paid_at,now())
  WHERE merchant_order_id=${summaryData.orderId} AND payment_link_id=${linkId} RETURNING merchant_order_id, paid_at
  )
-  INSERT INTO tsun_production_outbox (merchant_order_id, payment_provider)
-  SELECT merchant_order_id, 'airwallex' FROM paid WHERE ${process.env.VERCEL_ENV==='production'} AND paid_at = now()
+  INSERT INTO tsun_production_outbox (merchant_order_id, payment_provider, sales_items)
+  SELECT merchant_order_id, 'airwallex', ${JSON.stringify(salesItems(stored.order_snapshot))}::jsonb FROM paid WHERE ${process.env.VERCEL_ENV==='production'} AND paid_at = now()
   ON CONFLICT (merchant_order_id) DO NOTHING`;
  scheduleProductionSync(sql,summaryData.orderId);
  return {legacy:false};

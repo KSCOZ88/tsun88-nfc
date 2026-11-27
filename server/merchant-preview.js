@@ -3,8 +3,9 @@
 const {createHash, createHmac, timingSafeEqual} = require('node:crypto');
 const {escape, safeUrl} = require('./email-template');
 const {GMAIL_ADDRESS, sendGmail} = require('./gmail-mailer');
-const {saveMerchantImages, loadMerchantPrintFiles, listReviews, loadReview, loadImage} = require('./order-review');
+const {historyPageSize, saveMerchantImages, loadMerchantPrintFiles, listReviews, loadReview, loadImage} = require('./order-review');
 const {postgres} = require('./postgres');
+const {salesSummary} = require('./merchant-sales');
 const {namedPath} = require('../assets/tsun-profile-url');
 
 const COOKIE = '__Host-tsun_merchant_preview';
@@ -301,7 +302,7 @@ function makeHandler({getConfig = configuration, getDb = postgres} = {}) {
           if (!authenticated) throw failure(401, 'sign_in_required');
           return res.status(200).json(await loadProfile(getDb(config.connection), req.query.profile));
         }
-        if (req.query?.reviews === '1' || req.query?.review || req.query?.image) {
+        if (req.query?.reviews === '1' || req.query?.sales === '1' || req.query?.review || req.query?.image) {
           if (!authenticated) throw failure(401, 'sign_in_required');
           const sql = getDb(config.connection);
           if (req.query.image) {
@@ -317,7 +318,14 @@ function makeHandler({getConfig = configuration, getDb = postgres} = {}) {
               order_details: {items: merchant.items}}, origin, preview) : paid?.profiles || [];
             return res.status(200).json({...review, profiles, items: merchant?.items || paid?.items || []});
           }
-          return res.status(200).json({orders: await listReviews(sql)});
+          if (req.query.sales === '1') return res.status(200).json(await salesSummary(sql, req.query));
+          const requested = req.query.page ?? '1';
+          if (typeof requested !== 'string' || !/^[1-9][0-9]{0,5}$/.test(requested)) {
+            throw failure(422, 'invalid_history_page');
+          }
+          const page = Number(requested);
+          const rows = await listReviews(sql, '', page);
+          return res.status(200).json({orders: rows.slice(0, historyPageSize), page, hasMore: rows.length > historyPageSize});
         }
         return res.status(200).json({authenticated, preview});
       }

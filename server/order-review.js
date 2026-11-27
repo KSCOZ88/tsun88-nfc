@@ -2,6 +2,7 @@
 
 const {postgres} = require('./postgres');
 const {combinePrintSides} = require('./print-layout');
+const {salesItems} = require('./merchant-sales');
 const {namedPath, readSlug} = require('../assets/tsun-profile-url');
 
 const providers = new Set(['stripe', 'paypal', 'airwallex', 'merchant']);
@@ -129,7 +130,9 @@ async function storePaidReview(sql, provider, order, previews) {
   if (!Array.isArray(order.items) || order.items.length * 2 !== previews?.length) throw fail(422, 'invalid_review_images');
   const profiles = paidProfiles(order);
   const rows = imageRows(previews);
-  const items = order.items.map(item => ({petName: String(item.petName || 'Pet').slice(0, 80)}));
+  const items = salesItems(order).map((item, index) => ({
+    ...item, petName: String(order.items[index].petName || 'Pet').slice(0, 80)
+  }));
   await sql.transaction([
     sql`insert into public.tsun_order_reviews (merchant_order_id, payment_provider, profiles, items)
       values (${orderId}, ${provider}, ${JSON.stringify(profiles)}::jsonb, ${JSON.stringify(items)}::jsonb)
@@ -152,7 +155,9 @@ async function publishPaidReview(provider, order, previews, env = process.env) {
   await storePaidReview(sql, provider, order, previews);
 }
 
-async function listReviews(sql, orderId = '') {
+const historyPageSize = 100;
+
+async function listReviews(sql, orderId = '', page = 1) {
   if (orderId !== '') checkOrderId(orderId);
   return sql`with entries as (
     select merchant_order_id, payment_provider, created_at from public.tsun_order_reviews
@@ -163,15 +168,18 @@ async function listReviews(sql, orderId = '') {
       where not exists (select 1 from public.tsun_order_reviews r where r.merchant_order_id = q.merchant_order_id)
       and not exists (select 1 from public.tsun_merchant_orders o where o.merchant_order_id = q.merchant_order_id)
   )
-  select e.merchant_order_id as id, e.payment_provider as provider, e.created_at, q.status as queue_status,
+  select e.merchant_order_id as id, e.payment_provider as provider, n.order_number,
+    case when e.payment_provider = 'merchant' then e.created_at else coalesce(q.created_at, e.created_at) end as created_at,
+    q.status as queue_status,
     coalesce(o.order_details->'items'->0->>'petName', r.items->0->>'petName') as pet_name,
     o.notification_status
   from entries e
+  join public.tsun_order_numbers n using (merchant_order_id)
   left join public.tsun_merchant_orders o using (merchant_order_id)
   left join public.tsun_order_reviews r using (merchant_order_id)
   left join public.tsun_production_jobs q using (merchant_order_id)
   where (${orderId} = '' or e.merchant_order_id = ${orderId})
-  order by e.created_at desc, e.merchant_order_id desc limit 100`;
+  order by n.order_number limit ${historyPageSize + 1} offset ${(page - 1) * historyPageSize}`;
 }
 
 async function loadReview(sql, orderId) {
@@ -196,4 +204,4 @@ async function loadImage(sql, orderId, tag, side) {
   return row.image_png;
 }
 
-module.exports = {saveMerchantImages, loadMerchantPrintFiles, storePaidReview, publishPaidReview, listReviews, loadReview, loadImage};
+module.exports = {historyPageSize, saveMerchantImages, loadMerchantPrintFiles, storePaidReview, publishPaidReview, listReviews, loadReview, loadImage};

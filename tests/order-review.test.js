@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const {PNG} = require('pngjs');
 const {combinePrintSides} = require('../server/print-layout');
+const {salesItems, salesSummary} = require('../server/merchant-sales');
 const {storePaidReview, publishPaidReview, saveMerchantImages, loadMerchantPrintFiles} = require('../server/order-review');
 const {notifyReviewedOrder, makeHandler, signIn} = require('../server/merchant-preview');
 
@@ -202,7 +203,7 @@ test('large merchant mail batches keep four files per tag and retry only unsent 
   assert.equal(attempts[1].messageId, attempts[2].messageId);
 });
 
-test('order listing, detail and images require a merchant session before accessing SQL', async () => {
+test('order listing, sales analytics, detail and images require a merchant session before accessing SQL', async () => {
   const config = {key: 'a'.repeat(64), signingKey: 'b'.repeat(64), connection: 'test'};
   let opened = 0;
   const handler = makeHandler({getConfig: () => config, getDb: () => {
@@ -219,7 +220,7 @@ test('order listing, detail and images require a merchant session before accessi
     });
     return result;
   };
-  for (const query of [{reviews: '1'}, {review: id}, {image: id, tag: '1', side: 'front'}]) {
+  for (const query of [{reviews: '1'}, {sales: '1'}, {review: id}, {image: id, tag: '1', side: 'front'}]) {
     assert.deepEqual((await respond(query)).body, {error: 'sign_in_required'});
   }
   assert.equal(opened, 0);
@@ -240,4 +241,23 @@ test('the enabled production merchant route uses its own role and generates live
     env.MERCHANT_ORDERS_DATABASE_URL.replace('zujdfvnhxbalyhjmmmtl', 'rziyucbmascwdrtwqvgy')}), {status: 503});
   assert.throws(() => validateSubmission({id}, false), {code: 'invalid_id'});
   assert.throws(() => validateSubmission({id: id.replace(/^TEST-/, '')}, false), {code: 'invalid_items'});
+});
+
+test('paid analytics keeps selected tag variants and breeds without customer data', () => {
+  assert.deepEqual(salesItems({items: [{
+    baseVariant: 'green2', selectedBreedKey: 'golden-retriever', breedName: 'Golden Retriever',
+    faceKey: 'corgi', petName: 'LOKI', ownerName: 'Owner', ownerPhone: '12345678'
+  }]}), [{baseVariant: 'green2', selectedBreedKey: 'golden-retriever', breed: 'Golden Retriever'}]);
+});
+
+test('sales filters pass only explicitly supported sources and Hong Kong date ranges to SQL', async () => {
+  const summary = {order_count: 2};
+  const sql = async (parts, ...values) => {
+    assert.match(parts.join(''), /Asia\/Hong_Kong/);
+    assert.deepEqual(values, ['online', 'online', 7, 7]);
+    return [summary];
+  };
+  assert.deepEqual(await salesSummary(sql, {source: 'online', days: '7'}), summary);
+  await assert.rejects(salesSummary(() => assert.fail('unexpected query'), {source: 'online', days: '-1'}),
+    {code: 'invalid_sales_filter'});
 });

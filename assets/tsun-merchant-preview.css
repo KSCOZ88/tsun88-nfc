@@ -272,3 +272,145 @@ html[data-merchant-preview="locked"] body > :not(#merchantLogin):not(script):not
   display: block;
   margin: .75rem auto 0;
 }
+
+.merchant-history-table {
+  overflow-x: auto;
+  border: 1px solid #dce8eb;
+  border-radius: .75rem;
+}
+
+.merchant-history-table th {
+  background: #eff6f8;
+}
+
+#merchantOrderReview .merchant-history-table :is(td, th):nth-child(-n+2) {
+  white-space: nowrap;
+}
+
+.merchant-history-table td:first-child a {
+  font-weight: 700;
+}
+
+.merchant-order-reference {
+  color: #516b78;
+  overflow-wrap: anywhere;
+}
+
+.merchant-sales-filters {
+  display: flex;
+  align-items: end;
+  gap: .75rem;
+  flex-wrap: wrap;
+  margin: 1.25rem 0;
+}
+
+.merchant-sales-filters label {
+  display: grid;
+  gap: .35rem;
+  min-width: 10rem;
+  flex: 1 1 10rem;
+  font-weight: 650;
+}
+
+.merchant-sales-filters :is(select, button) {
+  min-height: 2.75rem;
+  padding: .5rem .75rem;
+  border: 1px solid #c9dde3;
+  border-radius: .5rem;
+  background: white;
+  color: inherit;
+  font: inherit;
+}
+
+.merchant-sales-filters button {
+  background: #214c5e;
+  color: white;
+  cursor: pointer;
+  font-weight: 650;
+  min-width: 5rem;
+}
+
+.merchant-sales-metrics,
+.merchant-sales-grid {
+  display: grid;
+  gap: .85rem;
+}
+
+.merchant-sales-metrics {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  margin: 0;
+}
+
+.merchant-sales-metrics > div,
+#merchantOrderReview .merchant-sales-card {
+  min-width: 0;
+  background: white;
+  border: 1px solid #dce8eb;
+  border-radius: .75rem;
+  padding: 1rem;
+  margin: 0;
+}
+
+.merchant-sales-metrics dd {
+  margin: .25rem 0 0;
+  font-size: 1.6rem;
+  font-weight: 720;
+}
+
+.merchant-sales-peak {
+  margin: 1.1rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .35rem .8rem;
+}
+
+.merchant-sales-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+  margin-top: 1.1rem;
+}
+
+.merchant-sales-card h2 {
+  margin: 0 0 .85rem;
+  font-size: 1.15rem;
+}
+
+.merchant-sales-card ul {
+  display: grid;
+  gap: .8rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.merchant-sales-card li > div:first-child {
+  display: flex;
+  gap: .75rem;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: .25rem;
+}
+
+.merchant-sales-card strong {
+  white-space: nowrap;
+}
+
+.merchant-sales-bar {
+  height: .4rem;
+  border-radius: .25rem;
+  background: #e5f0f3;
+  overflow: hidden;
+}
+
+.merchant-sales-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #438597;
+}
+
+.merchant-sales-scope {
+  color: #516b78;
+  font-size: .9rem;
+  margin: 1rem 0 0;
+}
