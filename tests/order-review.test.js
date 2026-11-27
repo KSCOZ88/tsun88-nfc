@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const {PNG} = require('pngjs');
 const {inflateSync} = require('node:zlib');
+const {completeHongKongAddress} = require('../server/hong-kong-district');
 const {combinePrintSides} = require('../server/print-layout');
 const {salesItems, salesSummary} = require('../server/merchant-sales');
 const {listReviews, storePaidReview, publishPaidReview, saveMerchantImages, loadMerchantPrintFiles} = require('../server/order-review');
@@ -188,7 +189,7 @@ test('the combined PNG matches side scale and preserves a transparent gap', () =
   assert.deepEqual(pixel(0, 0), [0, 0, 0, 0]);
 });
 
-test('large merchant emails include the address label once and retry only unsent tag images', async () => {
+test('oversized merchant orders send one mail with the PDF, complete tag images and signed-in downloads', async () => {
   const bigContent = 'A'.repeat(3000000);
   const names = Array.from({length: 8}, (_, i) => 'tag-file-' + i + '.png');
   const attachments = names.map(filename => ({filename, content: bigContent, content_type: 'image/png'}));
@@ -207,16 +208,19 @@ test('large merchant emails include the address label once and retry only unsent
     return [{merchant_order_id: id}];
   };
   const deliver = async (mail, messageId) => {
-    attempts.push({names: mail.attachments.map(file => file.filename), messageId});
-    return {sent: attempts.length !== 2};
+    attempts.push({names: mail.attachments.map(file => file.filename), messageId, html: mail.html});
+    return {sent: attempts.length > 1};
   };
   const env = {VERCEL_ENV:'production', SMTP_APP_PASSWORD:'test-secret'};
   assert.equal(await notifyReviewedOrder(sql, id, row, origin, attachments, env, deliver), 'pending');
-  assert.equal(sentCount, 4);
+  assert.equal(sentCount, 0);
   assert.equal(await notifyReviewedOrder(sql, id, row, origin, attachments, env, deliver), 'sent');
-  assert.equal(sentCount, 8);
-  assert.deepEqual(attempts.map(item => item.names), [[...names.slice(0, 4), '8TSUN8-收件地址.pdf'], names.slice(4), names.slice(4)]);
-  assert.equal(attempts[1].messageId, attempts[2].messageId);
+  assert.equal(await notifyReviewedOrder(sql, id, row, origin, attachments, env, deliver), 'sent');
+  assert.equal(sentCount, 4);
+  const files = [...names.slice(0, 4), '8TSUN8-收件地址.pdf'];
+  assert.deepEqual(attempts.map(item => item.names), [files, files]);
+  assert.equal(attempts[0].messageId, attempts[1].messageId);
+  assert.match(attempts[1].html, /tag=2&amp;side=print_combined/);
 });
 
 test('order listing, sales analytics, detail and images require a merchant session before accessing SQL', async () => {
@@ -312,4 +316,56 @@ test('merchant labels use a specific pet profile address and retain matching che
   assert.equal(merchantDeliveryDetails(order, [profile, {location: '12 Other Road'}]), order);
   assert.equal(merchantDeliveryDetails(order, [{location: '九龍示範街18號', owner_name: '陳小明'}]).shipAddress,
     '九龍示範街18號');
+});
+
+
+test('Hong Kong district lookup sends only the building details and adds an exact English district', async () => {
+  const order = {shipAddress: "Flat 12, 4/F, 88 Queen’s Road Central, Hong Kong", shipName: 'Example Name', shipPhone: '12345678'};
+  const en = {EngStreet: {StreetName: "QUEEN'S ROAD CENTRAL", BuildingNoFrom: '88', BuildingNoTo: '88'},
+    EngDistrict: {DcDistrict: 'Central & Western District'}};
+  const record = EngPremisesAddress => ({Address: {PremisesAddress: {EngPremisesAddress}}});
+  const result = await completeHongKongAddress(order, async (url, options) => {
+    assert.equal(url.origin, 'https://www.als.gov.hk');
+    assert.equal(url.searchParams.get('q'), '88 Queen’s Road Central');
+    assert.equal(options.headers.Accept, 'application/json');
+    return {ok: true, json: async () => ({SuggestedAddress: [
+      record({...en, EngStreet: {...en.EngStreet, StreetName: "QUEEN'S ROAD WEST"}}), record(en)
+    ]})};
+  });
+  assert.equal(result.shipAddress, 'Flat 12, 4/F, 88 Queen’s Road Central\nCentral and Western District, Hong Kong');
+  assert.equal(result.shipName, order.shipName);
+});
+
+test('Hong Kong district lookup supports a Chinese street and respects districts already supplied', async () => {
+  const order = {shipAddress: '香港中環皇后大道中88號12樓'};
+  const result = await completeHongKongAddress(order, async url => {
+    assert.equal(url.searchParams.get('q'), '香港中環皇后大道中88號');
+    return {ok: true, json: async () => ({SuggestedAddress: [{Address: {PremisesAddress: {
+      EngPremisesAddress: {EngDistrict: {DcDistrict: 'Central & Western District'}},
+      ChiPremisesAddress: {Region: '香港', ChiStreet: {LocationName: '中環',
+        StreetName: '皇后大道中', BuildingNoFrom: '88', BuildingNoTo: '88'}}
+    }}}]})};
+  });
+  assert.equal(result.shipAddress, order.shipAddress + '\nCentral and Western District, Hong Kong');
+  const withDistrict = {shipAddress: order.shipAddress + ', 中西區'};
+  assert.equal(await completeHongKongAddress(withDistrict, () => assert.fail('address already has a district')), withDistrict);
+});
+
+test('fuzzy, conflicting or unavailable address results keep the original address for review', async () => {
+  const order = {shipAddress: '52 Littlestone Road'};
+  const record = (street, district) => ({Address: {PremisesAddress: {EngPremisesAddress: {
+    EngStreet: {StreetName: street, BuildingNoFrom: '52'}, EngDistrict: {DcDistrict: district}
+  }}}});
+  for (const result of [
+    [record('Little Road', 'Central & Western District')],
+    [record('Littlestone Road', 'Central & Western District'), record('Littlestone Road', 'Eastern District')],
+    null
+  ]) {
+    const unchanged = await completeHongKongAddress(order, async () => {
+      if (!result) throw Error('unavailable');
+      return {ok: true, json: async () => ({SuggestedAddress: result})};
+    });
+    assert.equal(unchanged.shipAddress, order.shipAddress);
+    assert.match(unchanged.shippingAddressNote, /待核對/);
+  }
 });

@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const {configuration, makeHandler} = require('../server/merchant-preview');
 const {postgres} = require('../server/postgres');
+const {completeHongKongAddress} = require('../server/hong-kong-district');
 const {GMAIL_ADDRESS, sendGmail} = require('../server/gmail-mailer');
 
 async function simulateRequest(handler, method, query, body, cookie) {
@@ -18,6 +19,11 @@ async function simulateRequest(handler, method, query, body, cookie) {
 }
 
 async function verify(env = process.env) {
+  if (env.VERCEL_ENV === 'preview' || env.VERCEL_ENV === 'production') {
+    const example = await completeHongKongAddress({shipAddress: '2 Tim Mei Avenue'});
+    console.log('Hong Kong district lookup:', example.shipAddress.endsWith('Central and Western District, Hong Kong')
+      ? 'public address verified' : 'public address could not be verified');
+  }
   if (env.VERCEL_ENV !== 'production' || env.MERCHANT_ORDERS_ENABLED !== '1') return;
   const config = configuration(env);
   const sql = postgres(config.connection);

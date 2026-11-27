@@ -8,6 +8,7 @@ const {namedPath, readSlug} = require('../assets/tsun-profile-url');
 const providers = new Set(['stripe', 'paypal', 'airwallex', 'merchant']);
 const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const printSides = ['print_front', 'print_back', 'print_dog'];
+const printFiles = [...printSides, 'print_combined'];
 // Keep the individual print exports small enough for upload and email.
 const printImageLimit = 300000;
 
@@ -197,11 +198,21 @@ async function loadReview(sql, orderId) {
 
 async function loadImage(sql, orderId, tag, side) {
   checkOrderId(orderId);
-  if (!/^(?:[1-9]|1[0-9]|20)$/.test(tag) || !['front', 'back'].includes(side)) throw fail(404, 'image_missing');
+  if (!/^(?:[1-9]|1[0-9]|20)$/.test(tag) || !['front', 'back', ...printFiles].includes(side)) {
+    throw fail(404, 'image_missing');
+  }
+  if (side === 'print_combined') {
+    const images = await sql`select side, image_png from public.tsun_order_review_images
+      where merchant_order_id = ${orderId} and tag_number = ${Number(tag)} and side in ('print_front', 'print_back')`;
+    const front = images.find(image => image.side === 'print_front');
+    const back = images.find(image => image.side === 'print_back');
+    if (!front || !back) throw fail(404, 'image_missing');
+    return combinePrintSides(front.image_png, back.image_png);
+  }
   const [row] = await sql`select image_png from public.tsun_order_review_images
     where merchant_order_id = ${orderId} and tag_number = ${Number(tag)} and side = ${side}`;
   if (!row) throw fail(404, 'image_missing');
   return row.image_png;
 }
 
-module.exports = {historyPageSize, saveMerchantImages, loadMerchantPrintFiles, storePaidReview, publishPaidReview, listReviews, loadReview, loadImage};
+module.exports = {historyPageSize, printFiles, saveMerchantImages, loadMerchantPrintFiles, storePaidReview, publishPaidReview, listReviews, loadReview, loadImage};

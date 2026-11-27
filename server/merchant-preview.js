@@ -3,10 +3,11 @@
 const {createHash, createHmac, timingSafeEqual} = require('node:crypto');
 const {escape, safeUrl} = require('./email-template');
 const {GMAIL_ADDRESS, sendGmail} = require('./gmail-mailer');
-const {historyPageSize, saveMerchantImages, loadMerchantPrintFiles, listReviews, loadReview, loadImage} = require('./order-review');
+const {historyPageSize, saveMerchantImages, loadMerchantPrintFiles, listReviews, loadReview, loadImage, printFiles} = require('./order-review');
 const {postgres} = require('./postgres');
 const {salesSummary} = require('./merchant-sales');
 const {shippingLabelAttachment, shippingLabelPrintTip} = require('./shipping-label');
+const {completeHongKongAddress} = require('./hong-kong-district');
 const {namedPath} = require('../assets/tsun-profile-url');
 
 const COOKIE = '__Host-tsun_merchant_preview';
@@ -192,7 +193,7 @@ function buildMerchantMessage(id, order, links, origin, preview = true, hasAttac
   return {
     to: [GMAIL_ADDRESS],
     subject: (preview ? '[測試] ' : '') + '8TSUN8 商家免付款訂單 | ' + id,
-    html: `<h2>商家免付款訂單</h2><p>訂單編號 ${escape(id)}<br>狗牌 ${links.length} 件<br>客戶電郵 ${escape(order.customerEmail)}</p><p>${address}</p>${hasAttachments ? '<p>每枚狗牌附上四張透明 PNG：正面底板、完整背面、獨立狗狗頭像及正反面並排圖。</p>' : ''}${addressLabel ? shippingLabelPrintTip : ''}<h3>NFC 寵物檔案</h3><ul>${profiles}</ul><p><a href="${escape(review.href)}">在商家後台查看狗牌正反面和檔案</a></p><p>${preview ? '測試訂單已進入預覽生產隊列。' : '訂單已進入生產隊列。'}</p>`
+    html: `<h2>商家免付款訂單</h2><p>訂單編號 ${escape(id)}<br>狗牌 ${links.length} 件<br>客戶電郵 ${escape(order.customerEmail)}</p><p>${address.replaceAll('\n', '<br>')}</p>${order.shippingAddressNote || ''}${hasAttachments ? '<p>每枚狗牌提供四張透明 PNG：正面底板、完整背面、獨立狗狗頭像及正反面並排圖。</p>' : ''}${addressLabel ? shippingLabelPrintTip : ''}<h3>NFC 寵物檔案</h3><ul>${profiles}</ul><p><a href="${escape(review.href)}">在商家後台查看狗牌正反面和檔案</a></p><p>${preview ? '測試訂單已進入預覽生產隊列。' : '訂單已進入生產隊列。'}</p>`
   };
 }
 
@@ -219,16 +220,28 @@ const printFilesPerTag = 4;
 // Leave room for MIME headers and line wrapping when sending through Gmail.
 const printMailBudget = 23000000;
 
-function nextPrintBatch(attachments, firstAttachment, reservedBytes) {
+function selectPrintAttachments(attachments, firstAttachment, reservedBytes) {
   let lastAttachment = firstAttachment;
   let length = reservedBytes;
   for (; lastAttachment < attachments.length; lastAttachment += printFilesPerTag) {
     const tag = attachments.slice(lastAttachment, lastAttachment + printFilesPerTag);
     const size = tag.reduce((sum, file) => sum + file.content.length, 0);
-    if (lastAttachment > firstAttachment && length + size > printMailBudget) break;
+    if (length + size > printMailBudget) break;
     length += size;
   }
-  return attachments.slice(firstAttachment, lastAttachment);
+  return lastAttachment;
+}
+
+function printDownloadLinks(id, origin, attachments, first) {
+  if (first >= attachments.length) return '';
+  const links = attachments.slice(first).map((file, offset) => {
+    const position = first + offset;
+    const url = new URL('/api/order-email', origin);
+    url.search = new URLSearchParams({merchantPreview: '1', image: id,
+      tag: String(Math.floor(position / printFilesPerTag) + 1), side: printFiles[position % printFilesPerTag]});
+    return `<li><a href="${escape(url.href)}">${escape(file.filename)}</a></li>`;
+  }).join('');
+  return '<p>此訂單的部分製作圖片可在登入商家後下載原尺寸 PNG。</p><ul>' + links + '</ul>';
 }
 
 async function notifyReviewedOrder(sql, id, saved, origin, attachments, env = process.env, deliver = sendGmail) {
@@ -257,35 +270,31 @@ async function notifyReviewedOrder(sql, id, saved, origin, attachments, env = pr
       (notification_message->>'sent_attachment_count')::integer as sent_attachment_count`;
   if (!claim) return 'sending';
 
-  let sent = claim.sent_attachment_count || 0;
-  while (sent < attachments.length) {
-    const label = sent === 0 ? addressLabel : null;
-    const files = nextPrintBatch(attachments, sent, label?.content.length || 0);
-    const next = sent + files.length;
-    const part = sent || next < attachments.length
-      ? ' ｜ 第 ' + (sent / printFilesPerTag + 1) + '–' + (next / printFilesPerTag) + ' 枚' : '';
-    let delivered = false;
-    try {
-      delivered = (await deliver({...message, subject: message.subject + part,
-        html: message.html + (label ? shippingLabelPrintTip : ''),
-        attachments: label ? [...files, label] : files},
-      'tsun-merchant-' + id + (sent ? '-' + sent : ''))).sent;
-    } catch (error) {
-      console.error('[Merchant order] SMTP delivery failed', /^[a-z0-9_]{1,40}$/i.test(error?.code || '') ? error.code : 'unknown');
-    }
-    if (delivered) sent = next;
-    const status = !delivered ? 'pending' : sent === attachments.length ? 'sent' : 'sending';
-    const [recorded] = await sql`update public.tsun_merchant_orders
-      set notification_status = ${status},
-          notification_message = jsonb_set(notification_message, '{sent_attachment_count}', to_jsonb(${sent}::integer)),
-          notification_lease_until = case when ${status} = 'sending' then notification_lease_until end
-      where merchant_order_id = ${id} and notification_status = 'sending'
-        and notification_lease_until = ${claim.lease}::timestamptz
-      returning merchant_order_id`;
-    if (!recorded) return 'sending';
-    if (status !== 'sending') return status;
+  const sent = claim.sent_attachment_count || 0;
+  if (sent >= attachments.length) return 'sent';
+  const label = sent === 0 ? addressLabel : null;
+  const last = selectPrintAttachments(attachments, sent, label?.content.length || 0);
+  const files = attachments.slice(sent, last);
+  const downloads = printDownloadLinks(id, origin, attachments, last);
+  let delivered = false;
+  try {
+    delivered = (await deliver({...message,
+      html: message.html + (label ? shippingLabelPrintTip : '') + downloads,
+      attachments: label ? [...files, label] : files},
+    'tsun-merchant-' + id + (sent ? '-' + sent : ''))).sent;
+  } catch (error) {
+    console.error('[Merchant order] SMTP delivery failed', /^[a-z0-9_]{1,40}$/i.test(error?.code || '') ? error.code : 'unknown');
   }
-  return 'sent';
+  const status = delivered ? 'sent' : 'pending';
+  const count = delivered ? last : sent;
+  const [recorded] = await sql`update public.tsun_merchant_orders
+    set notification_status = ${status},
+        notification_message = jsonb_set(notification_message, '{sent_attachment_count}', to_jsonb(${count}::integer)),
+        notification_lease_until = null
+    where merchant_order_id = ${id} and notification_status = 'sending'
+      and notification_lease_until = ${claim.lease}::timestamptz
+    returning merchant_order_id`;
+  return recorded ? status : 'sending';
 }
 
 async function createOrder(sql, input, origin, deferNotice, preview) {
@@ -320,7 +329,7 @@ async function finishReview(sql, id, origin, preview) {
     from unnest(${saved.profile_slugs}::text[]) with ordinality as slugs(slug, tag_number)
     cross join lateral (select public.get_pet_profile(slug) as profile offset 0) as pet
     order by tag_number`;
-  saved.delivery = merchantDeliveryDetails(saved.order_details, profiles);
+  saved.delivery = await completeHongKongAddress(merchantDeliveryDetails(saved.order_details, profiles));
   return receipt(saved, origin, await notifyReviewedOrder(sql, id, saved, origin, attachments), preview);
 }
 
@@ -353,6 +362,9 @@ function makeHandler({getConfig = configuration, getDb = postgres} = {}) {
             const image = await loadImage(sql, req.query.image, req.query.tag, req.query.side);
             res.setHeader('Content-Type', 'image/png');
             res.setHeader('X-Content-Type-Options', 'nosniff');
+            if (printFiles.includes(req.query.side)) {
+              res.setHeader('Content-Disposition', `attachment; filename="8TSUN8-${req.query.tag}-${req.query.side}.png"`);
+            }
             return res.status(200).send(image);
           }
           if (req.query.review) {
