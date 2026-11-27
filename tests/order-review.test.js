@@ -116,9 +116,10 @@ test('merchant print layers are saved together and all three are required before
   await assert.rejects(loadMerchantPrintFiles(sql, id, [{petName:'LOKI'}]), {code:'print_images_incomplete'});
 });
 
-test('merchant test mode captures by default and delivery sends one merchant-only email with both links', async () => {
+test('merchant notification includes four images, the NFC link and a PDF of the private delivery address', async () => {
   const row = {notification_status: 'pending', profile_slugs: ['ABCDEF012345'],
-    order_details: {items: [{petName: 'Lucky', ownerName: 'ANN', baseVariant: 'green3'}], customerEmail: 'customer@example.test'}};
+    order_details: {items: [{petName: 'Lucky', ownerName: 'ANN', baseVariant: 'green3'}], customerEmail: 'customer@example.test',
+      shipName: '陳小明', shipAddress: '香港九龍\n示範街18號示範大廈4樓12室'}};
   let sent = 0;
   const attachments = ['front', 'back', 'dog', 'combined'].map(side => ({
     filename: side + '.png', content: png.split(',')[1], content_type: 'image/png'
@@ -127,7 +128,9 @@ test('merchant test mode captures by default and delivery sends one merchant-onl
     const query = strings.join('');
     if (query.includes("notification_status = 'captured'")) {
       row.notification_status = 'captured';
-      assert.equal(JSON.parse(values[0]).attachments.length, 4);
+      const captured = JSON.parse(values[0]);
+      assert.equal(captured.attachments.length, 5);
+      assert.equal(captured.attachments.at(-1).content_type, 'application/pdf');
     } else if (query.includes("now() + interval")) {
       if (row.notification_status === 'sent') return [];
       row.notification_status = 'sending';
@@ -141,7 +144,14 @@ test('merchant test mode captures by default and delivery sends one merchant-onl
   const delivery = async message => {
     sent += 1;
     assert.deepEqual(message.to, [sent < 3 ? 'merchant@example.test' : 'tsunlab888@gmail.com']);
-    assert.deepEqual(message.attachments, attachments);
+    assert.deepEqual(message.attachments.slice(0, 4), attachments);
+    assert.equal(message.attachments.length, 5);
+    const label = message.attachments.at(-1);
+    assert.equal(label.content_type, 'application/pdf');
+    const pdf = Buffer.from(label.content, 'base64');
+    assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
+    assert.match(pdf.toString('latin1'), /MediaBox \[0 0 841\.89 595\.28\]/);
+    assert.match(message.html, /100% 實際大小/);
     assert.match(message.html, /(?:merchant-profile\?p=ABCDEF012345|p\/lucky-ann-ABCDEF012345)/);
     assert.match(message.html, /merchant\/orders\?order=TEST-M-/);
     return {sent: sent > 1};
@@ -173,12 +183,13 @@ test('the combined PNG matches side scale and preserves a transparent gap', () =
   assert.deepEqual(pixel(0, 0), [0, 0, 0, 0]);
 });
 
-test('large merchant mail batches keep four files per tag and retry only unsent tags', async () => {
+test('large merchant emails include the address label once and retry only unsent tag images', async () => {
   const bigContent = 'A'.repeat(3000000);
   const names = Array.from({length: 8}, (_, i) => 'tag-file-' + i + '.png');
   const attachments = names.map(filename => ({filename, content: bigContent, content_type: 'image/png'}));
   const row = {notification_status: 'pending', profile_slugs: ['ABCDEF012345','ABCDEF012346'],
-    order_details: {items: [{petName:'One', baseVariant:'green2'}, {petName:'Two', baseVariant:'green2'}]}};
+    order_details: {items: [{petName:'One', baseVariant:'green2'}, {petName:'Two', baseVariant:'green2'}],
+      shipName: 'Alex Chan', shipAddress: 'Flat 12, 4/F, 18 Example Road, Kowloon, Hong Kong'}};
   const attempts = [];
   let sentCount = 0;
   const sql = async (strings, ...values) => {
@@ -199,7 +210,7 @@ test('large merchant mail batches keep four files per tag and retry only unsent 
   assert.equal(sentCount, 4);
   assert.equal(await notifyReviewedOrder(sql, id, row, origin, attachments, env, deliver), 'sent');
   assert.equal(sentCount, 8);
-  assert.deepEqual(attempts.map(item => item.names), [names.slice(0, 4),names.slice(4),names.slice(4)]);
+  assert.deepEqual(attempts.map(item => item.names), [[...names.slice(0, 4), '8TSUN8-收件地址.pdf'], names.slice(4), names.slice(4)]);
   assert.equal(attempts[1].messageId, attempts[2].messageId);
 });
 
