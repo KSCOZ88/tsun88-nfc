@@ -220,7 +220,7 @@ test('oversized merchant orders send one mail with the PDF, complete tag images 
   const files = [...names.slice(0, 4), '8TSUN8-收件地址.pdf'];
   assert.deepEqual(attempts.map(item => item.names), [files, files]);
   assert.equal(attempts[0].messageId, attempts[1].messageId);
-  assert.match(attempts[1].html, /tag=2&amp;side=print_combined/);
+  assert.match(attempts[1].html, /merchant\/orders\?order=[^"#]+#merchant-print-files/);
 });
 
 test('order listing, sales analytics, detail and images require a merchant session before accessing SQL', async () => {
@@ -228,7 +228,9 @@ test('order listing, sales analytics, detail and images require a merchant sessi
   let opened = 0;
   const handler = makeHandler({getConfig: () => config, getDb: () => {
     opened++;
-    return async () => [{image_png: Buffer.from('test')}];
+    return async strings => strings.join('').includes("side in ('print_front', 'print_back')")
+      ? ['print_front', 'print_back'].map(side => ({side, image_png: Buffer.from(png.split(',')[1], 'base64')}))
+      : [{image_png: Buffer.from('test')}];
   }});
   const respond = async (query, cookie) => {
     const result = {headers: {}};
@@ -240,7 +242,8 @@ test('order listing, sales analytics, detail and images require a merchant sessi
     });
     return result;
   };
-  for (const query of [{reviews: '1'}, {sales: '1'}, {review: id}, {image: id, tag: '1', side: 'front'}]) {
+  const download = {image: id, tag: '1', side: 'print_combined'};
+  for (const query of [{reviews: '1'}, {sales: '1'}, {review: id}, {image: id, tag: '1', side: 'front'}, download]) {
     assert.deepEqual((await respond(query)).body, {error: 'sign_in_required'});
   }
   assert.equal(opened, 0);
@@ -248,6 +251,10 @@ test('order listing, sales analytics, detail and images require a merchant sessi
   assert.equal(image.status, 200);
   assert.equal(image.headers['Content-Type'], 'image/png');
   assert.equal(image.headers['Cache-Control'], 'private, no-store');
+  const file = await respond(download, signIn(config.key, config));
+  assert.equal(file.status, 200);
+  assert.equal(file.headers['Content-Disposition'], 'attachment; filename="8TSUN8-1-print_combined.png"');
+  assert.ok(PNG.sync.read(file.body).width > 3);
 });
 
 test('the enabled production merchant route uses its own role and generates live IDs', () => {
@@ -366,6 +373,6 @@ test('fuzzy, conflicting or unavailable address results keep the original addres
       return {ok: true, json: async () => ({SuggestedAddress: result})};
     });
     assert.equal(unchanged.shipAddress, order.shipAddress);
-    assert.match(unchanged.shippingAddressNote, /待核對/);
+    assert.equal(unchanged.shippingDistrictUnverified, true);
   }
 });

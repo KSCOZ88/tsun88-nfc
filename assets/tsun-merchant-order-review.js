@@ -364,7 +364,31 @@
       });
       tags.append(button);
     }
+    const print = element('section');
+    print.id = 'merchant-print-files';
+    print.append(element('h2', local('下載原尺寸透明 PNG', 'Download original transparent PNGs')));
+    const printList = element('ul');
+    const printLabels = [
+      ['print_front', local('正面底板', 'Front plate')], ['print_back', local('完整背面', 'Full back')],
+      ['print_dog', local('狗狗頭像', 'Dog portrait')], ['print_combined', local('正反面並排', 'Front and back')]
+    ];
+    if (order.provider === 'merchant') {
+      for (const [index, tag] of order.items.entries()) {
+        const number = index + 1;
+        const ready = printLabels.slice(0, 3).every(([side]) => haveImages.has(number + ':' + side));
+        if (!ready) continue;
+        const item = element('li');
+        item.append(element('strong', tag.petName || local('狗牌 ' + number, 'Tag ' + number)));
+        for (const [side, label] of printLabels) {
+          const url = endpoint + '&image=' + encodeURIComponent(order.id) + '&tag=' + number + '&side=' + side;
+          item.append(' · ', link(url, label));
+        }
+        printList.append(item);
+      }
+    }
+    print.append(printList);
     const blocks = [info, reference, profiles, tags];
+    if (printList.childElementCount) blocks.push(print);
     if (order.provider === 'merchant' && ['pending', 'sending'].includes(order.notification_status)
         && order.items.length && filesReady) {
       const retry = element('button', local('重試商家郵件', 'Retry merchant email'));
@@ -386,6 +410,9 @@
       blocks.push(retry);
     }
     content.replaceChildren(...blocks);
+    if (location.hash === '#merchant-print-files' && printList.childElementCount) {
+      print.scrollIntoView();
+    }
   }
 
   async function load() {

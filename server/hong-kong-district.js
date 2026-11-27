@@ -19,7 +19,6 @@ const englishStreet = /\b(\d+[a-z]?(?:[-–]\d+[a-z]?)?)\s+([a-z][a-z0-9 .’'\-
 const chineseStreet = /([\p{Script=Han}]{1,45}?(?:大道[東南西北中东]?|[道街路][東南西北中东]?|巷|徑|径|里|圍|围))\s*(\d+[a-z]?(?:[-–]\d+[a-z]?)?)\s*[號号]/iu;
 const buildingName = /^(?:[\p{L}\p{N}][\p{L}\p{N}'’ .&-]{1,75}\s+(?:building|centre|center|tower|house|court|mansion|arcade|plaza|estate|garden|gardens|residences|offices)|[\p{Script=Han}]{2,35}(?:大廈|大厦|中心|廣場|广场|商場|商场|花園|花园|屋苑|屋邨|山莊|山庄))$/iu;
 const foreignAddress = /\b(?:united kingdom|england|scotland|wales|northern ireland|united states|usa|australia|canada|singapore|shenzhen|guangzhou|macau|macao)\b|深圳|廣州|广州|澳門|澳门/iu;
-const confirmDistrict = '<p><strong>香港區名待核對。</strong> 地址標籤使用原填資料。</p>';
 
 function key(value) {
   return String(value || '').normalize('NFKC').toLowerCase().replace(/[’']/g, '')
@@ -62,7 +61,11 @@ function matchPremises(premises, input) {
   const address = input.chinese ? zh : en;
   const street = input.chinese ? address?.ChiStreet : address?.EngStreet;
   if (!street?.StreetName || !numberMatches(input.number, street.BuildingNoFrom, street.BuildingNoTo)) return false;
-  if (!input.chinese) return streetKey(street.StreetName) === streetKey(input.street);
+  if (!input.chinese) {
+    const given = streetKey(input.street);
+    const official = streetKey(street.StreetName);
+    return given === official || given === official + ' ' + key(street.LocationName);
+  }
 
   // Chinese addresses commonly concatenate the region, district, and street.
   const prefixes = ['', key(address.Region), key(street.LocationName), key(address.ChiDistrict?.DcDistrict)];
@@ -78,7 +81,7 @@ async function completeHongKongAddress(order, request = globalThis.fetch) {
   if (englishDistrict.test(normalized) || chineseDistrict.test(normalized) || foreignAddress.test(normalized)) return order;
 
   const input = candidate(normalized);
-  const needsReview = {...order, shippingAddressNote: confirmDistrict};
+  const needsReview = {...order, shippingDistrictUnverified: true};
   if (!input) return needsReview;
   try {
     const url = new URL('https://www.als.gov.hk/lookup');

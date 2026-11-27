@@ -193,7 +193,7 @@ function buildMerchantMessage(id, order, links, origin, preview = true, hasAttac
   return {
     to: [GMAIL_ADDRESS],
     subject: (preview ? '[測試] ' : '') + '8TSUN8 商家免付款訂單 | ' + id,
-    html: `<h2>商家免付款訂單</h2><p>訂單編號 ${escape(id)}<br>狗牌 ${links.length} 件<br>客戶電郵 ${escape(order.customerEmail)}</p><p>${address.replaceAll('\n', '<br>')}</p>${order.shippingAddressNote || ''}${hasAttachments ? '<p>每枚狗牌提供四張透明 PNG：正面底板、完整背面、獨立狗狗頭像及正反面並排圖。</p>' : ''}${addressLabel ? shippingLabelPrintTip : ''}<h3>NFC 寵物檔案</h3><ul>${profiles}</ul><p><a href="${escape(review.href)}">在商家後台查看狗牌正反面和檔案</a></p><p>${preview ? '測試訂單已進入預覽生產隊列。' : '訂單已進入生產隊列。'}</p>`
+    html: `<h2>商家免付款訂單</h2><p>訂單編號 ${escape(id)}<br>狗牌 ${links.length} 件<br>客戶電郵 ${escape(order.customerEmail)}</p><p>${address.replaceAll('\n', '<br>')}</p>${order.shippingDistrictUnverified ? '<p><strong>香港區名待核對。</strong> 地址標籤使用原填資料。</p>' : ''}${hasAttachments ? '<p>每枚狗牌提供四張透明 PNG：正面底板、完整背面、獨立狗狗頭像及正反面並排圖。</p>' : ''}${addressLabel ? shippingLabelPrintTip : ''}<h3>NFC 寵物檔案</h3><ul>${profiles}</ul><p><a href="${escape(review.href)}">在商家後台查看狗牌正反面和檔案</a></p><p>${preview ? '測試訂單已進入預覽生產隊列。' : '訂單已進入生產隊列。'}</p>`
   };
 }
 
@@ -232,16 +232,12 @@ function selectPrintAttachments(attachments, firstAttachment, reservedBytes) {
   return lastAttachment;
 }
 
-function printDownloadLinks(id, origin, attachments, first) {
-  if (first >= attachments.length) return '';
-  const links = attachments.slice(first).map((file, offset) => {
-    const position = first + offset;
-    const url = new URL('/api/order-email', origin);
-    url.search = new URLSearchParams({merchantPreview: '1', image: id,
-      tag: String(Math.floor(position / printFilesPerTag) + 1), side: printFiles[position % printFilesPerTag]});
-    return `<li><a href="${escape(url.href)}">${escape(file.filename)}</a></li>`;
-  }).join('');
-  return '<p>此訂單的部分製作圖片可在登入商家後下載原尺寸 PNG。</p><ul>' + links + '</ul>';
+function printDownloadNotice(id, origin) {
+  const url = new URL('/merchant/orders', origin);
+  url.searchParams.set('order', id);
+  url.hash = 'merchant-print-files';
+  return '<p>此訂單的部分製作圖片可在商家後台下載。' +
+    `<a href="${escape(url.href)}">登入後下載原尺寸 PNG</a></p>`;
 }
 
 async function notifyReviewedOrder(sql, id, saved, origin, attachments, env = process.env, deliver = sendGmail) {
@@ -275,7 +271,7 @@ async function notifyReviewedOrder(sql, id, saved, origin, attachments, env = pr
   const label = sent === 0 ? addressLabel : null;
   const last = selectPrintAttachments(attachments, sent, label?.content.length || 0);
   const files = attachments.slice(sent, last);
-  const downloads = printDownloadLinks(id, origin, attachments, last);
+  const downloads = last < attachments.length ? printDownloadNotice(id, origin) : '';
   let delivered = false;
   try {
     delivered = (await deliver({...message,
