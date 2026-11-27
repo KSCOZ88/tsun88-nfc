@@ -306,6 +306,7 @@ html[data-merchant-preview="locked"] body > :not(#merchantLogin):not(script):not
 
 .merchant-sales-filters label {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: .35rem;
   min-width: 10rem;
   flex: 1 1 10rem;
@@ -320,6 +321,11 @@ html[data-merchant-preview="locked"] body > :not(#merchantLogin):not(script):not
   background: white;
   color: inherit;
   font: inherit;
+}
+
+.merchant-sales-filters select {
+  width: 100%;
+  min-width: 0;
 }
 
 .merchant-sales-filters button {
