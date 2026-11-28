@@ -16,7 +16,7 @@ const order = {
   items: [{
     baseVariant: 'green1', faceKey: 'corgi', decorItems: {front: [], back: []},
     profile: {pet_name: 'Preview pet', breed: 'Corgi', owner_phone: '+85221234567',
-      backup_owner_name: 'Test contact', backup_phone: '+85221234568', diet: 'No chocolate', profile_language: 'en'}
+      diet: 'No chocolate', profile_language: 'en'}
   }]
 };
 
@@ -71,6 +71,8 @@ test('validated orders only capture one merchant notification and replay the sam
       const [savedId, hash, details, profiles] = values;
       assert.equal(savedId, id);
       assert.equal(JSON.parse(profiles)[0].diet, 'No chocolate');
+      assert.equal(JSON.parse(profiles)[0].backup_owner_name, '');
+      assert.equal(JSON.parse(profiles)[0].backup_phone, '');
       assert.equal(JSON.parse(profiles)[0].profile_language, JSON.parse(details).language);
       assert.equal(JSON.parse(profiles)[0].base_variant, 'green1');
       if (saved && saved.request_hash !== hash) throw Object.assign(new Error('Changed'), {code: '23505'});

@@ -91,7 +91,7 @@ const profileFields = {
   owner_name: 80, owner_phone: 40, backup_owner_name: 80, backup_phone: 40, location: 200,
   owner_message: 1000, diet: 500, personality: 500, clinic: 150, clinic_phone: 40, photo_data: 1200000
 };
-const profileRequired = new Set(['pet_name', 'breed', 'owner_phone', 'backup_owner_name', 'backup_phone']);
+const profileRequired = new Set(['pet_name', 'breed', 'owner_phone']);
 const designFields = ['contactFont', 'baseVariant', 'baseLabel', 'faceKey', 'selectedBreedKey', 'selectedBreedColor'];
 
 function validateSubmission(input, preview = true) {
