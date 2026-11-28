@@ -247,18 +247,34 @@ html[data-merchant-preview="locked"] body > :not(#merchantLogin):not(script):not
   border-bottom: 1px solid #dce8eb;
 }
 
-#merchantOrderReview section {
+#merchantOrderReview > div > section {
   margin: 1.25rem 0 2rem;
+}
+
+.merchant-order-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0 2rem;
+}
+
+.merchant-order-overview section,
+.merchant-order-operations {
+  background: white;
+  border: 1px solid #dce8eb;
+  border-radius: .75rem;
+  padding: 1rem;
+}
+
+.merchant-order-overview h2,
+.merchant-order-operations h2 {
+  font-size: 1.125rem;
+  margin: 0 0 .75rem;
 }
 
 .merchant-order-details dl {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
-  gap: 1rem;
-  padding: 1rem;
-  border: 1px solid #dce8eb;
-  border-radius: .75rem;
-  background: white;
+  gap: .75rem;
 }
 
 .merchant-order-details dt {
@@ -295,10 +311,36 @@ html[data-merchant-preview="locked"] body > :not(#merchantLogin):not(script):not
 }
 
 .merchant-production-downloads {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: .5rem 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  gap: .75rem;
+}
+
+.merchant-production-downloads button {
+  justify-self: start;
+}
+
+.merchant-production-downloads figure {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid #dce8eb;
+  border-radius: .5rem;
+}
+
+.merchant-production-downloads img {
+  display: block;
+  width: 100%;
+  height: 9rem;
+  object-fit: contain;
+  padding: .5rem;
+  background: conic-gradient(#fff 25%, #e9f0f2 0 50%, #fff 0 75%, #e9f0f2 0) 0 0 / 1rem 1rem;
+}
+
+.merchant-production-downloads figcaption {
+  display: grid;
+  gap: .25rem;
+  padding: .65rem;
 }
 
 .merchant-production-list summary {

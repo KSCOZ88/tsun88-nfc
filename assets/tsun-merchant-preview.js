@@ -366,7 +366,7 @@
     if (!shippingData) return;
     submitButton.disabled = true;
     status.textContent = previewMode ? local('正在保存測試訂單…', 'Saving test order…') : local('正在保存訂單…', 'Saving order…');
-    let submitting = false;
+    let stage = 'render';
     try {
       const language = window.TsunI18n?.locale === 'zh-Hant' ? 'zh-Hant' : 'en';
       const order = {
@@ -390,10 +390,11 @@
       // Build the pictures first so a renderer failure never creates a partial order.
       const uploads = await prepareReviewUploads(reviewOrder);
       lastPayload = payload;
-      submitting = true;
+      stage = 'save';
       await request({action: 'submit', review: true, order: {...order, id: submissionId}});
-      submitting = false;
+      stage = 'upload';
       await uploadReviewImages(uploads);
+      stage = 'finish';
       const saved = await request({action: 'finish-review', orderId: submissionId});
       receipt = saved;
       byId('merchantSavedReference').textContent = saved.id;
@@ -419,7 +420,7 @@
       if (!lastPayload) submissionId = undefined;
       if (error.status === 401) lock();
       if (error.status === 422 || error.status === 413) {
-        if (submitting) {
+        if (stage === 'save') {
           lastPayload = undefined;
           submissionId = undefined;
         }
@@ -433,6 +434,12 @@
         } else {
           status.textContent = local('請檢查配送資料及寵物檔案的必填欄位。', 'Check the required delivery and pet profile fields.');
         }
+      } else if (stage === 'finish') {
+        status.textContent = local('訂單和圖片已保存，最後處理未完成。請再按提交以繼續處理同一筆訂單。', 'The order and images are saved. Submit again to finish the same order.');
+      } else if (stage === 'upload') {
+        status.textContent = local('訂單已保存，圖片未全部上傳。請再按提交以上傳剩餘圖片。', 'The order is saved. Submit again to finish uploading the images.');
+      } else if (stage === 'render') {
+        status.textContent = local('未能生成製作圖片，訂單尚未提交。請重試。', 'The print images could not be generated. Try submitting again.');
       } else {
         status.textContent = local('提交暫時失敗。請保留資料並重試。', 'Submission temporarily failed. Keep your details and retry.');
       }

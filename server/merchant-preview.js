@@ -371,7 +371,7 @@ function makeHandler({getConfig = configuration, getDb = postgres} = {}) {
               : await loadImage(sql,id,tag,side);
             res.setHeader('Content-Type', 'image/png');
             res.setHeader('X-Content-Type-Options', 'nosniff');
-            if (printing) {
+            if (printing && req.query.printPreview !== '1') {
               res.setHeader('Content-Disposition', `attachment; filename="8TSUN8-${id}-${tag}-${side}.png"`);
             }
             return res.status(200).send(image);
@@ -397,7 +397,9 @@ function makeHandler({getConfig = configuration, getDb = postgres} = {}) {
             let production = {};
             if (merchant) production.delivery = deliveryFields(await merchantOrderDelivery(sql,merchant));
             else if (!preview) {
-              try {production = await paidAssets.loadPaidProduction(review.provider,review.id);}
+              try {
+                production = await paidAssets.loadPaidProduction(review.provider,review.id,{includeDesigns:true});
+              }
               catch(error) {
                 console.warn('[Merchant order] production data unavailable',{code: /^[a-z0-9_]{1,48}$/i.test(error?.code || '') ? error.code : 'unknown'});
                 production = {productionUnavailable:true};

@@ -117,7 +117,7 @@ async function shippingLabelAttachment(order, {threeAcross = false} = {}) {
   const locality = hongKongAddressParts(address);
   const lines = [name, ...addressLines(address)].map(line => line.replace(/\s+/g, ' '));
   // Checkout and sign-in share this module. Load the renderer and its assets only for PDFs.
-  const PDFDocument = require('pdfkit');
+  const {default: PDFDocument} = await import('pdfkit');
   background ??= readFileSync(join(process.cwd(), 'server/print-assets/address-vintage.jpg'));
   script ??= readFileSync(join(process.cwd(), 'node_modules/@fontsource/pinyon-script/files/pinyon-script-latin-400-normal.woff'));
   const doc = new PDFDocument({

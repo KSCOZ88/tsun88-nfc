@@ -10,6 +10,8 @@ const paymentSources={
   paypal:{table:'tsun_paypal_orders',status:'payment_status'}
 };
 const layerIndex={print_front:0,print_dog:1,print_back:2};
+const designFields=['petName','ownerName','ownerPhone','ownerCountry','ownerPhoneInput','contactFont',
+  'baseVariant','faceKey','selectedBreedKey','selectedBreedColor','decorItems'];
 const fail=(code,status=422)=>Object.assign(new Error(code),{status,code});
 let schema;
 async function assetsDb(){
@@ -65,7 +67,7 @@ async function assetRow(provider,id,first=null,second=null){
   return row;
 }
 
-async function loadPaidProduction(provider,id){
+async function loadPaidProduction(provider,id,{includeDesigns=false}={}){
   const assets=await assetRow(provider,id);
   if(assets?.details){
     return {delivery:deliveryFields(assets.details),quantity:assets.details.items?.length,
@@ -73,9 +75,15 @@ async function loadPaidProduction(provider,id){
   }
   const {table,status}=paymentSources[provider];
   const [paid]=await db().query(
-    `SELECT email, jsonb_array_length(order_snapshot->'items') AS quantity
-     FROM ${table} WHERE merchant_order_id=$1 AND ${status}='paid'`,[id]);
-  return {delivery:{customerEmail:paid?.email},quantity:paid?.quantity,printCount:0};
+    `SELECT email, jsonb_array_length(order_snapshot->'items') AS quantity,
+       CASE WHEN $2::boolean THEN order_snapshot->'items' END AS designs
+     FROM ${table} WHERE merchant_order_id=$1 AND ${status}='paid'`,[id,includeDesigns]);
+  const designs=Array.isArray(paid?.designs)?paid.designs.map(item=>{
+    if(!item?.petName||!item.baseVariant||!item.faceKey||!item.ownerPhone||
+       !Array.isArray(item.decorItems?.front)||!Array.isArray(item.decorItems?.back))return null;
+    return Object.fromEntries(designFields.filter(key=>Object.hasOwn(item,key)).map(key=>[key,item[key]]));
+  }):[];
+  return {delivery:{customerEmail:paid?.email},quantity:paid?.quantity,printCount:0,designs};
 }
 
 async function loadPaidProductionImage(provider,id,tag,side){

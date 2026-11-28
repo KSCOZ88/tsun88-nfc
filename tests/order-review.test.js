@@ -412,7 +412,7 @@ test('Hong Kong labels separate the district and country for manual and automati
 
 test('sign-in works without PDF assets and labels only use their embedded fonts', () => {
   const {execFileSync} = require('node:child_process');
-  execFileSync(process.execPath, ['-e', `
+  execFileSync(process.execPath, ['--no-require-module', '-e', `
     const assert = require('node:assert/strict');
     const Module = require('node:module');
     const originalLoad = Module._load;
@@ -477,6 +477,10 @@ test('sign-in works without PDF assets and labels only use their embedded fonts'
       }, {threeAcross: true});
       assert.equal(label.content_type, 'application/pdf');
       assert.equal(Buffer.from(label.content, 'base64').subarray(0, 5).toString(), '%PDF-');
+      const mainland = await shippingLabelAttachment({
+        shipName: '測試收件人', shipAddress: '深圳市南山區示範路8號12室'
+      }, {threeAcross: true});
+      assert.equal(Buffer.from(mainland.content, 'base64').subarray(0, 5).toString(), '%PDF-');
     }
     check().catch(error => { console.error(error); process.exitCode = 1; });
   `], {cwd: require('node:path').join(__dirname, '..'), stdio: 'pipe'});

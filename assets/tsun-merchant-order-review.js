@@ -140,8 +140,8 @@
     }};
   }
 
-  async function exportOriginalTag(order, tagNumber) {
-    const files = await prepareProductionFiles({id:order.id,items:[order.items[tagNumber-1]]});
+  async function exportOriginalTag(id, design) {
+    const files = await prepareProductionFiles({id,items:[design]});
     const front = files.tag01_front.blob;
     const back = files.tag01_back.blob;
     const portrait = files.tag01_dog.blob;
@@ -161,6 +161,21 @@
         return {print_front:front,print_back:back,print_dog:portrait,print_combined:combined};
       } finally { backImage.close(); }
     } finally { frontImage.close(); }
+  }
+
+  function productionFile(label, previewUrl, downloadUrl, filename) {
+    const card = element('figure');
+    const image = element('img');
+    image.alt = label;
+    image.loading = 'lazy';
+    image.src = previewUrl;
+    const caption = element('figcaption');
+    const download = link(downloadUrl,local('下載 PNG','Download PNG'));
+    download.setAttribute('aria-label',local('下載 ', 'Download ') + label);
+    if (filename) download.download = filename;
+    caption.append(element('strong',label),download);
+    card.append(image,caption);
+    return card;
   }
 
   function providerName(provider) {
@@ -378,24 +393,35 @@
     const delivery = order.delivery || {};
     const details = element('section');
     details.className = 'merchant-order-details';
-    details.append(element('h2', local('訂單及配送資料', 'Order and delivery details')));
+    details.append(element('h2', local('訂單資料', 'Order details')));
     const fields = element('dl');
+    const deliverySection = element('section');
+    deliverySection.className = 'merchant-order-details';
+    deliverySection.append(element('h2',local('配送資料','Delivery')));
+    const deliveryFields = element('dl');
     for (const [label,value] of [
       [local('訂單編號', 'Order number'), order.id],
       [local('狗牌數量', 'Number of tags'), order.quantity || order.items.length || null],
-      [local('客戶電郵', 'Customer email'), delivery.customerEmail],
+      [local('客戶電郵', 'Customer email'), delivery.customerEmail]
+    ]) {
+      const field = element('div');
+      field.append(element('dt',label),element('dd',value ? String(value) : '—'));
+      fields.append(field);
+    }
+    for (const [label,value] of [
       [local('收件人', 'Recipient'), delivery.shipName],
       [local('配送電話', 'Delivery phone'), delivery.shipPhone],
       [local('配送地址', 'Delivery address'), delivery.shipAddress]
     ]) {
       const field = element('div');
       field.append(element('dt',label),element('dd',value ? String(value) : '—'));
-      fields.append(field);
+      deliveryFields.append(field);
     }
     details.append(fields);
+    deliverySection.append(deliveryFields);
     const actions = element('div');
     actions.className = 'merchant-order-actions';
-    const orderLink = link(orderUrl(order.id), local('商家後台訂單連結', 'Merchant dashboard order link'));
+    const orderLink = new URL(orderUrl(order.id),location.origin);
     const copyLink = element('button', local('複製訂單連結', 'Copy order link'));
     copyLink.type = 'button';
     copyLink.className = 'secondary';
@@ -407,11 +433,12 @@
         report('暫時未能複製。可在訂單連結上使用瀏覽器的複製功能。', 'Unable to copy. Use the browser’s copy-link action on the order link.');
       }
     });
-    actions.append(orderLink,copyLink,link('#merchant-print-files',
-      local('下載透明製作圖', 'Download transparent production PNGs')));
+    actions.append(copyLink);
     if (delivery.shipName && delivery.shipAddress) {
-      actions.append(link(endpoint + '&addressPdf=' + encodeURIComponent(order.id),
+      deliverySection.append(link(endpoint + '&addressPdf=' + encodeURIComponent(order.id),
         local('下載 A4 三聯地址 PDF', 'Download A4 address PDF (3 copies)')));
+    } else {
+      deliverySection.append(element('p',local('尚未保存完整配送資料。','Complete delivery details are unavailable.')));
     }
     details.append(actions);
     const profiles = element('section');
@@ -423,6 +450,9 @@
       links.append(item);
     }
     profiles.append(order.profiles.length ? links : element('p', local('此訂單尚未有檔案。', 'No saved profile for this order.')));
+    const overview = element('div');
+    overview.className = 'merchant-order-overview';
+    overview.append(details,deliverySection,profiles);
 
     const tags = element('section');
     tags.append(element('h2', local('狗牌正反面', 'Tag front and back')));
@@ -490,7 +520,8 @@
       const ready = merchant
         ? printLabels.slice(0, 3).every(([side]) => haveImages.has(number + ':' + side))
         : number <= order.printCount;
-      const canExportOriginal = merchant && tag.baseVariant && tag.faceKey;
+      const design = merchant ? tag : order.designs?.[index];
+      const canExportOriginal = Boolean(design?.baseVariant && design?.faceKey);
       if (!ready && !canExportOriginal) continue;
       const item = element('li');
       const downloads = element('div');
@@ -507,14 +538,12 @@
           original.disabled = true;
           original.textContent = local('正在生成原尺寸圖片…','Preparing original-size images…');
           try {
-            const files = await exportOriginalTag(order,number);
+            const files = await exportOriginalTag(order.id,design);
             if (!item.isConnected) return;
             for (const [side,filename,label] of printLabels) {
               const url = URL.createObjectURL(files[side]);
               printUrls.add(url);
-              const file = link(url,label);
-              file.download = `8TSUN8-${order.id}-${number}-${filename}.png`;
-              downloads.append(file);
+              downloads.append(productionFile(label,url,url,`8TSUN8-${order.id}-${number}-${filename}.png`));
             }
             original.remove();
           } catch {
@@ -532,7 +561,7 @@
         savedLinks.className = 'merchant-production-downloads';
         for (const [side,,label] of printLabels) {
           const url = endpoint + '&image=' + encodeURIComponent(order.id) + '&tag=' + number + '&side=' + side;
-          savedLinks.append(link(url,label));
+          savedLinks.append(productionFile(label,url+'&printPreview=1',url));
         }
         if (canExportOriginal) {
           const saved = element('details');
@@ -545,11 +574,11 @@
     if (printList.childElementCount) print.append(printList);
     else print.append(element('p', order.productionUnavailable
       ? local('暫時未能讀取製作檔案。', 'Production files are temporarily unavailable.')
-      : local('這筆訂單尚無可下載的製作圖片。', 'There are no saved production images for this order yet.')));
+      : local('此訂單只保存了預覽圖，找不到可生成透明製作圖的完整設計。', 'Only previews are available. The original design needed to generate production artwork is missing.')));
     if (order.profiles.length && !order.productionUnavailable && !order.printCount) {
       const saved = savedProductionOrder(order.id,order.provider);
       if (saved) {
-        const restore = element('button',local('載入這個瀏覽器已保存的製作資料','Restore production files from this browser'));
+        const restore = element('button',local('從原下單瀏覽器補回資料與製作圖','Restore details and artwork from the original browser'));
         restore.type = 'button';
         restore.className = 'secondary';
         restore.addEventListener('click',async () => {
@@ -569,10 +598,14 @@
         print.append(restore);
       }
     }
-    const blocks = [info, details, profiles, tags, print];
+    const blocks = [info, overview, print, tags];
+    const operations = element('section');
+    operations.className = 'merchant-order-operations';
+    operations.append(element('h2',local('郵件操作','Order email')));
     if (order.provider === 'airwallex' && order.items.length && order.profiles.length) {
       const resend = element('button', local('重發商家製作郵件', 'Resend merchant production email'));
       resend.type = 'button';
+      resend.className = 'secondary';
       resend.addEventListener('click', async () => {
         resend.disabled = true;
         report('正在寄送商家製作郵件…', 'Sending merchant production email…');
@@ -593,12 +626,13 @@
           resend.disabled = false;
         }
       });
-      blocks.push(resend);
+      operations.append(resend);
     }
     if (order.provider === 'merchant' && ['pending', 'sending'].includes(order.notification_status)
         && order.items.length && filesReady) {
-      const retry = element('button', local('重試商家郵件', 'Retry merchant email'));
+      const retry = element('button', local('完成訂單並寄送製作郵件', 'Finish order and send production email'));
       retry.type = 'button';
+      retry.className = 'secondary';
       retry.addEventListener('click', async () => {
         retry.disabled = true;
         try {
@@ -613,8 +647,9 @@
           retry.disabled = false;
         }
       });
-      blocks.push(retry);
+      operations.append(retry);
     }
+    if (operations.childElementCount>1) blocks.push(operations);
     content.replaceChildren(...blocks);
     if (location.hash === '#merchant-print-files' && printList.childElementCount) {
       print.scrollIntoView();
