@@ -189,6 +189,12 @@
       fpsAvailable=available.enabled===true;
      }
      const direct=choice.id==='fps'&&(order?.airwallexFpsStarted||(fpsAvailable&&!order?.airwallexSessionId));
+     if(choice.id==='fps'&&fpsTest&&!direct){
+      warning.textContent=order?.airwallexSessionId
+       ?msg('此訂單已有付款連結。請先確認該筆付款的狀態。','This order already has a payment link. Check its status first.')
+       :msg('請在同一瀏覽器登入商家後台，再試掃碼付款。','Sign in to the merchant dashboard in this browser to test FPS.');
+      return;
+     }
      await startAirwallexCheckout(choice.id,direct?openFps:undefined);
     }
     finally{openingPayment=false;refresh();}
