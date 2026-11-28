@@ -42,6 +42,8 @@
   const content = element('div');
   let result;
   let statusMessage = ['', ''];
+  let renderingPrint = false;
+  const printUrls = new Set();
   header.append(heading, languageSwitch);
   page.append(header, nav, status, content);
 
@@ -136,6 +138,29 @@
       customerEmail, language, shipName, shipPhone, shipAddress,
       airwallexOrderToken, airwallexSessionId, stripeOrderToken, stripeSessionId, paypalOrderToken, paypalOrderId
     }};
+  }
+
+  async function exportOriginalTag(order, tagNumber) {
+    const files = await prepareProductionFiles({id:order.id,items:[order.items[tagNumber-1]]});
+    const front = files.tag01_front.blob;
+    const back = files.tag01_back.blob;
+    const portrait = files.tag01_dog.blob;
+    const frontImage = await createImageBitmap(front);
+    try {
+      const backImage = await createImageBitmap(back);
+      try {
+        // Preserve the artwork scale and leave the space between panels transparent.
+        const gap = Math.max(1,Math.round(frontImage.width*.05));
+        const canvas = document.createElement('canvas');
+        canvas.width = frontImage.width+gap+backImage.width;
+        canvas.height = Math.max(frontImage.height,backImage.height);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(frontImage,0,0);
+        ctx.drawImage(backImage,frontImage.width+gap,0);
+        const combined = await canvasBlob(canvas);
+        return {print_front:front,print_back:back,print_dog:portrait,print_combined:combined};
+      } finally { backImage.close(); }
+    } finally { frontImage.close(); }
   }
 
   function providerName(provider) {
@@ -344,6 +369,8 @@
   }
 
   function showDetail(order) {
+    printUrls.forEach(url => URL.revokeObjectURL(url));
+    printUrls.clear();
     heading.textContent = order.pet_name || local('訂單詳情', 'Order details');
     const info = element('p', orderNumber(order) + ' · ');
     info.append(orderTime(order.created_at), ' ' + local('（香港時間）', '(HKT)'),
@@ -380,7 +407,8 @@
         report('暫時未能複製。可在訂單連結上使用瀏覽器的複製功能。', 'Unable to copy. Use the browser’s copy-link action on the order link.');
       }
     });
-    actions.append(orderLink,copyLink);
+    actions.append(orderLink,copyLink,link('#merchant-print-files',
+      local('下載透明製作圖', 'Download transparent production PNGs')));
     if (delivery.shipName && delivery.shipAddress) {
       actions.append(link(endpoint + '&addressPdf=' + encodeURIComponent(order.id),
         local('下載 A4 三聯地址 PDF', 'Download A4 address PDF (3 copies)')));
@@ -429,6 +457,8 @@
       const button = element('button', local('從已保存設計生成印製圖片', 'Generate print images from saved design'));
       button.type = 'button';
       button.addEventListener('click', async () => {
+        if (renderingPrint) return;
+        renderingPrint = true;
         button.disabled = true;
         report('正在生成狗牌圖片…', 'Generating tag images…');
         try {
@@ -437,6 +467,7 @@
         } catch {
           report('暫時未能生成圖片，請重試。', 'Unable to generate the images. Please retry.');
         } finally {
+          renderingPrint = false;
           button.disabled = false;
         }
       });
@@ -444,23 +475,70 @@
     }
     const print = element('section');
     print.id = 'merchant-print-files';
-    print.append(element('h2', local('下載原尺寸透明 PNG', 'Download original transparent PNGs')));
+    print.append(element('h2', local('透明底製作圖（PNG）', 'Transparent production artwork (PNG)')));
     const printList = element('ul');
+    printList.className = 'merchant-production-list';
     const printLabels = [
-      ['print_front', local('正面底板', 'Front plate')], ['print_back', local('完整背面', 'Full back')],
-      ['print_dog', local('狗狗頭像', 'Dog portrait')], ['print_combined', local('正反面並排', 'Front and back')]
+      ['print_front', '01-front-plate', local('正面底板', 'Front plate')],
+      ['print_back', '02-full-back', local('完整背面', 'Full back')],
+      ['print_dog', '03-dog-portrait', local('獨立狗狗頭像', 'Separate dog portrait')],
+      ['print_combined', '04-front-back-reference', local('正反面並排參考圖', 'Front and back reference')]
     ];
     for (const [index, tag] of order.items.entries()) {
       const number = index + 1;
-      const ready = order.provider === 'merchant'
+      const merchant = order.provider === 'merchant';
+      const ready = merchant
         ? printLabels.slice(0, 3).every(([side]) => haveImages.has(number + ':' + side))
         : number <= order.printCount;
-      if (!ready) continue;
+      const canExportOriginal = merchant && tag.baseVariant && tag.faceKey;
+      if (!ready && !canExportOriginal) continue;
       const item = element('li');
-      item.append(element('strong', tag.petName || local('狗牌 ' + number, 'Tag ' + number)));
-      for (const [side, label] of printLabels) {
-        const url = endpoint + '&image=' + encodeURIComponent(order.id) + '&tag=' + number + '&side=' + side;
-        item.append(' · ', link(url, label));
+      const downloads = element('div');
+      downloads.className = 'merchant-production-downloads';
+      const title = element('strong', tag.petName || local('狗牌 ' + number, 'Tag ' + number));
+      item.append(title,downloads);
+      if (canExportOriginal) {
+        const original = element('button',local('生成原尺寸透明 PNG','Prepare original-size transparent PNGs'));
+        original.type = 'button';
+        original.className = 'secondary';
+        original.addEventListener('click', async () => {
+          if (renderingPrint) return;
+          renderingPrint = true;
+          original.disabled = true;
+          original.textContent = local('正在生成原尺寸圖片…','Preparing original-size images…');
+          try {
+            const files = await exportOriginalTag(order,number);
+            if (!item.isConnected) return;
+            for (const [side,filename,label] of printLabels) {
+              const url = URL.createObjectURL(files[side]);
+              printUrls.add(url);
+              const file = link(url,label);
+              file.download = `8TSUN8-${order.id}-${number}-${filename}.png`;
+              downloads.append(file);
+            }
+            original.remove();
+          } catch {
+            original.textContent = local('重試生成原尺寸圖片','Retry original-size export');
+            report('暫時未能生成原尺寸圖片。','Could not export the original-size images.');
+          } finally {
+            renderingPrint = false;
+            original.disabled = false;
+          }
+        });
+        downloads.append(original);
+      }
+      if (ready) {
+        const savedLinks = element('div');
+        savedLinks.className = 'merchant-production-downloads';
+        for (const [side,,label] of printLabels) {
+          const url = endpoint + '&image=' + encodeURIComponent(order.id) + '&tag=' + number + '&side=' + side;
+          savedLinks.append(link(url,label));
+        }
+        if (canExportOriginal) {
+          const saved = element('details');
+          saved.append(element('summary',local('已保存的製作圖片','Saved production files')),savedLinks);
+          item.append(saved);
+        } else downloads.append(savedLinks);
       }
       printList.append(item);
     }

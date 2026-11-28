@@ -278,6 +278,33 @@ html[data-merchant-preview="locked"] body > :not(#merchantLogin):not(script):not
   gap: .75rem 1rem;
 }
 
+.merchant-production-list {
+  display: grid;
+  gap: .75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.merchant-production-list > li {
+  display: grid;
+  gap: .625rem;
+  padding: 1rem;
+  border: 1px solid #dce8eb;
+  border-radius: .75rem;
+  background: white;
+}
+
+.merchant-production-downloads {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem 1rem;
+}
+
+.merchant-production-list summary {
+  cursor: pointer;
+}
+
 .merchant-tag-gallery {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
