@@ -55,18 +55,17 @@
     return {subject,html,text:textBody,total};
   }
   function merchantReviewLink(orderId, locale) {
-    if (typeof process === 'undefined' || process.env.MERCHANT_ORDER_REVIEW_ENABLED !== '1') return '';
-    const base = safeUrl(process.env.MERCHANT_ORDER_REVIEW_URL);
-    if (!base) return '';
-    const url = new URL(base);
+    const configured = typeof process === 'undefined' ? '' : safeUrl(process.env.MERCHANT_ORDER_REVIEW_URL);
+    const url = new URL(configured || 'https://www.8tsun8.com/merchant/orders');
     url.searchParams.set('order', orderId);
     const label = locale === 'en' ? 'Open tag images and NFC profile in merchant dashboard' : '在商家後台查看正反面及 NFC 檔案';
     return `<p><a href="${escape(url.href)}">${label}</a></p>`;
   }
   function renderMerchant(order,attachments=[]){
-    const lang=language(order),t=copy[lang],{quantity,decorCount,total}=totals(order),url=safeUrl(order.cloudProfile?.publicUrl);
+    const lang=language(order),t=copy[lang],{quantity}=totals(order),url=safeUrl(order.cloudProfile?.publicUrl);
+    const shippingAddress=escape(order.shipAddress).replace(/\r?\n/g,'<br>');
     const subject=`${t.subject}${t.merchantTitle} | ${String(order.id||'').replace(/[\\r\\n]/g,'')}`;
-    const html=`<!doctype html><html lang="${lang==='en'?'en':'zh-HK'}"><head><meta charset="utf-8"></head><body style="font-family:Arial,'PingFang TC','Microsoft JhengHei',sans-serif;line-height:1.7;color:#244452"><h2>${t.merchantTitle}</h2><p>${t.order}: ${escape(order.id)}<br>${t.customer}: ${escape(order.customerEmail)}<br>${t.paid}: HK$${(Number(order.paidAmountCents||Math.round(total*100))/100).toFixed(2)}<br>${t.tag}: ${quantity} · ${t.decor}: ${decorCount}<br>${t.shipName}: ${escape(order.shipName)}<br>${t.phone}: ${escape(order.shipPhone)}<br>${t.address}: ${escape(order.shipAddress)}</p><p>${t.nfc}: ${url?`<a href="${escape(url)}">${escape(url)}</a>`:'-'}</p>${merchantReviewLink(order.id, lang)}<p>${t.production}</p></body></html>`;
+    const html=`<!doctype html><html lang="${lang==='en'?'en':'zh-HK'}"><head><meta charset="utf-8"></head><body style="font-family:Arial,'PingFang TC','Microsoft JhengHei',sans-serif;line-height:1.7;color:#244452"><h2>${t.merchantTitle}</h2><p>${t.order}: ${escape(order.id)}<br>${t.tag}: ${quantity}<br>${t.customer}: ${escape(order.customerEmail)}<br>${t.shipName}: ${escape(order.shipName)}<br>${t.phone}: ${escape(order.shipPhone)}<br>${t.address}: ${shippingAddress}</p><p>${t.nfc}: ${url?`<a href="${escape(url)}">${escape(url)}</a>`:'-'}</p>${merchantReviewLink(order.id, lang)}<p>${t.production}</p></body></html>`;
     return {subject,html,attachments};
   }
   return {render,renderMerchant,merchantReviewLink,escape,safeUrl,language};

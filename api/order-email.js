@@ -1,7 +1,7 @@
 const {createHmac,timingSafeEqual,createHash}=require('node:crypto');
-const {render,escape,safeUrl}=require('../server/email-template');
+const {render,safeUrl}=require('../server/email-template');
 const {sendGmail:sendEmail,GMAIL_ADDRESS}=require('../server/gmail-mailer');
-const {shippingLabelAttachment,shippingLabelPrintTip}=require('../server/shipping-label');
+const {sendMerchantProduction}=require('../server/airwallex-order-mailer');
 const merchantPreview=require('../server/merchant-preview').makeHandler();
 const STAGES=new Set(['payment_received','order_completed','in_production','shipped']);
 const emailValid=value=>typeof value==='string'&&value.length<=254&&/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value);
@@ -49,9 +49,7 @@ module.exports=async function handler(req,res){
     const previewFiles=pngAttachments(body.previews||[],true);
     if(!previewFiles.length)return res.status(422).json({error:'订单缺少狗牌效果图'});
     const merchantEmail=process.env.MERCHANT_EMAIL||GMAIL_ADDRESS;
-    const files=body.type==='order_completed'?pngAttachments(body.attachments||[]):[];
-    if(body.type==='order_completed'&&(!files.length||!emailValid(merchantEmail)))return res.status(422).json({error:'商户邮箱或生产文件不完整'});
-    const addressLabel=body.type==='order_completed'?await shippingLabelAttachment(order):null;
+    if(body.type==='order_completed'&&(!Array.isArray(body.attachments)||body.attachments.length!==order.items.length*3||!emailValid(merchantEmail)))return res.status(422).json({error:'商户邮箱或生产文件不完整'});
     const message=render(order,body.type,previewFiles.map((file,index)=>({src:'cid:'+file.content_id,label:body.previews[index].label})));
     if(order.paidAmountCents!==Math.round(message.total*100))return res.status(409).json({error:'支付平台实收金额与订单不一致'});
     const identity=createHash('sha256').update(order.id+'|'+body.type+'|'+order.customerEmail).digest('hex');
@@ -59,8 +57,7 @@ module.exports=async function handler(req,res){
     const customer=await sendEmail({...shared,to:[order.customerEmail],subject:message.subject,html:message.html,text:message.text,attachments:previewFiles},'tsun-customer-'+identity);
     let merchant={sent:false,skipped:true};
     if(body.type==='order_completed'){
-      merchant=await sendEmail({...shared,to:[merchantEmail],subject:'尊八八制作订单｜'+order.id,
-        html:`<h2>已付款，资料已收齐</h2><p>订单号：${escape(order.id)}<br>客户邮箱：${escape(order.customerEmail)}<br>金额：HK$${message.total.toFixed(2)}<br>收货人：${escape(order.shipName)}<br>联系电话：${escape(order.shipPhone)}<br>地址：${escape(order.shipAddress)}</p><p>NFC 档案：<a href="${escape(safeUrl(order.cloudProfile?.publicUrl))}">${escape(safeUrl(order.cloudProfile?.publicUrl))}</a></p><p>请将档案网址写入 NFC；生产图片见附件。</p>${addressLabel?shippingLabelPrintTip:''}`,attachments:addressLabel?[...files,addressLabel]:files},'tsun-merchant-'+identity);
+      merchant=await sendMerchantProduction(order,body.attachments,'tsun-merchant-'+identity);
     }
     const ok=customer.sent&&(merchant.skipped||merchant.sent);
     return res.status(ok?200:502).json({customerSent:customer.sent,merchantSent:merchant.sent,customer,merchant,error:ok?undefined:'邮件暂未全部发送，请由后台重试'});

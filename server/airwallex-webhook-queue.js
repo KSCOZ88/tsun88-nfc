@@ -2,7 +2,7 @@
 // Durable webhook queue: acknowledge authenticated events before external payment lookup / SMTP.
 const {db,schema,recordPaid}=require('./airwallex-order-store');
 const {verify}=require('./airwallex-payment-verification');
-const {sendGmail,GMAIL_ADDRESS}=require('./gmail-mailer');
+const {sendGmail}=require('./gmail-mailer');
 const {escape}=require('./email-template');
 const {createHash}=require('node:crypto');
 const fail=(message,status=422)=>Object.assign(new Error(message),{status});
@@ -38,37 +38,26 @@ async function enqueue(eventId,linkId){
  await sql`INSERT INTO tsun_airwallex_webhook_events (event_id,payment_link_id)
  VALUES (${eventId},${linkId}) ON CONFLICT(event_id) DO NOTHING`;
 }
-async function receipts(sql,row){
+async function customerReceipt(sql,row){
  const id=row.merchant_order_id,linkId=row.payment_link_id,stage='payment_received';
  await sql`INSERT INTO tsun_airwallex_mail (merchant_order_id,payment_link_id,stage)
  VALUES (${id},${linkId},${stage}) ON CONFLICT DO NOTHING`;
  const [claim]=await sql`UPDATE tsun_airwallex_mail SET processing_until=now()+interval '3 minutes'
  WHERE merchant_order_id=${id} AND payment_link_id=${linkId} AND stage=${stage}
  AND (processing_until IS NULL OR processing_until<now())
- AND (customer_sent=false OR merchant_sent=false)
- RETURNING customer_sent,merchant_sent`;
+ AND customer_sent=false
+ RETURNING merchant_order_id`;
  if(!claim)return;
  try{
   const amount='HK$'+(row.amount_cents/100).toFixed(2);
   const subject='8TSUN8 付款确认 / Payment received – '+id;
-  if(!claim.customer_sent){
-   const customer=await sendGmail({
-    to:[row.email],subject,
-    html:'<p>您的 8TSUN8 订单已经收到付款。</p><p>订单号：'+escape(id)+'</p><p>金额：'+amount+'</p><p>请继续补齐订单及配送资料，完成后我们安排制作。</p>',
-    text:'8TSUN8 已收到付款。订单：'+id+'，金额：'+amount+'。请继续完善订单和配送资料。'
-   },'tsun-awx-receipt-'+id);
-   if(!customer.sent)throw fail('Customer SMTP delivery not accepted',503);
-   await sql`UPDATE tsun_airwallex_mail SET customer_sent=true WHERE merchant_order_id=${id} AND payment_link_id=${linkId} AND stage=${stage}`;
-  }
-  if(!claim.merchant_sent){
-   const merchant=await sendGmail({
-    to:[process.env.MERCHANT_EMAIL||GMAIL_ADDRESS],subject:'8TSUN8 已付款订单｜'+id,
-    html:'<p>Airwallex 已验证付款。</p><p>订单：'+escape(id)+'</p><p>金额：'+amount+'</p><p>客户邮箱：'+escape(row.email)+'</p><p>注意：待客户补齐狗牌制作及配送资料后再安排生产。</p>',
-    text:'Airwallex 已付款订单：'+id+'，金额：'+amount+'，客户邮箱：'+row.email+'。待完整订单资料后制作。'
-   },'tsun-awx-merchant-'+id);
-   if(!merchant.sent)throw fail('Merchant SMTP delivery not accepted',503);
-   await sql`UPDATE tsun_airwallex_mail SET merchant_sent=true WHERE merchant_order_id=${id} AND payment_link_id=${linkId} AND stage=${stage}`;
-  }
+  const customer=await sendGmail({
+   to:[row.email],subject,
+   html:'<p>您的 8TSUN8 订单已经收到付款。</p><p>订单号：'+escape(id)+'</p><p>金额：'+amount+'</p><p>请继续补齐订单及配送资料，完成后我们安排制作。</p>',
+   text:'8TSUN8 已收到付款。订单：'+id+'，金额：'+amount+'。请继续完善订单和配送资料。'
+  },'tsun-awx-receipt-'+id);
+  if(!customer.sent)throw fail('Customer SMTP delivery not accepted',503);
+  await sql`UPDATE tsun_airwallex_mail SET customer_sent=true WHERE merchant_order_id=${id} AND payment_link_id=${linkId} AND stage=${stage}`;
  }finally{
   await sql`UPDATE tsun_airwallex_mail SET processing_until=NULL WHERE merchant_order_id=${id} AND payment_link_id=${linkId} AND stage=${stage}`;
  }
@@ -93,9 +82,10 @@ async function processEvent(eventId){
   await verify(row.payment_link_id,row.order_snapshot);
   await recordPaid(row.order_snapshot,row.payment_link_id);
   if(!process.env.SMTP_APP_PASSWORD)throw fail('SMTP not configured',503);
-  await receipts(sql,row);
-  const [mail]=await sql`SELECT customer_sent,merchant_sent FROM tsun_airwallex_mail WHERE merchant_order_id=${row.merchant_order_id} AND stage='payment_received'`;
-  if(!mail?.customer_sent||!mail?.merchant_sent)throw fail('Mail delivery incomplete',503);
+  await customerReceipt(sql,row);
+  const [mail]=await sql`SELECT customer_sent FROM tsun_airwallex_mail
+   WHERE merchant_order_id=${row.merchant_order_id} AND payment_link_id=${row.payment_link_id} AND stage='payment_received'`;
+  if(!mail?.customer_sent)throw fail('Mail delivery incomplete',503);
   await sql`UPDATE tsun_airwallex_webhook_events SET processed_at=now(),processing_until=NULL,last_error=NULL
    WHERE event_id=${eventId}`;
   return {status:'processed'};
@@ -126,7 +116,7 @@ async function reconcilePending(limit=3){
    SELECT 1 FROM tsun_airwallex_mail m
    WHERE m.merchant_order_id=o.merchant_order_id
    AND m.payment_link_id=o.payment_link_id AND m.stage='payment_received'
-   AND m.customer_sent=true AND m.merchant_sent=true
+   AND m.customer_sent=true
  )
  ORDER BY o.last_reconciled_at ASC NULLS FIRST,
           CASE WHEN o.status='paid' THEN 0 ELSE 1 END, o.created_at ASC

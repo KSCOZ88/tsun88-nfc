@@ -33,6 +33,7 @@ test('production attachment failure preserves the customer receipt and merchant 
   if(previousMerchant===undefined)delete process.env.MERCHANT_EMAIL;
   else process.env.MERCHANT_EMAIL=previousMerchant;
   delete require.cache[require.resolve('../server/airwallex-order-mailer')];
+  delete require.cache[require.resolve('../server/stripe-orders')];
  });
  t.mock.method(gmail,'sendGmail',async mail=>{
   delivered.push(mail);
@@ -64,4 +65,24 @@ test('production attachment failure preserves the customer receipt and merchant 
  assert.deepEqual(delivered[1].attachments.map(file=>file.content_type),
   ['image/png','image/png','image/png','image/png','application/pdf']);
  assert.equal(Buffer.from(delivered[1].attachments[4].content,'base64').subarray(0,5).toString(),'%PDF-');
+
+ const {deliver:deliverStripe}=require('../server/stripe-orders');
+ const stripeOrder={...order,id:'TS-STRIPE-TEST',items:[{petName:'Lucky'},{petName:'Milo'}]};
+ const stripeFiles=[...attachments,...attachments.map(file=>({...file,name:'Milo-'+file.name}))];
+ const customerOnly=await deliverStripe('payment_received',stripeOrder,[{data:png}]);
+ assert.equal(customerOnly.customerSent,true);
+ assert.equal(customerOnly.merchantSent,false);
+ const stripeResult=await deliverStripe('order_completed',stripeOrder,[],stripeFiles,{skipCustomer:true});
+ assert.equal(stripeResult.merchantSent,true);
+ const stripeMail=delivered.at(-1);
+ assert.deepEqual(stripeMail.to,['merchant@example.com']);
+ assert.deepEqual(stripeMail.attachments.map(file=>file.content_type),[
+  ...Array(8).fill('image/png'),'application/pdf'
+ ]);
+ for(const [mail,id,tagCount] of [[delivered[1],order.id,1],[stripeMail,stripeOrder.id,2]]){
+  for(const field of [id,order.customerEmail,order.shipName,order.shipPhone,'示範道8號',
+   order.cloudProfile.publicUrl,`/merchant/orders?order=${id}`,`Pet tag: ${tagCount}`]){
+   assert.ok(mail.html.includes(field),field);
+  }
+ }
 });
