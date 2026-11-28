@@ -69,8 +69,8 @@ async function begin(order,kind='payment_link'){
   if(!rows.length)throw fail('Payment is already being prepared.',409);
   return {s,sql,fresh:true,attempt};
  }
- if(kind==='fps'){
-  if(existing.payment_kind!=='fps')throw fail('Use the existing payment link for this order.',409);
+ if(kind!=='payment_link'){
+  if(existing.payment_kind!==kind)throw fail('Cancel the active payment before changing methods.',409);
   return {s,sql,fresh:false,attempt,existing};
  }
  if(existing.payment_link_id&&existing.payment_link_url&&existing.status==='pending')

@@ -4,7 +4,13 @@ const {createHash}=require('node:crypto');
 const {auth,configuration,summary}=require('./airwallex-checkout');
 const {begin,complete,db,fpsSchema}=require('./airwallex-order-store');
 
-const validity=10*60*1000;
+const qrMethods=Object.freeze({
+ fps:{flow:'webqr',minutes:10},
+ alipaycn:{flow:'qrcode',minutes:10},
+ alipayhk:{flow:'qrcode',minutes:10},
+ wechatpay:{flow:'qrcode',minutes:120}
+});
+const supportsQr=type=>typeof type==='string'&&Object.hasOwn(qrMethods,type);
 const idPattern=/^[A-Za-z0-9_-]{6,120}$/;
 const fail=(message,status=409)=>Object.assign(new Error(message),{status});
 const requestId=(action,parts)=>'fps-'+action+'-'+createHash('sha256').update(JSON.stringify(parts)).digest('hex').slice(0,42);
@@ -14,63 +20,68 @@ async function request(config,path,body){
  const response=await fetch(config.base+'/api/v1/pa/payment_intents/'+path,{
   headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','x-api-version':'2025-02-14'},
   ...(body?{method:'POST',body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(13000)
- }).catch(()=>{throw fail('Airwallex FPS is temporarily unavailable.',503);});
+ }).catch(()=>{throw fail('Airwallex QR payment is temporarily unavailable.',503);});
  if(!response.ok){
   const error=await response.json().catch(()=>({}));
   const code=String(error.code||'');
-  console.warn('[Airwallex FPS]',{status:response.status,code:/^[a-z0-9_]{1,64}$/i.test(code)?code:'unknown'});
-  throw fail('Airwallex could not prepare or verify the FPS payment.',response.status===409?409:503);
+  console.warn('[Airwallex QR]',{status:response.status,code:/^[a-z0-9_]{1,64}$/i.test(code)?code:'unknown'});
+  throw fail('Airwallex could not prepare or verify the QR payment.',response.status===409?409:503);
  }
  return response.json();
 }
 
-function confirmBinding(intent,id,s){
+function confirmBinding(intent,id,s,type){
  if(intent.id!==id||intent.currency!=='HKD'||Math.round(Number(intent.amount)*100)!==s.totalCents||
     intent.merchant_order_id!==s.orderId||intent.metadata?.order_binding!==s.binding||
-    intent.metadata?.checkout_method!=='8tsun8_fps'){
-  throw fail('FPS payment does not match this order.');
+    intent.metadata?.checkout_method!=='8tsun8_'+type){
+  throw fail('QR payment does not match this order.');
  }
 }
 
 function lookup(config,id){
- if(typeof id!=='string'||!idPattern.test(id))throw fail('Invalid FPS payment ID.',422);
+ if(typeof id!=='string'||!idPattern.test(id))throw fail('Invalid QR payment ID.',422);
  return request(config,encodeURIComponent(id));
 }
 
-async function verify(id,order){
+async function verify(id,order,type='fps'){
  const config=configuration(),s=summary(order);
  const intent=await lookup(config,id);
- confirmBinding(intent,id,s);
- if(intent.status!=='SUCCEEDED')throw fail('FPS payment is not confirmed.');
+ confirmBinding(intent,id,s,type);
+ if(intent.status!=='SUCCEEDED')throw fail('QR payment is not confirmed.');
  const attempt=intent.latest_payment_attempt;
- if(attempt?.payment_method?.type!=='fps'||
+ if(attempt?.payment_method?.type!==type||
     Math.round(Number(attempt.captured_amount??intent.captured_amount)*100)!==s.totalCents){
-  throw fail('FPS payment method or captured amount does not match this order.');
+  throw fail('Payment method or captured amount does not match this order.');
  }
  return {paid:true,paymentIntentId:id,amountCents:s.totalCents,currency:'HKD',mode:config.mode};
 }
 
-async function prepare(order){
+async function prepare(order,type='fps'){
+ if(!supportsQr(type))throw fail('Unsupported QR payment method.',422);
  const config=configuration();
- if(summary(order).orderId.length>64)throw fail('Invalid FPS order number.',422);
- const lease=await begin(order,'fps');
+ if(summary(order).orderId.length>64)throw fail('Invalid order number.',422);
+ const lease=await begin(order,type);
  const {s,sql,existing,attempt}=lease;
+ const identity=[config.mode,s.orderId,s.binding];
+ if(attempt)identity.push(attempt);
+ if(type!=='fps')identity.push(type);
  let id=existing?.payment_link_id;
  let intent;
  if(id){
   intent=await lookup(config,id);
  }else{
   intent=await request(config,'create',{
-   request_id:requestId('create',attempt?[config.mode,s.orderId,s.binding,attempt]:[config.mode,s.orderId,s.binding]),
+   request_id:requestId('create',identity),
    amount:s.totalCents/100,currency:'HKD',merchant_order_id:s.orderId,
-   metadata:{order_binding:s.binding,checkout_method:'8tsun8_fps'}
+   ...(type==='fps'?{}:{return_url:'https://www.8tsun8.com/?recover=1&order_id='+encodeURIComponent(s.orderId)}),
+   metadata:{order_binding:s.binding,checkout_method:'8tsun8_'+type}
   });
   id=intent.id;
-  if(typeof id!=='string'||!idPattern.test(id))throw fail('Airwallex returned an invalid FPS payment.',502);
-  confirmBinding(intent,id,s);
+  if(typeof id!=='string'||!idPattern.test(id))throw fail('Airwallex returned an invalid QR payment.',502);
+  confirmBinding(intent,id,s,type);
   await complete(lease,{paymentLinkId:id,url:null});
  }
- confirmBinding(intent,id,s);
+ confirmBinding(intent,id,s,type);
  if(intent.status==='SUCCEEDED')return {id,paid:true,totalCents:s.totalCents};
  const previous=existing?.fps_qr;
  const now=Date.now();
@@ -84,18 +95,18 @@ async function prepare(order){
  }
  const key=requestId('confirm',[id,previous?.expiresAt||0]);
  const confirmation=await request(config,encodeURIComponent(id)+'/confirm',{
-  request_id:key,payment_method:{type:'fps',fps:{flow:'webqr'}}
+  request_id:key,payment_method:{type,[type]:{flow:qrMethods[type].flow}}
  });
  const action=confirmation.next_action;
  if(action?.type!=='render_qrcode'||typeof action.qrcode!=='string'||!action.qrcode||action.qrcode.length>2048){
-  throw fail('Airwallex did not return an FPS QR code.',502);
+  throw fail('Airwallex did not return a payment QR code.',502);
  }
  // The same attempt ID is reused if a request is interrupted or runs concurrently.
  const attemptTime=Date.parse(confirmation.latest_payment_attempt?.created_at||confirmation.updated_at||'');
- const expiresAt=(Number.isFinite(attemptTime)?Math.min(attemptTime,now):now)+validity;
+ const expiresAt=(Number.isFinite(attemptTime)?Math.min(attemptTime,now):now)+qrMethods[type].minutes*60000;
  const qr={text:action.qrcode,expiresAt};
  const [stored]=await sql`UPDATE tsun_airwallex_orders SET fps_qr=${JSON.stringify(qr)}::jsonb
-  WHERE merchant_order_id=${s.orderId} AND payment_link_id=${id} AND payment_kind='fps' AND status='pending'
+  WHERE merchant_order_id=${s.orderId} AND payment_link_id=${id} AND payment_kind=${type} AND status='pending'
   AND (fps_qr IS NULL OR (fps_qr->>'expiresAt')::bigint<=${now})
   RETURNING fps_qr`;
  if(stored)return {id,totalCents:s.totalCents,...stored.fps_qr};
@@ -106,22 +117,23 @@ async function prepare(order){
   : {id,totalCents:s.totalCents,pending:true};
 }
 
-async function cancel(order){
+async function cancel(order,type='fps'){
+ if(!supportsQr(type))throw fail('Unsupported QR payment method.',422);
  const s=summary(order), sql=db();
  await fpsSchema(sql);
  const attempt=order.airwallexFpsAttempt??0;
- if(!Number.isInteger(attempt)||attempt<0)throw fail('Invalid FPS checkout.',422);
+ if(!Number.isInteger(attempt)||attempt<0)throw fail('Invalid QR checkout.',422);
  // Fence a start request that has been sent but has not written its first row.
  await sql`INSERT INTO tsun_airwallex_orders
   (merchant_order_id,email,amount_cents,order_binding,order_snapshot,payment_kind,status,fps_attempt)
-  SELECT ${s.orderId},${s.email},${s.totalCents},${s.binding},'{}'::jsonb,'fps','cancelled',1
+  SELECT ${s.orderId},${s.email},${s.totalCents},${s.binding},'{}'::jsonb,${type},'cancelled',1
   WHERE ${attempt}=0 AND ${order.airwallexSessionId??null}::text IS NULL
   ON CONFLICT DO NOTHING`;
  const [row]=await sql`SELECT order_binding,status,payment_kind,payment_link_id,fps_attempt
   FROM tsun_airwallex_orders WHERE merchant_order_id=${s.orderId}`;
- if(!row||row.order_binding!==s.binding||row.payment_kind!=='fps'||
+ if(!row||row.order_binding!==s.binding||row.payment_kind!==type||
     (order.airwallexSessionId&&order.airwallexSessionId!==row.payment_link_id)){
-  throw fail('FPS checkout does not match this order.');
+  throw fail('QR checkout does not match this order.');
  }
  if(row.status==='cancelled'&&row.fps_attempt===attempt+1)return {cancelled:true,attempt:row.fps_attempt};
  if(row.fps_attempt!==attempt)throw fail('This checkout has changed. Reopen the current order.');
@@ -130,7 +142,7 @@ async function cancel(order){
  if(id){
   const config=configuration();
   let intent=await lookup(config,id);
-  confirmBinding(intent,id,s);
+  confirmBinding(intent,id,s,type);
   if(intent.status==='SUCCEEDED')return {paid:true,id};
   if(['REQUIRES_PAYMENT_METHOD','REQUIRES_CUSTOMER_ACTION','REQUIRES_CAPTURE'].includes(intent.status)){
    try{
@@ -140,13 +152,13 @@ async function cancel(order){
     intent=await lookup(config,id);
     if(!['SUCCEEDED','CANCELLED'].includes(intent.status))throw error;
    }
-   confirmBinding(intent,id,s);
+   confirmBinding(intent,id,s,type);
   }
   if(intent.status==='SUCCEEDED')return {paid:true,id};
   if(intent.status!=='CANCELLED')return {pending:true,id};
  }
  const [cancelled]=await sql`UPDATE tsun_airwallex_orders SET status='cancelled',fps_qr=NULL,fps_attempt=fps_attempt+1
-  WHERE merchant_order_id=${s.orderId} AND fps_attempt=${attempt} AND payment_kind='fps'
+  WHERE merchant_order_id=${s.orderId} AND fps_attempt=${attempt} AND payment_kind=${type}
   AND status IN ('creating','pending') AND payment_link_id IS NOT DISTINCT FROM ${id}
   RETURNING fps_attempt`;
  if(cancelled)return {cancelled:true,attempt:cancelled.fps_attempt};
@@ -157,4 +169,4 @@ async function cancel(order){
  return {pending:true};
 }
 
-module.exports={prepare,verify,cancel};
+module.exports={prepare,verify,cancel,supportsQr};

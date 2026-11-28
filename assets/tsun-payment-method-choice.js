@@ -6,11 +6,10 @@
   {id:'apple',en:'Apple Pay',zh:'Apple Pay',subEn:'Shown by Stripe when supported',subZh:'Stripe 僅於支援時顯示',logos:['applepay'],stripe:'card'},
   {id:'google',en:'Google Pay',zh:'Google Pay',subEn:'Shown by Stripe when supported',subZh:'Stripe 僅於支援時顯示',logos:['googlepay'],stripe:'card'},
   {id:'paypal',en:'PayPal',zh:'PayPal',subEn:'Secure PayPal checkout',subZh:'使用 PayPal 安全付款',logos:['paypal'],provider:'paypal'},
-  {id:'alipay',en:'Alipay',zh:'支付寶 Alipay',subEn:'Mainland wallet · not AlipayHK',subZh:'內地錢包，非 AlipayHK',logos:['alipay'],stripe:'alipay'},
-  {id:'wechat',en:'WeChat Pay',zh:'微信支付 WeChat Pay',subEn:'Mainland wallet · not WeChat Pay HK',subZh:'內地錢包，非 WeChat Pay HK',logos:['wechatpay'],stripe:'wechat_pay'},
-  {id:'alipayhk',en:'AlipayHK',zh:'AlipayHK 支付寶香港',subEn:'Hong Kong wallet · Airwallex',subZh:'香港錢包 · Airwallex',logos:['alipayhk'],provider:'airwallex'},
-  {id:'wechat-hk',en:'WeChat Pay HK',zh:'WeChat Pay HK 微信支付香港',subEn:'Hong Kong wallet · Airwallex',subZh:'香港錢包 · Airwallex',logos:['wechatpay'],provider:'airwallex'},
-  {id:'fps',en:'FPS',zh:'FPS 轉數快',subEn:'Hong Kong bank app · Airwallex',subZh:'香港銀行 App · Airwallex',logos:['fps'],provider:'airwallex'},
+  {id:'alipay',en:'Alipay',zh:'支付寶（內地版）',subEn:'Mainland wallet · Airwallex',subZh:'內地錢包 · Airwallex',logos:['alipay'],provider:'airwallex',qr:'alipaycn'},
+  {id:'alipayhk',en:'AlipayHK',zh:'AlipayHK 支付寶香港',subEn:'Hong Kong wallet · Airwallex',subZh:'香港錢包 · Airwallex',logos:['alipayhk'],provider:'airwallex',qr:'alipayhk'},
+  {id:'wechat',en:'WeChat Pay',zh:'微信支付 WeChat Pay',subEn:'Mainland and Hong Kong wallets · Airwallex',subZh:'內地及香港錢包 · Airwallex',logos:['wechatpay'],provider:'airwallex',qr:'wechatpay'},
+  {id:'fps',en:'FPS',zh:'FPS 轉數快',subEn:'Hong Kong bank app · Airwallex',subZh:'香港銀行 App · Airwallex',logos:['fps'],provider:'airwallex',qr:'fps'},
   {id:'unionpay',en:'UnionPay',zh:'銀聯 UnionPay',subEn:'UnionPay card · Airwallex',subZh:'銀聯卡 · Airwallex',logos:['unionpay'],provider:'airwallex'},
  ];
  function zh(){return String(window.TsunI18n?.locale||document.documentElement.lang||'en').toLowerCase().startsWith('zh');}
@@ -18,7 +17,8 @@
  function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text)e.textContent=text;return e;}
  function preview(){return location.hostname.endsWith('.vercel.app');}
  function checkoutOrder(){return typeof currentOrder==='undefined'?null:currentOrder;}
- function pendingAirwallex(order){return Boolean((order?.airwallexSessionId||order?.airwallexFpsStarted)&&order.paymentStatus!=='paid');}
+ function directMethod(order){return order?.airwallexQrMethod||(order?.airwallexFpsStarted?'fps':null);}
+ function pendingAirwallex(order){return Boolean((order?.airwallexSessionId||directMethod(order))&&order.paymentStatus!=='paid');}
  function init(){
   if(document.getElementById('tsunSpecificPaymentMethods'))return;
   const paypal=document.getElementById('paypalPaymentPanel');
@@ -44,17 +44,17 @@
   const warning=el('small');warning.id='tsunMethodWarning';warning.setAttribute('role','status');warning.setAttribute('aria-live','polite');
   const continueButton=el('button','tsun-method-continue');continueButton.type='button';
   const foot=el('div','tsun-method-footnote');
-  const fpsBox=el('section','tsun-fps-qr');
-  fpsBox.hidden=true;
-  const fpsImage=el('img');
-  const fpsInstructions=el('p');
-  const fpsStatus=el('p');fpsStatus.setAttribute('role','status');
-  fpsBox.append(fpsInstructions,fpsImage,fpsStatus);
+  const qrBox=el('section','tsun-fps-qr');
+  qrBox.hidden=true;
+  const qrImage=el('img');
+  const qrInstructions=el('p');
+  const qrStatus=el('p');qrStatus.setAttribute('role','status');
+  qrBox.append(qrInstructions,qrImage,qrStatus);
   const changeMethod=el('button','secondary tsun-method-recover');
   changeMethod.type='button';
-  changeMethod.addEventListener('click',()=>switchFromFps('card'));
+  changeMethod.addEventListener('click',()=>switchFromQr('card'));
   wrap.append(heading,subtitle,buttons,warning,continueButton,foot);
-  wrap.insertBefore(fpsBox,continueButton);
+  wrap.insertBefore(qrBox,continueButton);
   wrap.insertBefore(changeMethod,foot);
   paypal.parentNode.insertBefore(panel,paypal);
   if(recover){
@@ -62,13 +62,14 @@
    wrap.insertBefore(recover,foot);
   }
   const initialOrder=checkoutOrder();
-  let selected=initialOrder?.airwallexSelectedMethod||(fpsTest?'fps':airwallexTest?'alipayhk':'card');
+  const previousChoice=initialOrder?.airwallexSelectedMethod;
+  let selected=(previousChoice==='wechat-hk'?'wechat':previousChoice)||(fpsTest?'fps':airwallexTest?'alipayhk':'card');
   let openingPayment=false;
-  let fpsAvailable;
-  let fpsTimer;
-  let fpsOrder;
-  let fpsExpires=0;
-  const fpsEndpoint='/api/airwallex-create-session?channel=fps';
+  const qrAvailability=new Map();
+  let qrTimer;
+  let qrOrder;
+  let qrExpires=0;
+  const qrEndpoint=method=>'/api/airwallex-create-session?channel=fps&paymentMethod='+encodeURIComponent(method);
   const nodes=[];
   for(const choice of available){
    const b=el('button','tsun-method-option');b.type='button';b.dataset.tsunMethod=choice.id;b.setAttribute('role','radio');
@@ -78,8 +79,9 @@
    choice.logos.forEach(id=>{const logo=el('img','tsun-method-logo'+(choice.logos.length===1?' tsun-single-logo':''));logo.src='/assets/payment-logos/'+id+'.svg';logo.alt=id==='wechatpay'?'WeChat Pay':id;logo.loading='lazy';marks.append(logo);});
    copy.append(name,detail);b.append(indicator,copy,marks);buttons.append(b);nodes.push({choice,b,name,detail});
    b.addEventListener('click',()=>{
-    if(checkoutOrder()?.airwallexFpsStarted&&choice.id!=='fps'){
-     void switchFromFps(choice.id);
+    const active=directMethod(checkoutOrder());
+    if(active&&choice.qr!==active){
+     void switchFromQr(choice.id);
      return;
     }
     selected=choice.id;warning.textContent='';refresh();
@@ -88,8 +90,8 @@
   function refresh(){
    const order=checkoutOrder();
    const pending=pendingAirwallex(order);
-   const direct=order?.airwallexFpsStarted&&pending;
-   if(direct)selected='fps';
+   const active=pending&&directMethod(order);
+   if(active)selected=available.find(choice=>choice.qr===active)?.id||selected;
    if(!available.some(choice=>choice.id===selected&&(!pending||choice.provider==='airwallex'))){
     selected=pending?'alipayhk':'card';
    }
@@ -101,25 +103,27 @@
     subtitle.textContent=msg('在 Airwallex 付款頁選擇 '+choice.en+'.','Choose '+choice.en+' on the Airwallex payment page.');
     if(choice.id==='unionpay')subtitle.textContent=msg('在 Airwallex 付款頁輸入銀聯卡資料。','Enter your UnionPay card on the Airwallex payment page.');
    }
-   if(direct||(choice?.id==='fps'&&fpsAvailable!==false&&!pending&&!preview())){
-    subtitle.textContent=msg('用香港銀行 App 掃描轉數快二維碼。','Scan the FPS QR code with your Hong Kong banking app.');
-    continueButton.textContent=fpsOrder===order&&Date.now()>=fpsExpires
-     ?msg('更新轉數快二維碼','Refresh FPS QR code')
-     :msg('顯示轉數快二維碼','Show FPS QR code');
+   if(active||(choice?.qr&&qrAvailability.get(choice.qr)!==false&&!pending&&!preview())){
+    subtitle.textContent=choice.qr==='fps'
+     ?msg('用香港銀行 App 掃描轉數快二維碼。','Scan the FPS QR code with your Hong Kong banking app.')
+     :msg('用 '+choice.zh+' App 掃描付款二維碼。','Scan the QR code with the '+choice.en+' app.');
+    continueButton.textContent=qrOrder===order&&Date.now()>=qrExpires
+     ?msg('更新付款二維碼','Refresh payment QR code')
+     :msg('顯示付款二維碼','Show '+choice.en+' QR code');
    }else if(pending){
     subtitle.textContent=msg('此訂單已有 Airwallex 付款連結。請打開原連結或查詢付款狀態。',
       'This order has an Airwallex payment link. Reopen it or check its payment status.');
     continueButton.textContent=msg('重新開啟付款頁','Reopen payment page');
    }
    if(recover){
-    recover.hidden=!pending||direct;
+    recover.hidden=!pending||Boolean(active);
     recover.textContent=msg('查詢 Airwallex 付款狀態','Check Airwallex payment status');
    }
    foot.textContent=msg('付款由安全支付服務商處理','Payments processed securely');
-   fpsInstructions.textContent=msg('在銀行 App 確認金額後付款。','Check the amount in your banking app and approve the payment.');
-   fpsImage.alt=msg('轉數快付款二維碼','FPS payment QR code');
-   fpsBox.hidden=!direct||fpsOrder!==order;
-   changeMethod.hidden=!direct;
+   qrInstructions.textContent=msg('請在付款 App 確認金額後付款。','Check the amount in your app before approving payment.');
+   qrImage.alt=msg('付款二維碼','Payment QR code');
+   qrBox.hidden=!active||qrOrder!==order;
+   changeMethod.hidden=!active;
    changeMethod.disabled=openingPayment;
    changeMethod.textContent=msg('更換付款方式','Change payment method');
    if(preview())continueButton.textContent=msg('檢視付款介面（不會扣款）','Preview only · No charge');
@@ -127,16 +131,16 @@
    nodes.forEach(({choice,b,name,detail})=>{
      name.textContent=zh()?choice.zh:choice.en;detail.textContent=zh()?choice.subZh:choice.subEn;
      b.setAttribute('aria-checked',String(selected===choice.id));
-     b.disabled=openingPayment||(!direct&&pending&&choice.provider!=='airwallex');
+     b.disabled=openingPayment||(!active&&pending&&choice.provider!=='airwallex');
    });
   }
-  async function checkFps(order){
-   if(order!==checkoutOrder()||!order.airwallexFpsStarted||order.paymentStatus==='paid'||!document.getElementById('checkout')?.classList.contains('active'))return;
+  async function checkQr(order){
+   if(order!==checkoutOrder()||!directMethod(order)||order.paymentStatus==='paid'||!document.getElementById('checkout')?.classList.contains('active'))return;
    const sessionId=order.airwallexSessionId;
-   if(Date.now()>=fpsExpires){
-    fpsImage.hidden=true;
-    fpsStatus.textContent=msg('二維碼已過期。可重新顯示二維碼或等待銀行確認。',
-      'QR code expired. Show a new code or wait for your bank to confirm.');
+   if(Date.now()>=qrExpires){
+    qrImage.hidden=true;
+    qrStatus.textContent=msg('二維碼已過期。可更新二維碼或等待付款確認。',
+      'QR code expired. Show a new code or wait for payment confirmation.');
     refresh();
    }
    try{
@@ -153,72 +157,75 @@
      }
     }
    }catch{}
-   if(order.airwallexSessionId===sessionId&&Date.now()<fpsExpires+2*60*1000)fpsTimer=setTimeout(()=>checkFps(order),10000);
+   if(order.airwallexSessionId===sessionId&&Date.now()<qrExpires+2*60*1000)qrTimer=setTimeout(()=>checkQr(order),10000);
   }
-  async function switchFromFps(next){
+  async function switchFromQr(next){
    const order=checkoutOrder();
-   if(!order?.airwallexFpsStarted||order.paymentStatus==='paid'||openingPayment)return;
+   const method=directMethod(order);
+   if(!method||order.paymentStatus==='paid'||openingPayment)return;
    openingPayment=true;
-   warning.textContent=msg('正在取消轉數快付款…','Cancelling FPS payment…');
+   warning.textContent=msg('正在取消掃碼付款…','Cancelling QR payment…');
    refresh();
    try{
     const {id,customerEmail,items,airwallexSessionId,airwallexFpsAttempt}=order;
-    const response=await fetch(fpsEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},
+    const response=await fetch(qrEndpoint(method),{method:'POST',headers:{'Content-Type':'application/json'},
      body:JSON.stringify({action:'cancel',order:{id,customerEmail,airwallexSessionId,airwallexFpsAttempt,
       items:items.map(({decorItems})=>({decorItems}))}})});
     const result=await response.json();
     if(order!==checkoutOrder())return;
     if(response.ok&&result.paid&&result.id){
-     clearTimeout(fpsTimer);
+     clearTimeout(qrTimer);
      order.airwallexSessionId=result.id;
      updateStoredOrder(order);
      location.assign('/?recover=1&order_id='+encodeURIComponent(id));
      return;
     }
     if(!response.ok||!result.cancelled||!Number.isInteger(result.attempt))throw Error();
-    clearTimeout(fpsTimer);
+    clearTimeout(qrTimer);
     delete order.airwallexSessionId;
     delete order.airwallexPaymentUrl;
     delete order.airwallexFpsStarted;
+    delete order.airwallexQrMethod;
     delete order.airwallexSelectedMethod;
     order.airwallexCheckoutPending=false;
     order.airwallexFpsAttempt=result.attempt;
     updateStoredOrder(order);
     history.replaceState({},document.title,'/?checkout_resume='+encodeURIComponent(id));
-    fpsOrder=null;
-    fpsImage.removeAttribute('src');
+    qrOrder=null;
+    qrImage.removeAttribute('src');
     selected=next;
     warning.textContent='';
     refresh();
     nodes.find(node=>node.choice.id===next)?.b.scrollIntoView({block:'nearest',behavior:'smooth'});
    }catch{
-    warning.textContent=msg('銀行暫未確認取消。若你已付款，請等候確認；也可以稍後再試更換付款方式。',
-     'The bank has not confirmed cancellation. If you paid, wait for confirmation. You can try changing methods again shortly.');
+    warning.textContent=msg('付款服務暫未確認取消。若你已付款，請等待確認。稍後可再試更換付款方式。',
+     'Cancellation is still awaiting confirmation. If you paid, wait for confirmation. Try changing methods again shortly.');
    }finally{
     openingPayment=false;
     refresh();
    }
   }
-  async function openFps(order){
-   clearTimeout(fpsTimer);
-   order.airwallexFpsStarted=true;order.airwallexSelectedMethod='fps';
+  async function openQr(order,choice){
+   clearTimeout(qrTimer);
+   order.airwallexQrMethod=choice.qr;order.airwallexSelectedMethod=choice.id;
+   if(choice.qr==='fps')order.airwallexFpsStarted=true;
    updateStoredOrder(order);
-   const response=await fetch(fpsEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order})});
+   const response=await fetch(qrEndpoint(choice.qr),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order})});
    const result=await response.json().catch(()=>({}));
-   if(!response.ok||!result.id)throw Error(result.error||'FPS is temporarily unavailable.');
+   if(!response.ok||!result.id)throw Error(result.error||'QR payment is temporarily unavailable.');
    if(order!==checkoutOrder())return;
    order.airwallexSessionId=result.id;order.airwallexCheckoutPending=true;
    updateStoredOrder(order);
    const resume='/?recover=1&order_id='+encodeURIComponent(order.id);
    history.replaceState({},document.title,resume+(fpsTest?'&fps_direct=1':''));
    if(result.paid){location.assign('/?recover=1&order_id='+encodeURIComponent(order.id));return;}
-   fpsOrder=order;fpsExpires=result.expiresAt||Date.now()+60000;
-   fpsImage.hidden=!result.qrImage;
-   if(result.qrImage)fpsImage.src=result.qrImage;
-   fpsStatus.textContent=msg('等待銀行確認付款…','Waiting for payment confirmation…');
+   qrOrder=order;qrExpires=result.expiresAt||Date.now()+60000;
+   qrImage.hidden=!result.qrImage;
+   if(result.qrImage)qrImage.src=result.qrImage;
+   qrStatus.textContent=msg('等待付款確認…','Waiting for payment confirmation…');
    refresh();
-   fpsBox.scrollIntoView({block:'nearest',behavior:'smooth'});
-   fpsTimer=setTimeout(()=>checkFps(order),10000);
+   qrBox.scrollIntoView({block:'nearest',behavior:'smooth'});
+   qrTimer=setTimeout(()=>checkQr(order),10000);
   }
   continueButton.addEventListener('click',async()=>{
    const choice=available.find(x=>x.id===selected);
@@ -243,25 +250,25 @@
     openingPayment=true;
     refresh();
     try{
-     if(choice.id==='fps'&&!order?.airwallexSessionId&&fpsAvailable===undefined){
+     if(choice.qr&&!order?.airwallexSessionId&&!qrAvailability.has(choice.qr)){
       try{
-       const response=await fetch(fpsEndpoint);
+       const response=await fetch(qrEndpoint(choice.qr));
        const result=await response.json();
        if(!response.ok||typeof result.enabled!=='boolean')throw Error();
-       fpsAvailable=result.enabled;
+       qrAvailability.set(choice.qr,result.enabled);
       }catch{
-       warning.textContent=msg('暫時未能開啟轉數快。請稍後重試。','FPS is temporarily unavailable. Please try again.');
+       warning.textContent=msg('暫時未能開啟掃碼付款。請稍後重試。','QR payment is temporarily unavailable. Please try again.');
        return;
       }
      }
-     const direct=choice.id==='fps'&&(order?.airwallexFpsStarted||(fpsAvailable&&!order?.airwallexSessionId));
+     const direct=choice.qr&&(directMethod(order)===choice.qr||(qrAvailability.get(choice.qr)&&!order?.airwallexSessionId));
      if(choice.id==='fps'&&fpsTest&&!direct){
       warning.textContent=order?.airwallexSessionId
        ?msg('此訂單已有付款連結。請先確認該筆付款的狀態。','This order already has a payment link. Check its status first.')
        :msg('暫時未能開啟轉數快。請稍後重試。','FPS is temporarily unavailable. Please try again.');
       return;
      }
-     await startAirwallexCheckout(choice.id,direct?openFps:undefined);
+     await startAirwallexCheckout(choice.id,direct?order=>openQr(order,choice):undefined);
     }
     finally{openingPayment=false;refresh();}
    }else if(choice.provider==='paypal'){

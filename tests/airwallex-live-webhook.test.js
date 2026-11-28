@@ -24,6 +24,14 @@ test('malformed and irrelevant payloads do not enter the payment queue',()=>{
  assert.deepEqual(parseEventEnvelope({name:'payment_intent.created'}),{kind:'ignored'});
  assert.deepEqual(parseEventEnvelope({name:'payment_link.paid',data:{object:{id:'475dc845-bc7c-47eb-b2b0-52782b9d078d'}}}),{kind:'invalid-identifiers'});
 });
+test('successful store QR intents use the existing order payment queue',()=>{
+ for(const method of ['fps','alipaycn','alipayhk','wechatpay','card','fps_probe']){
+  const event={name:'payment_intent.succeeded',id:'evt_test',
+   data:{object:{id:'int_test',metadata:{checkout_method:'8tsun8_'+method}}}};
+  assert.deepEqual(parseEventEnvelope(event),['card','fps_probe'].includes(method)
+   ?{kind:'ignored'}:{kind:'paid',eventId:'evt_test',linkId:'int_test'});
+ }
+});
 test('a verified live event is durably queued, acknowledged, then processed',async()=>{
  const events=[];
  let background;

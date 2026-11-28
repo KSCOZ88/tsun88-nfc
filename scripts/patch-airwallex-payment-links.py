@@ -32,7 +32,7 @@ replacement='''async function startAirwallexCheckout(preferredMethod,openFps){
   toast(zh?'請先核對此訂單原有的付款狀態。':'Check the payment status of this order before continuing.',9000);
   return;
  }
- if(currentOrder.airwallexFpsStarted&&!openFps)return;
+ if((currentOrder.airwallexFpsStarted||currentOrder.airwallexQrMethod)&&!openFps)return;
  const paymentTab=openFps?null:window.open('about:blank','_blank');
  if(paymentTab)paymentTab.opener=null;
  if(button){button.disabled=true;button.textContent='Opening Airwallex…';}

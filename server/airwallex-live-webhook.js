@@ -3,10 +3,13 @@
 // trusted from the webhook alone: the queued worker re-fetches the link and
 // matches it to the immutable server-side order snapshot before sending mail.
 const ID=/^[A-Za-z0-9_-]{6,130}$/;
+const {supportsQr}=require('./airwallex-fps');
 function parseEventEnvelope(event){
  if(!event||typeof event!=='object'||Array.isArray(event))return {kind:'invalid-body'};
- const fpsPaid=event.name==='payment_intent.succeeded'&&event.data?.object?.metadata?.checkout_method==='8tsun8_fps';
- if(event.name!=='payment_link.paid'&&!fpsPaid)return {kind:'ignored'};
+ const marker=event.data?.object?.metadata?.checkout_method;
+ const qrPaid=event.name==='payment_intent.succeeded'&&typeof marker==='string'&&
+  marker.startsWith('8tsun8_')&&supportsQr(marker.slice(7));
+ if(event.name!=='payment_link.paid'&&!qrPaid)return {kind:'ignored'};
  const eventId=typeof event.id==='string'?event.id:'';
  const linkId=typeof event.data?.object?.id==='string'?event.data.object.id:'';
  if(!ID.test(eventId)||!ID.test(linkId))return {kind:'invalid-identifiers'};
