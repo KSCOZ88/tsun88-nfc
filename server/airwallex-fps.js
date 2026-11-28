@@ -33,7 +33,7 @@ function confirmBinding(intent,id,s){
 }
 
 function lookup(config,id){
- if(!idPattern.test(id))throw fail('Invalid FPS payment ID.',422);
+ if(typeof id!=='string'||!idPattern.test(id))throw fail('Invalid FPS payment ID.',422);
  return request(config,encodeURIComponent(id));
 }
 
@@ -44,7 +44,7 @@ async function verify(id,order){
  if(intent.status!=='SUCCEEDED')throw fail('FPS payment is not confirmed.');
  const attempt=intent.latest_payment_attempt;
  if(attempt?.payment_method?.type!=='fps'||
-    Math.round(Number(attempt.captured_amount)*100)!==s.totalCents){
+    Math.round(Number(attempt.captured_amount??intent.captured_amount)*100)!==s.totalCents){
   throw fail('FPS payment method or captured amount does not match this order.');
  }
  return {paid:true,paymentIntentId:id,amountCents:s.totalCents,currency:'HKD',mode:config.mode};
@@ -66,7 +66,7 @@ async function prepare(order){
    metadata:{order_binding:s.binding,checkout_method:'8tsun8_fps'}
   });
   id=intent.id;
-  if(!idPattern.test(id))throw fail('Airwallex returned an invalid FPS payment.',502);
+  if(typeof id!=='string'||!idPattern.test(id))throw fail('Airwallex returned an invalid FPS payment.',502);
   confirmBinding(intent,id,s);
   await complete(lease,{paymentLinkId:id,url:null});
  }
@@ -106,39 +106,4 @@ async function prepare(order){
   : {id,totalCents:s.totalCents,pending:true};
 }
 
-async function probeProvider(){
- const result={created:false,issuedQr:false,cancelled:false};
- let config,id;
- const reference='TS-FPS-CHECK-20261128';
- try{
-  config=configuration();
-  const intent=await request(config,'create',{
-   request_id:requestId('probe-create',[reference]),
-   amount:1,currency:'HKD',merchant_order_id:reference,
-   metadata:{checkout_method:'8tsun8_fps_probe'}
-  });
-   if(typeof intent.id!=='string'||!idPattern.test(intent.id)||Number(intent.amount)!==1||intent.currency!=='HKD'||
-     intent.merchant_order_id!==reference)throw fail('Unexpected test payment intent.');
-  id=intent.id;result.created=true;
-  if(intent.status==='CANCELLED'){result.cancelled=true;return result;}
-  const confirmed=await request(config,encodeURIComponent(id)+'/confirm',{
-   request_id:requestId('probe-confirm',[reference]),
-   payment_method:{type:'fps',fps:{flow:'webqr'}}
-  });
-  result.issuedQr=confirmed.next_action?.type==='render_qrcode'&&Boolean(confirmed.next_action.qrcode);
-  result.awaitingScan=confirmed.status==='REQUIRES_CUSTOMER_ACTION';
- }catch(error){result.errorStatus=error.status||500;}
- finally{
-  if(id&&!result.cancelled){
-   try{
-    const cancelled=await request(config,encodeURIComponent(id)+'/cancel',{
-     request_id:requestId('probe-cancel',[reference])
-    });
-    result.cancelled=cancelled.status==='CANCELLED';
-   }catch(error){result.cancelErrorStatus=error.status||500;}
-  }
- }
- return result;
-}
-
-module.exports={prepare,verify,probeProvider};
+module.exports={prepare,verify};

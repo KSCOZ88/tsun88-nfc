@@ -60,11 +60,11 @@
   const initialOrder=checkoutOrder();
   let selected=initialOrder?.airwallexSelectedMethod||(fpsTest?'fps':airwallexTest?'alipayhk':'card');
   let openingPayment=false;
-  let fpsAvailable=false;
+  let fpsAvailable;
   let fpsTimer;
   let fpsOrder;
   let fpsExpires=0;
-  const fpsEndpoint='/api/airwallex-create-session?channel=fps'+(fpsTest?'&merchantTest=1':'');
+  const fpsEndpoint='/api/airwallex-create-session?channel=fps';
   const nodes=[];
   for(const choice of available){
    const b=el('button','tsun-method-option');b.type='button';b.dataset.tsunMethod=choice.id;b.setAttribute('role','radio');
@@ -91,7 +91,7 @@
     subtitle.textContent=msg('在 Airwallex 付款頁選擇 '+choice.en+'.','Choose '+choice.en+' on the Airwallex payment page.');
     if(choice.id==='unionpay')subtitle.textContent=msg('在 Airwallex 付款頁輸入銀聯卡資料。','Enter your UnionPay card on the Airwallex payment page.');
    }
-   if(direct||(choice?.id==='fps'&&fpsAvailable&&!pending)){
+   if(direct||(choice?.id==='fps'&&fpsAvailable!==false&&!pending&&!preview())){
     subtitle.textContent=msg('用香港銀行 App 掃描轉數快二維碼。','Scan the FPS QR code with your Hong Kong banking app.');
     continueButton.textContent=fpsOrder===order&&Date.now()>=fpsExpires
      ?msg('更新轉數快二維碼','Refresh FPS QR code')
@@ -184,15 +184,22 @@
     openingPayment=true;
     refresh();
     try{
-     if(choice.id==='fps'&&!order?.airwallexSessionId&&!fpsAvailable){
-      const available=await fetch(fpsEndpoint).then(response=>response.json()).catch(()=>({}));
-      fpsAvailable=available.enabled===true;
+     if(choice.id==='fps'&&!order?.airwallexSessionId&&fpsAvailable===undefined){
+      try{
+       const response=await fetch(fpsEndpoint);
+       const result=await response.json();
+       if(!response.ok||typeof result.enabled!=='boolean')throw Error();
+       fpsAvailable=result.enabled;
+      }catch{
+       warning.textContent=msg('暫時未能開啟轉數快。請稍後重試。','FPS is temporarily unavailable. Please try again.');
+       return;
+      }
      }
      const direct=choice.id==='fps'&&(order?.airwallexFpsStarted||(fpsAvailable&&!order?.airwallexSessionId));
      if(choice.id==='fps'&&fpsTest&&!direct){
       warning.textContent=order?.airwallexSessionId
        ?msg('此訂單已有付款連結。請先確認該筆付款的狀態。','This order already has a payment link. Check its status first.')
-       :msg('請在同一瀏覽器登入商家後台，再試掃碼付款。','Sign in to the merchant dashboard in this browser to test FPS.');
+       :msg('暫時未能開啟轉數快。請稍後重試。','FPS is temporarily unavailable. Please try again.');
       return;
      }
      await startAirwallexCheckout(choice.id,direct?openFps:undefined);
