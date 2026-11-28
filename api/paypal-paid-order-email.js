@@ -20,15 +20,16 @@ module.exports=async(req,res)=>{
       RETURNING customer_sent,merchant_sent`;
     if(!claimed.length){
       const [previous]=await sql`SELECT customer_sent,merchant_sent,processing_until FROM tsun_paypal_mail WHERE merchant_order_id=${id} AND stage=${stage}`;
-      return res.status(200).json({customerSent:!!previous?.customer_sent,merchantSent:!!previous?.merchant_sent,alreadyHandled:true});
+      return res.status(200).json({customerSent:!!previous?.customer_sent,merchantSent:stage==='order_completed'&&!!previous?.merchant_sent,alreadyHandled:true});
     }
     const state=claimed[0];
     try{
       const result=await deliver(stage,mailOrder,body.previews||[],body.attachments||[],{skipCustomer:state.customer_sent,skipMerchant:state.merchant_sent});
       const customerDone=!!(state.customer_sent||result.customerSent);
-      const merchantDone=!!(state.merchant_sent||result.merchantSent||stage!=='order_completed');
+      const merchantDone=stage==='order_completed'&&!!(state.merchant_sent||result.merchantSent);
+      const complete=customerDone&&(stage!=='order_completed'||merchantDone);
       await sql`UPDATE tsun_paypal_mail SET customer_sent=${customerDone}, merchant_sent=${merchantDone}, processing_until=NULL WHERE merchant_order_id=${id} AND stage=${stage}`;
-      return res.status(customerDone&&merchantDone?200:502).json({customerSent:customerDone,merchantSent:merchantDone,error:customerDone&&merchantDone?undefined:'邮件未全部发送，可稍后重试'});
+      return res.status(complete?200:502).json({customerSent:customerDone,merchantSent:merchantDone,error:complete?undefined:'邮件未全部发送，可稍后重试'});
     }catch(err){await sql`UPDATE tsun_paypal_mail SET processing_until=NULL WHERE merchant_order_id=${id} AND stage=${stage}`;throw err;}
   }catch(err){p.error(res,err);}
 };
