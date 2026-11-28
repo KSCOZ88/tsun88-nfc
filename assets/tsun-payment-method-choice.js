@@ -50,8 +50,12 @@
   const fpsInstructions=el('p');
   const fpsStatus=el('p');fpsStatus.setAttribute('role','status');
   fpsBox.append(fpsInstructions,fpsImage,fpsStatus);
+  const changeMethod=el('button','secondary tsun-method-recover');
+  changeMethod.type='button';
+  changeMethod.addEventListener('click',()=>switchFromFps('card'));
   wrap.append(heading,subtitle,buttons,warning,continueButton,foot);
   wrap.insertBefore(fpsBox,continueButton);
+  wrap.insertBefore(changeMethod,foot);
   paypal.parentNode.insertBefore(panel,paypal);
   if(recover){
    recover.classList.add('tsun-method-recover');
@@ -73,7 +77,13 @@
    const marks=el('span','tsun-method-logos');
    choice.logos.forEach(id=>{const logo=el('img','tsun-method-logo'+(choice.logos.length===1?' tsun-single-logo':''));logo.src='/assets/payment-logos/'+id+'.svg';logo.alt=id==='wechatpay'?'WeChat Pay':id;logo.loading='lazy';marks.append(logo);});
    copy.append(name,detail);b.append(indicator,copy,marks);buttons.append(b);nodes.push({choice,b,name,detail});
-   b.addEventListener('click',()=>{selected=choice.id;warning.textContent='';refresh();});
+   b.addEventListener('click',()=>{
+    if(checkoutOrder()?.airwallexFpsStarted&&choice.id!=='fps'){
+     void switchFromFps(choice.id);
+     return;
+    }
+    selected=choice.id;warning.textContent='';refresh();
+   });
   }
   function refresh(){
    const order=checkoutOrder();
@@ -109,16 +119,20 @@
    fpsInstructions.textContent=msg('在銀行 App 確認金額後付款。','Check the amount in your banking app and approve the payment.');
    fpsImage.alt=msg('轉數快付款二維碼','FPS payment QR code');
    fpsBox.hidden=!direct||fpsOrder!==order;
+   changeMethod.hidden=!direct;
+   changeMethod.disabled=openingPayment;
+   changeMethod.textContent=msg('更換付款方式','Change payment method');
    if(preview())continueButton.textContent=msg('檢視付款介面（不會扣款）','Preview only · No charge');
    continueButton.disabled=openingPayment;
    nodes.forEach(({choice,b,name,detail})=>{
      name.textContent=zh()?choice.zh:choice.en;detail.textContent=zh()?choice.subZh:choice.subEn;
      b.setAttribute('aria-checked',String(selected===choice.id));
-     b.disabled=openingPayment||(direct?choice.id!=='fps':pending&&choice.provider!=='airwallex');
+     b.disabled=openingPayment||(!direct&&pending&&choice.provider!=='airwallex');
    });
   }
   async function checkFps(order){
-   if(order!==checkoutOrder()||order.paymentStatus==='paid'||!document.getElementById('checkout')?.classList.contains('active'))return;
+   if(order!==checkoutOrder()||!order.airwallexFpsStarted||order.paymentStatus==='paid'||!document.getElementById('checkout')?.classList.contains('active'))return;
+   const sessionId=order.airwallexSessionId;
    if(Date.now()>=fpsExpires){
     fpsImage.hidden=true;
     fpsStatus.textContent=msg('二維碼已過期。可重新顯示二維碼或等待銀行確認。',
@@ -130,15 +144,60 @@
      const {id,customerEmail,items}=order;
      const response=await fetch('/api/airwallex-confirm-session',{method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({sessionId:order.airwallexSessionId,order:{id,customerEmail,items:items.map(({decorItems})=>({decorItems}))}})});
+      body:JSON.stringify({sessionId,order:{id,customerEmail,items:items.map(({decorItems})=>({decorItems}))}})});
      const confirmation=await response.json();
+     if(order.airwallexSessionId!==sessionId||order!==checkoutOrder())return;
      if(response.ok&&confirmation.paid){
       location.assign('/?recover=1&order_id='+encodeURIComponent(id));
       return;
      }
     }
    }catch{}
-   if(Date.now()<fpsExpires+2*60*1000)fpsTimer=setTimeout(()=>checkFps(order),10000);
+   if(order.airwallexSessionId===sessionId&&Date.now()<fpsExpires+2*60*1000)fpsTimer=setTimeout(()=>checkFps(order),10000);
+  }
+  async function switchFromFps(next){
+   const order=checkoutOrder();
+   if(!order?.airwallexFpsStarted||order.paymentStatus==='paid'||openingPayment)return;
+   openingPayment=true;
+   warning.textContent=msg('正在取消轉數快付款…','Cancelling FPS payment…');
+   refresh();
+   try{
+    const {id,customerEmail,items,airwallexSessionId,airwallexFpsAttempt}=order;
+    const response=await fetch(fpsEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},
+     body:JSON.stringify({action:'cancel',order:{id,customerEmail,airwallexSessionId,airwallexFpsAttempt,
+      items:items.map(({decorItems})=>({decorItems}))}})});
+    const result=await response.json();
+    if(order!==checkoutOrder())return;
+    if(response.ok&&result.paid&&result.id){
+     clearTimeout(fpsTimer);
+     order.airwallexSessionId=result.id;
+     updateStoredOrder(order);
+     location.assign('/?recover=1&order_id='+encodeURIComponent(id));
+     return;
+    }
+    if(!response.ok||!result.cancelled||!Number.isInteger(result.attempt))throw Error();
+    clearTimeout(fpsTimer);
+    delete order.airwallexSessionId;
+    delete order.airwallexPaymentUrl;
+    delete order.airwallexFpsStarted;
+    delete order.airwallexSelectedMethod;
+    order.airwallexCheckoutPending=false;
+    order.airwallexFpsAttempt=result.attempt;
+    updateStoredOrder(order);
+    history.replaceState({},document.title,'/?checkout_resume='+encodeURIComponent(id));
+    fpsOrder=null;
+    fpsImage.removeAttribute('src');
+    selected=next;
+    warning.textContent='';
+    refresh();
+    nodes.find(node=>node.choice.id===next)?.b.scrollIntoView({block:'nearest',behavior:'smooth'});
+   }catch{
+    warning.textContent=msg('銀行暫未確認取消。若你已付款，請等候確認；也可以稍後再試更換付款方式。',
+     'The bank has not confirmed cancellation. If you paid, wait for confirmation. You can try changing methods again shortly.');
+   }finally{
+    openingPayment=false;
+    refresh();
+   }
   }
   async function openFps(order){
    clearTimeout(fpsTimer);

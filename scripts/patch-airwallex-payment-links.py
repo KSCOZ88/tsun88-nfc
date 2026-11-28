@@ -157,5 +157,9 @@ replace_once(
   }
   if(order.status==='已付款'&&order.paymentStatus==='paid'&&order.airwallexOrderToken){""",
 )
+replace_once(
+    "  if(!order){toast('本浏览器没有找到这笔订单，请回到发起付款时使用的设备核对。',9000);return;}\n  currentOrder=order;",
+    "  if(!order){toast('本浏览器没有找到这笔订单，请回到发起付款时使用的设备核对。',9000);return;}\n  if(order.customerEmail){state.customerEmail=order.customerEmail;document.getElementById('customerEmail').value=order.customerEmail;}\n  currentOrder=order;",
+)
 p.write_text(s,encoding="utf-8")
 print("Patched",len(s),"characters")

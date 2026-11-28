@@ -2,7 +2,7 @@
 
 const qrcode=require('qrcode-generator');
 const {parseBody,handleError,method}=require('./airwallex-checkout');
-const {prepare}=require('./airwallex-fps');
+const {prepare,cancel}=require('./airwallex-fps');
 
 function enabled(){
  return process.env.VERCEL_ENV==='production'&&
@@ -14,12 +14,13 @@ module.exports=async function(req,res){
  res.setHeader('Cache-Control','private, no-store');
  if(req.method==='GET')return res.status(200).json({enabled:enabled()});
  if(method(req,res))return;
- if(!enabled())return res.status(403).json({error:'Direct FPS payment is unavailable.'});
  if(req.headers.origin!=='https://www.8tsun8.com'&&req.headers.origin!=='https://8tsun8.com'){
   return res.status(403).json({error:'Open the 8TSUN8 checkout to pay.'});
  }
  try{
-  const {order}=parseBody(req);
+  const {order,action}=parseBody(req);
+  if(action==='cancel'&&process.env.VERCEL_ENV==='production')return res.status(200).json(await cancel(order));
+  if(!enabled())return res.status(403).json({error:'Direct FPS payment is unavailable.'});
   const {text,...result}=await prepare(order);
   if(text){
    const code=qrcode(0,'M');

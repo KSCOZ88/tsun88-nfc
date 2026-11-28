@@ -31,7 +31,8 @@ async function fpsSchema(sql){
  await schema(sql);
  fpsSchemaPromise||=sql`ALTER TABLE tsun_airwallex_orders
   ADD COLUMN IF NOT EXISTS payment_kind text NOT NULL DEFAULT 'payment_link',
-  ADD COLUMN IF NOT EXISTS fps_qr jsonb`.catch(error=>{fpsSchemaPromise=null;throw error;});
+  ADD COLUMN IF NOT EXISTS fps_qr jsonb,
+  ADD COLUMN IF NOT EXISTS fps_attempt integer NOT NULL DEFAULT 0`.catch(error=>{fpsSchemaPromise=null;throw error;});
  await fpsSchemaPromise;
 }
 function safeSnapshot(order){
@@ -48,43 +49,57 @@ function safeSnapshot(order){
  return result;
 }
 async function begin(order,kind='payment_link'){
- const s=summary(order),sql=db();await schema(sql);
+ const s=summary(order),sql=db();await fpsSchema(sql);
  const snapshot=safeSnapshot(order);
- if(kind==='fps')await fpsSchema(sql);
- const inserted=kind==='fps'?await sql`INSERT INTO tsun_airwallex_orders
+ const inserted=await sql`INSERT INTO tsun_airwallex_orders
  (merchant_order_id,email,amount_cents,order_binding,order_snapshot,payment_kind)
- VALUES (${s.orderId},${s.email},${s.totalCents},${s.binding},${JSON.stringify(snapshot)}::jsonb,'fps')
- ON CONFLICT DO NOTHING RETURNING merchant_order_id`:await sql`INSERT INTO tsun_airwallex_orders
- (merchant_order_id,email,amount_cents,order_binding,order_snapshot)
- VALUES (${s.orderId},${s.email},${s.totalCents},${s.binding},${JSON.stringify(snapshot)}::jsonb)
+ VALUES (${s.orderId},${s.email},${s.totalCents},${s.binding},${JSON.stringify(snapshot)}::jsonb,${kind})
  ON CONFLICT DO NOTHING RETURNING merchant_order_id`;
- if(inserted.length)return {s,sql,fresh:true};
- const [existing]=await sql`SELECT merchant_order_id,email,amount_cents,order_binding,payment_link_id,payment_link_url,status
+ if(inserted.length)return {s,sql,fresh:true,attempt:0};
+ const [existing]=await sql`SELECT email,amount_cents,order_binding,payment_link_id,payment_link_url,status,payment_kind,fps_qr,fps_attempt
  FROM tsun_airwallex_orders WHERE merchant_order_id=${s.orderId}`;
  if(!existing||existing.order_binding!==s.binding||existing.amount_cents!==s.totalCents||existing.email.toLowerCase()!==s.email.toLowerCase())throw fail('该订单的金额或邮箱已改变，请联系商户',409);
+ const attempt=existing.fps_attempt;
+ if(attempt!==(order.airwallexFpsAttempt??0))throw fail('This checkout has changed. Reopen the current order.',409);
+ if(existing.status==='cancelled'){
+  const rows=await sql`UPDATE tsun_airwallex_orders SET status='creating',payment_kind=${kind},
+   payment_link_id=NULL,payment_link_url=NULL,fps_qr=NULL,order_snapshot=${JSON.stringify(snapshot)}::jsonb
+   WHERE merchant_order_id=${s.orderId} AND status='cancelled' AND fps_attempt=${attempt}
+   RETURNING merchant_order_id`;
+  if(!rows.length)throw fail('Payment is already being prepared.',409);
+  return {s,sql,fresh:true,attempt};
+ }
  if(kind==='fps'){
-  const [fps]=await sql`SELECT payment_kind,fps_qr FROM tsun_airwallex_orders WHERE merchant_order_id=${s.orderId}`;
-  if(fps?.payment_kind!=='fps')throw fail('Use the existing payment link for this order.',409);
-  return {s,sql,fresh:false,existing:{...existing,...fps}};
+  if(existing.payment_kind!=='fps')throw fail('Use the existing payment link for this order.',409);
+  return {s,sql,fresh:false,attempt,existing};
  }
  if(existing.payment_link_id&&existing.payment_link_url&&existing.status==='pending')
-  return {s,sql,fresh:false,existing};
+  return {s,sql,fresh:false,attempt,existing};
  if(existing.status==='paid')throw fail('该订单已付款，请勿重复付款',409);
  throw fail('订单付款链接正在处理，请勿重复提交',409);
 }
 async function complete(lease,link){
- const {sql,s}=lease;
+ const {sql,s,attempt}=lease;
  const rows=await sql`UPDATE tsun_airwallex_orders SET payment_link_id=${link.paymentLinkId},
  payment_link_url=${link.url},status='pending'
- WHERE merchant_order_id=${s.orderId} AND payment_link_id IS NULL AND status='creating'
+ WHERE merchant_order_id=${s.orderId} AND payment_link_id IS NULL AND status='creating' AND fps_attempt=${attempt}
  RETURNING merchant_order_id`;
- if(!rows.length)throw fail('订单链接保存失败，请联系客服核查，不要再次付款',503);
+ if(!rows.length){
+  const [existing]=await sql`SELECT status FROM tsun_airwallex_orders
+   WHERE merchant_order_id=${s.orderId} AND payment_link_id=${link.paymentLinkId} AND fps_attempt=${attempt}`;
+  if(!['pending','paid'].includes(existing?.status))throw fail('The active payment has changed. Please check the order.',409);
+ }
 }
 async function abort(lease){
  if(!lease.fresh)return;
- const {sql,s}=lease;
- await sql`DELETE FROM tsun_airwallex_orders WHERE merchant_order_id=${s.orderId}
- AND status='creating' AND payment_link_id IS NULL`;
+ const {sql,s,attempt}=lease;
+ if(attempt>0){
+  await sql`UPDATE tsun_airwallex_orders SET status='cancelled' WHERE merchant_order_id=${s.orderId}
+   AND status='creating' AND payment_kind='payment_link' AND payment_link_id IS NULL AND fps_attempt=${attempt}`;
+ }else{
+  await sql`DELETE FROM tsun_airwallex_orders WHERE merchant_order_id=${s.orderId}
+   AND status='creating' AND payment_kind='payment_link' AND payment_link_id IS NULL AND fps_attempt=${attempt}`;
+ }
 }
 async function recordPaid(order,linkId){
  const summaryData=summary(order),sql=db();await schema(sql);
@@ -103,4 +118,4 @@ async function recordPaid(order,linkId){
  scheduleProductionSync(sql,summaryData.orderId);
  return {legacy:false};
 }
-module.exports={begin,complete,abort,recordPaid,db,schema};
+module.exports={begin,complete,abort,recordPaid,db,schema,fpsSchema};
