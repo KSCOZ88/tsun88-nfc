@@ -232,9 +232,10 @@ test('order listing, sales analytics, detail and images require a merchant sessi
       ? ['print_front', 'print_back'].map(side => ({side, image_png: Buffer.from(png.split(',')[1], 'base64')}))
       : [{image_png: Buffer.from('test')}];
   }});
-  const respond = async (query, cookie) => {
+  const respond = async (query, cookie, body) => {
     const result = {headers: {}};
-    await handler({method: 'GET', query, headers: {host: 'preview.example.test', cookie}}, {
+    const headers = {host: 'preview.example.test', cookie, origin, 'content-type': 'application/json'};
+    await handler({method: body ? 'POST' : 'GET', query, body, headers}, {
       setHeader(name, value) { result.headers[name] = value; },
       status(status) { result.status = status; return this; },
       json(body) { result.body = body; },
@@ -246,6 +247,8 @@ test('order listing, sales analytics, detail and images require a merchant sessi
   for (const query of [{reviews: '1'}, {sales: '1'}, {review: id}, {image: id, tag: '1', side: 'front'}, download]) {
     assert.deepEqual((await respond(query)).body, {error: 'sign_in_required'});
   }
+  assert.deepEqual((await respond({}, undefined, {action: 'resend-production-mail', orderId: id})).body,
+    {error: 'sign_in_required'});
   assert.equal(opened, 0);
   const image = await respond({image: id, tag: '1', side: 'front'}, signIn(config.key, config));
   assert.equal(image.status, 200);

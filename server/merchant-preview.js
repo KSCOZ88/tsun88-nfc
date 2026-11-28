@@ -399,6 +399,19 @@ function makeHandler({getConfig = configuration, getDb = postgres} = {}) {
       if (!authenticated) throw failure(401, 'sign_in_required');
       const sql = getDb(config.connection);
       const {action, order, review, orderId, tagNumber, previews} = req.body || {};
+      if (action === 'resend-production-mail') {
+        if (preview) throw failure(404, 'not_available');
+        const detail = await loadReview(sql, orderId);
+        if (detail.provider !== 'airwallex' || !detail.paid?.profiles?.length) {
+          throw failure(409, 'production_assets_missing');
+        }
+        const legacy = req.body.legacy;
+        if (legacy && Buffer.byteLength(JSON.stringify(legacy)) > 4 * 1024 * 1024) {
+          throw failure(413, 'production_assets_too_large');
+        }
+        const {resendProductionMail} = require('./airwallex-production-mail');
+        return res.status(200).json(await resendProductionMail(orderId, legacy, detail.paid.profiles[0].url));
+      }
       if (action === 'save-review-images' || action === 'save-print-images') {
         await saveMerchantImages(sql, orderId, tagNumber, previews, action === 'save-print-images');
         return res.status(200).json({saved: true});

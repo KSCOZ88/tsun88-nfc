@@ -41,7 +41,7 @@ async function deliver(stage,order,previews,attachments=[],options={}){
       if(!addressLabel)throw new Error('配送资料不完整');
       step='SMTP';
       const merchantEmail=process.env.MERCHANT_EMAIL||GMAIL_ADDRESS;
-      merchant=await sendGmail({...shared,to:[merchantEmail],subject:'尊八八制作订单｜'+order.id,html:`<h2>已付款，资料已收齐</h2><p>订单号：${escape(order.id)}<br>客户邮箱：${escape(order.customerEmail)}<br>金额：HK$${(order.paidAmountCents/100).toFixed(2)}<br>收货人：${escape(order.shipName)}<br>联系电话：${escape(order.shipPhone)}<br>地址：${escape(order.shipAddress)}</p><p>NFC 档案：<a href="${escape(safeUrl(order.cloudProfile?.publicUrl))}">${escape(safeUrl(order.cloudProfile?.publicUrl))}</a></p>${merchantReviewLink(order.id, order.language)}<p>请将档案网址写入 NFC；生产图片见附件。</p>${shippingLabelPrintTip}`,attachments:[...files,addressLabel]},'tsun-merchant-'+identity);
+      merchant=await sendGmail({...shared,to:[merchantEmail],subject:'尊八八制作订单｜'+order.id,html:`<h2>已付款，资料已收齐</h2><p>订单号：${escape(order.id)}<br>客户邮箱：${escape(order.customerEmail)}<br>金额：HK$${(order.paidAmountCents/100).toFixed(2)}<br>收货人：${escape(order.shipName)}<br>联系电话：${escape(order.shipPhone)}<br>地址：${escape(order.shipAddress)}</p><p>NFC 档案：<a href="${escape(safeUrl(order.cloudProfile?.publicUrl))}">${escape(safeUrl(order.cloudProfile?.publicUrl))}</a></p>${merchantReviewLink(order.id, order.language)}<p>请将档案网址写入 NFC；生产图片见附件。</p>${shippingLabelPrintTip}`,attachments:[...files,addressLabel]},'tsun-merchant-'+identity+(options.merchantAttempt?'-'+options.merchantAttempt:''));
     }catch(error){
       const code=String(error?.code||'');
       console.error('[Airwallex production email] preparation failed',{step,code:/^[a-z0-9_-]{1,40}$/i.test(code)?code:'unknown'});

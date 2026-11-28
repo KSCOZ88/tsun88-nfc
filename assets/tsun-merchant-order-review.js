@@ -92,8 +92,37 @@
     const response = await fetch(endpoint + query, body ? {
       method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
     } : {});
-    if (!response.ok) throw Object.assign(new Error('Order review unavailable'), {status: response.status});
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw Object.assign(new Error('Order review unavailable'), {status: response.status, code: data.error});
+    }
     return response.json();
+  }
+
+  async function resendAirwallexProduction(orderId) {
+    const payload = {action: 'resend-production-mail', orderId};
+    try {
+      return await request('', payload);
+    } catch (error) {
+      if (error.code !== 'production_assets_missing') throw error;
+      // Only this signed-in order can use a completed checkout still on this browser.
+      let saved;
+      try {
+        saved = JSON.parse(localStorage.getItem('tsun88_orders_v1') || '[]').find(order =>
+          order.id === orderId && order.status === '资料已完善' && order.paymentStatus === 'paid' &&
+          order.airwallexOrderToken && order.airwallexSessionId);
+      } catch {}
+      if (!saved) throw error;
+      const files = await prepareProductionFiles(saved);
+      const attachments = await Promise.all(Object.values(files).map(async file =>
+        ({name: file.name, data: await blobToDataUrl(file.blob)})));
+      const {id, items, customerEmail, language, shipName, shipPhone, shipAddress,
+        airwallexOrderToken, airwallexSessionId} = saved;
+      return request('', {...payload, legacy: {attachments, order: {
+        id, items: items.map(({petName, decorItems}) => ({petName, decorItems})),
+        customerEmail, language, shipName, shipPhone, shipAddress, airwallexOrderToken, airwallexSessionId
+      }}});
+    }
   }
 
   function providerName(provider) {
@@ -389,6 +418,31 @@
     print.append(printList);
     const blocks = [info, reference, profiles, tags];
     if (printList.childElementCount) blocks.push(print);
+    if (order.provider === 'airwallex' && order.items.length && order.profiles.length) {
+      const resend = element('button', local('重發商家製作郵件', 'Resend merchant production email'));
+      resend.type = 'button';
+      resend.addEventListener('click', async () => {
+        resend.disabled = true;
+        report('正在寄送商家製作郵件…', 'Sending merchant production email…');
+        try {
+          const receipt = await resendAirwallexProduction(order.id);
+          if (receipt.notificationStatus === 'sent') report('商家製作郵件已寄出。', 'Merchant production email sent.');
+          else report('郵件待發送。請稍後重試。', 'Email is pending. Try again later.');
+        } catch (error) {
+          if (error.code === 'production_assets_missing') {
+            report('這筆舊訂單需在原付款瀏覽器登入商家後台，再重發郵件。',
+              'For this older order, sign in to the merchant dashboard from the original checkout browser and resend.');
+          } else if (error.code === 'production_mail_busy') {
+            report('郵件正在寄送，請稍後查看收件箱。', 'Email is already being sent. Check your inbox shortly.');
+          } else {
+            report('暫時無法發送商家製作郵件。', 'Unable to send the merchant production email.');
+          }
+        } finally {
+          resend.disabled = false;
+        }
+      });
+      blocks.push(resend);
+    }
     if (order.provider === 'merchant' && ['pending', 'sending'].includes(order.notification_status)
         && order.items.length && filesReady) {
       const retry = element('button', local('重試商家郵件', 'Retry merchant email'));

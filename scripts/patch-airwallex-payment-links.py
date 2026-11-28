@@ -100,50 +100,41 @@ def replace_once(old, new):
     s=s.replace(old,new)
 
 replace_once(
-    'async function notifyOrderStage(order,stage,attachments=[]){',
-    'async function notifyOrderStage(order,stage,attachments=[],retryMerchant=false){',
+    "function preparePaidOrderScreen(order){",
+    """function setPostPaymentCompletion(completed){
+  document.getElementById('paidNfcSummary').hidden=completed;
+  document.getElementById('submitPostPaymentNfc').parentNode.style.display=completed?'none':'';
+  document.getElementById('customerOrderStatus').hidden=completed;
+  document.getElementById('completeOrderBtn').hidden=!completed;
+  if(completed){
+    const subtitle=document.getElementById('orderSuccessSubtitle');
+    subtitle.textContent=window.TsunI18n?.locale==='zh-Hant'
+      ?'配送資料及寵物檔案已保存。':'Shipping details and pet profile have been saved.';
+  }
+}
+function preparePaidOrderScreen(order){
+  setPostPaymentCompletion(false);""",
 )
 replace_once(
-    '  const previews=await prepareEmailPreviews(order);',
-    '  const previews=retryMerchant?[]:await prepareEmailPreviews(order);',
+    'id="editNfcProfileBtn">回去完善宠物档案</button>',
+    'id="editNfcProfileBtn">查看或修改宠物资料</button>',
 )
 replace_once(
-    'async function sendCompletedOrderEmail(order){',
-    'async function sendCompletedOrderEmail(order,retryMerchant=false){',
-)
-replace_once(
-    "const delivery=await notifyOrderStage(order,'order_completed',attachments);",
-    "const delivery=await notifyOrderStage(order,'order_completed',attachments,retryMerchant);",
-)
-replace_once(
-    "order.customerEmailStatus=delivery.demo?'演示未发送':delivery.customerSent?'已发送订单及档案':'发送失败';",
-    "if(!retryMerchant)order.customerEmailStatus=delivery.demo?'演示未发送':delivery.customerSent?'已发送订单及档案':'发送失败';",
-)
-replace_once(
-    "order.airwallexOrderToken,order,previews,attachments})",
-    "order.airwallexOrderToken,order,previews,attachments,...(retryMerchant?{retryMerchant:true}:{})})",
+    "if(shippingForm)shippingForm.hidden=true;if(complete)complete.hidden=false;",
+    "if(shippingForm)shippingForm.hidden=true;setPostPaymentCompletion(true);",
 )
 replace_once(
     "  if(order.status==='已付款'&&order.paymentStatus==='paid'&&order.airwallexOrderToken){",
     """  if(order.status==='资料已完善'&&order.paymentStatus==='paid'&&order.airwallexOrderToken&&order.cloudProfile){
-    preparePaidOrderScreen(order);go('orderSuccess');showNfcLinks(order.cloudProfile);
+    preparePaidOrderScreen(order);
+    for(const name of ['shipName','shipPhone','shipAddress']){
+      state[name]=order[name]||'';
+      document.getElementById(name).value=state[name];
+    }
+    go('orderSuccess');showNfcLinks(order.cloudProfile);
     document.getElementById('postPaymentShippingForm').hidden=true;
     document.getElementById('postPaymentNfcForm').hidden=true;
-    const done=document.getElementById('completeOrderBtn');done.hidden=false;
-    const zh=window.TsunI18n?.locale==='zh-Hant';
-    document.getElementById('orderSuccessSubtitle').textContent=zh?'配送資料及寵物檔案已保存。':'Shipping details and pet profile have been saved.';
-    if(order.productionStatus!=='已发送商户'){
-      const retry=document.createElement('button');retry.type='button';retry.className='secondary';
-      retry.textContent=zh?'補發商家製作郵件':'Resend merchant production email';
-      retry.addEventListener('click',async()=>{
-        retry.disabled=true;
-        const delivery=await sendCompletedOrderEmail(order,true);
-        if(delivery.merchantSent)retry.remove();else retry.disabled=false;
-        toast(delivery.merchantSent?(zh?'商家製作郵件已寄出。':'Merchant production email sent.'):
-          (zh?'商家製作郵件仍待寄出。':'The merchant production email is still pending.'),7000);
-      });
-      done.parentNode.insertBefore(retry,done);
-    }
+    setPostPaymentCompletion(true);
     history.replaceState({},document.title,location.pathname+location.hash);
     return;
   }
