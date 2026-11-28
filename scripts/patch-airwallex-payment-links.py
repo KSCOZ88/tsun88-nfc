@@ -92,5 +92,62 @@ recovery = r'''<script id="tsun-airwallex-return-check">
 if 'id="tsun-airwallex-return-check"' not in s:
     if s.count('</body>')!=1: raise SystemExit("Checkout body marker changed")
     s=s.replace('</body>',recovery+'</body>')
+
+def replace_once(old, new):
+    global s
+    if new in s: return
+    if s.count(old)!=1: raise SystemExit("Airwallex completion anchor changed")
+    s=s.replace(old,new)
+
+replace_once(
+    'async function notifyOrderStage(order,stage,attachments=[]){',
+    'async function notifyOrderStage(order,stage,attachments=[],retryMerchant=false){',
+)
+replace_once(
+    '  const previews=await prepareEmailPreviews(order);',
+    '  const previews=retryMerchant?[]:await prepareEmailPreviews(order);',
+)
+replace_once(
+    'async function sendCompletedOrderEmail(order){',
+    'async function sendCompletedOrderEmail(order,retryMerchant=false){',
+)
+replace_once(
+    "const delivery=await notifyOrderStage(order,'order_completed',attachments);",
+    "const delivery=await notifyOrderStage(order,'order_completed',attachments,retryMerchant);",
+)
+replace_once(
+    "order.customerEmailStatus=delivery.demo?'演示未发送':delivery.customerSent?'已发送订单及档案':'发送失败';",
+    "if(!retryMerchant)order.customerEmailStatus=delivery.demo?'演示未发送':delivery.customerSent?'已发送订单及档案':'发送失败';",
+)
+replace_once(
+    "order.airwallexOrderToken,order,previews,attachments})",
+    "order.airwallexOrderToken,order,previews,attachments,...(retryMerchant?{retryMerchant:true}:{})})",
+)
+replace_once(
+    "  if(order.status==='已付款'&&order.paymentStatus==='paid'&&order.airwallexOrderToken){",
+    """  if(order.status==='资料已完善'&&order.paymentStatus==='paid'&&order.airwallexOrderToken&&order.cloudProfile){
+    preparePaidOrderScreen(order);go('orderSuccess');showNfcLinks(order.cloudProfile);
+    document.getElementById('postPaymentShippingForm').hidden=true;
+    document.getElementById('postPaymentNfcForm').hidden=true;
+    const done=document.getElementById('completeOrderBtn');done.hidden=false;
+    const zh=window.TsunI18n?.locale==='zh-Hant';
+    document.getElementById('orderSuccessSubtitle').textContent=zh?'配送資料及寵物檔案已保存。':'Shipping details and pet profile have been saved.';
+    if(order.productionStatus!=='已发送商户'){
+      const retry=document.createElement('button');retry.type='button';retry.className='secondary';
+      retry.textContent=zh?'補發商家製作郵件':'Resend merchant production email';
+      retry.addEventListener('click',async()=>{
+        retry.disabled=true;
+        const delivery=await sendCompletedOrderEmail(order,true);
+        if(delivery.merchantSent)retry.remove();else retry.disabled=false;
+        toast(delivery.merchantSent?(zh?'商家製作郵件已寄出。':'Merchant production email sent.'):
+          (zh?'商家製作郵件仍待寄出。':'The merchant production email is still pending.'),7000);
+      });
+      done.parentNode.insertBefore(retry,done);
+    }
+    history.replaceState({},document.title,location.pathname+location.hash);
+    return;
+  }
+  if(order.status==='已付款'&&order.paymentStatus==='paid'&&order.airwallexOrderToken){""",
+)
 p.write_text(s,encoding="utf-8")
 print("Patched",len(s),"characters")
