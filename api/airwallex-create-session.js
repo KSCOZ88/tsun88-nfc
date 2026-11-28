@@ -3,6 +3,7 @@ const {parseBody,handleError,method}=require('../server/airwallex-checkout');
 const {create}=require('../server/airwallex-payment-links');
 const {begin,complete,abort}=require('../server/airwallex-order-store');
 module.exports=async function(req,res){
+ if(req.query?.channel==='fps')return require('../server/airwallex-fps-endpoint')(req,res);
  if(method(req,res))return;
  try{
    if(process.env.AIRWALLEX_PAYMENT_LINKS_ENABLED!=='true')return res.status(503).json({error:'Airwallex Payment Links are not enabled for this environment yet'});

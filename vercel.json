@@ -5,9 +5,6 @@
       "includeFiles": "{server/print-assets/address-vintage.jpg,node_modules/@fontsource/pinyon-script/files/pinyon-script-latin-400-normal.woff,node_modules/@embedpdf/fonts-tc/fonts/NotoSansHant-Regular.otf}"
     },
     "api/airwallex-create-session.js": {
-      "maxDuration": 30
-    },
-    "api/airwallex-fps.js": {
       "maxDuration": 60
     },
     "api/airwallex-confirm-session.js": {

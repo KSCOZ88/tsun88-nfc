@@ -64,7 +64,7 @@
   let fpsTimer;
   let fpsOrder;
   let fpsExpires=0;
-  const fpsEndpoint='/api/airwallex-fps'+(fpsTest?'?merchantTest=1':'');
+  const fpsEndpoint='/api/airwallex-create-session?channel=fps'+(fpsTest?'&merchantTest=1':'');
   const nodes=[];
   for(const choice of available){
    const b=el('button','tsun-method-option');b.type='button';b.dataset.tsunMethod=choice.id;b.setAttribute('role','radio');

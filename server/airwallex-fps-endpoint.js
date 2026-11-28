@@ -1,15 +1,15 @@
 'use strict';
 
 const qrcode=require('qrcode-generator');
-const {parseBody,handleError,method}=require('../server/airwallex-checkout');
-const {prepare}=require('../server/airwallex-fps');
+const {parseBody,handleError,method}=require('./airwallex-checkout');
+const {prepare}=require('./airwallex-fps');
 
 function enabled(req){
  if(process.env.VERCEL_ENV!=='production'||process.env.AIRWALLEX_PAYMENT_LINKS_ENABLED!=='true')return false;
  if(process.env.AIRWALLEX_DIRECT_FPS_ENABLED==='true')return true;
  if(req.query?.merchantTest!=='1')return false;
  try{
-  const {configuration,isSignedIn}=require('../server/merchant-preview');
+  const {configuration,isSignedIn}=require('./merchant-preview');
   const config=configuration();
   return !config.preview&&isSignedIn(req.headers.cookie,config);
  }catch{return false;}
