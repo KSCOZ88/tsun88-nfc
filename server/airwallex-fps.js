@@ -106,4 +106,39 @@ async function prepare(order){
   : {id,totalCents:s.totalCents,pending:true};
 }
 
-module.exports={prepare,verify};
+async function probeProvider(){
+ const result={created:false,issuedQr:false,cancelled:false};
+ let config,id;
+ const reference='TS-FPS-CHECK-20261128';
+ try{
+  config=configuration();
+  const intent=await request(config,'create',{
+   request_id:requestId('probe-create',[reference]),
+   amount:1,currency:'HKD',merchant_order_id:reference,
+   metadata:{checkout_method:'8tsun8_fps_probe'}
+  });
+   if(typeof intent.id!=='string'||!idPattern.test(intent.id)||Number(intent.amount)!==1||intent.currency!=='HKD'||
+     intent.merchant_order_id!==reference)throw fail('Unexpected test payment intent.');
+  id=intent.id;result.created=true;
+  if(intent.status==='CANCELLED'){result.cancelled=true;return result;}
+  const confirmed=await request(config,encodeURIComponent(id)+'/confirm',{
+   request_id:requestId('probe-confirm',[reference]),
+   payment_method:{type:'fps',fps:{flow:'webqr'}}
+  });
+  result.issuedQr=confirmed.next_action?.type==='render_qrcode'&&Boolean(confirmed.next_action.qrcode);
+  result.awaitingScan=confirmed.status==='REQUIRES_CUSTOMER_ACTION';
+ }catch(error){result.errorStatus=error.status||500;}
+ finally{
+  if(id&&!result.cancelled){
+   try{
+    const cancelled=await request(config,encodeURIComponent(id)+'/cancel',{
+     request_id:requestId('probe-cancel',[reference])
+    });
+    result.cancelled=cancelled.status==='CANCELLED';
+   }catch(error){result.cancelErrorStatus=error.status||500;}
+  }
+ }
+ return result;
+}
+
+module.exports={prepare,verify,probeProvider};
