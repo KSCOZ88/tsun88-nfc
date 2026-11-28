@@ -52,7 +52,7 @@
   qrBox.append(qrInstructions,qrImage,qrStatus);
   const changeMethod=el('button','secondary tsun-method-recover');
   changeMethod.type='button';
-  changeMethod.addEventListener('click',()=>switchFromQr('card'));
+  changeMethod.addEventListener('click',()=>switchPayment('card'));
   wrap.append(heading,subtitle,buttons,warning,continueButton,foot);
   wrap.insertBefore(qrBox,continueButton);
   wrap.insertBefore(changeMethod,foot);
@@ -79,9 +79,10 @@
    choice.logos.forEach(id=>{const logo=el('img','tsun-method-logo'+(choice.logos.length===1?' tsun-single-logo':''));logo.src='/assets/payment-logos/'+id+'.svg';logo.alt=id==='wechatpay'?'WeChat Pay':id;logo.loading='lazy';marks.append(logo);});
    copy.append(name,detail);b.append(indicator,copy,marks);buttons.append(b);nodes.push({choice,b,name,detail});
    b.addEventListener('click',()=>{
-    const active=directMethod(checkoutOrder());
-    if(active&&choice.qr!==active){
-     void switchFromQr(choice.id);
+    const order=checkoutOrder();
+    const active=directMethod(order);
+    if(pendingAirwallex(order)&&(active?choice.qr!==active:choice.id!=='unionpay')){
+     void switchPayment(choice.id);
      return;
     }
     selected=choice.id;warning.textContent='';refresh();
@@ -92,9 +93,7 @@
    const pending=pendingAirwallex(order);
    const active=pending&&directMethod(order);
    if(active)selected=available.find(choice=>choice.qr===active)?.id||selected;
-   if(!available.some(choice=>choice.id===selected&&(!pending||choice.provider==='airwallex'))){
-    selected=pending?'alipayhk':'card';
-   }
+   if(!available.some(choice=>choice.id===selected))selected='card';
    const choice=available.find(choice=>choice.id===selected);
    heading.textContent=msg('選擇付款方式','Choose a payment method');
    subtitle.textContent=msg('安全加密付款 · Secure checkout','Secure checkout · Choose how to pay');
@@ -111,19 +110,21 @@
      ?msg('更新付款二維碼','Refresh payment QR code')
      :msg('顯示付款二維碼','Show '+choice.en+' QR code');
    }else if(pending){
-    subtitle.textContent=msg('此訂單已有 Airwallex 付款連結。請打開原連結或查詢付款狀態。',
-      'This order has an Airwallex payment link. Reopen it or check its payment status.');
-    continueButton.textContent=msg('重新開啟付款頁','Reopen payment page');
+    subtitle.textContent=msg('此訂單已有付款連結。更換付款方式時，系統會先核對並關閉原連結。',
+      'This order has a payment link. We’ll check and close it before you switch payment methods.');
+    if(choice?.id==='unionpay')continueButton.textContent=msg('重新開啟付款頁','Reopen payment page');
+    else if(choice?.qr)continueButton.textContent=msg('顯示付款二維碼','Show '+choice.en+' QR code');
    }
    if(recover){
     recover.hidden=!pending||Boolean(active);
+    recover.disabled=openingPayment;
     recover.textContent=msg('查詢 Airwallex 付款狀態','Check Airwallex payment status');
    }
    foot.textContent=msg('付款由安全支付服務商處理','Payments processed securely');
    qrInstructions.textContent=msg('請在付款 App 確認金額後付款。','Check the amount in your app before approving payment.');
    qrImage.alt=msg('付款二維碼','Payment QR code');
    qrBox.hidden=!active||qrOrder!==order;
-   changeMethod.hidden=!active;
+   changeMethod.hidden=!pending;
    changeMethod.disabled=openingPayment;
    changeMethod.textContent=msg('更換付款方式','Change payment method');
    if(preview())continueButton.textContent=msg('檢視付款介面（不會扣款）','Preview only · No charge');
@@ -131,7 +132,7 @@
    nodes.forEach(({choice,b,name,detail})=>{
      name.textContent=zh()?choice.zh:choice.en;detail.textContent=zh()?choice.subZh:choice.subEn;
      b.setAttribute('aria-checked',String(selected===choice.id));
-     b.disabled=openingPayment||(!active&&pending&&choice.provider!=='airwallex');
+     b.disabled=openingPayment;
    });
   }
   async function checkQr(order){
@@ -159,26 +160,26 @@
    }catch{}
    if(order.airwallexSessionId===sessionId&&Date.now()<qrExpires+2*60*1000)qrTimer=setTimeout(()=>checkQr(order),10000);
   }
-  async function switchFromQr(next){
+  async function switchPayment(next){
    const order=checkoutOrder();
-   const method=directMethod(order);
-   if(!method||order.paymentStatus==='paid'||openingPayment)return;
+   if(!pendingAirwallex(order)||openingPayment||preview())return false;
+   const method=directMethod(order)||'payment_link';
    openingPayment=true;
-   warning.textContent=msg('正在取消掃碼付款…','Cancelling QR payment…');
+   warning.textContent=msg('正在核對並取消原付款…','Checking and cancelling the previous payment…');
    refresh();
    try{
     const {id,customerEmail,items,airwallexSessionId,airwallexFpsAttempt}=order;
-    const response=await fetch(qrEndpoint(method),{method:'POST',headers:{'Content-Type':'application/json'},
+    const response=await fetch(qrEndpoint(method),{method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(60000),
      body:JSON.stringify({action:'cancel',order:{id,customerEmail,airwallexSessionId,airwallexFpsAttempt,
       items:items.map(({decorItems})=>({decorItems}))}})});
     const result=await response.json();
-    if(order!==checkoutOrder())return;
+    if(order!==checkoutOrder())return false;
     if(response.ok&&result.paid&&result.id){
      clearTimeout(qrTimer);
      order.airwallexSessionId=result.id;
      updateStoredOrder(order);
      location.assign('/?recover=1&order_id='+encodeURIComponent(id));
-     return;
+     return false;
     }
     if(!response.ok||!result.cancelled||!Number.isInteger(result.attempt))throw Error();
     clearTimeout(qrTimer);
@@ -197,9 +198,11 @@
     warning.textContent='';
     refresh();
     nodes.find(node=>node.choice.id===next)?.b.scrollIntoView({block:'nearest',behavior:'smooth'});
+    return true;
    }catch{
     warning.textContent=msg('付款服務暫未確認取消。若你已付款，請等待確認。稍後可再試更換付款方式。',
      'Cancellation is still awaiting confirmation. If you paid, wait for confirmation. Try changing methods again shortly.');
+    return false;
    }finally{
     openingPayment=false;
     refresh();
@@ -236,7 +239,10 @@
    const order=checkoutOrder();
    if(!choice||openingPayment||stripeBtn.disabled||paypalBtn.disabled||airwallexBtn?.disabled)return;
    if(order?.paymentStatus==='paid'){warning.textContent=msg('此訂單已付款，無需再次支付。','This order is already paid.');return;}
-   if(pendingAirwallex(order)&&choice.provider!=='airwallex'){refresh();return;}
+   if(pendingAirwallex(order)&&!directMethod(order)&&choice.id!=='unionpay'){
+    if(!await switchPayment(choice.id)||!choice.qr)return;
+   }
+   if(pendingAirwallex(order)&&choice.provider!=='airwallex')return;
    if(choice.stripe){
     // The server expires an earlier unpaid Stripe Session before issuing a new
     // one for the newly selected method. The same order and previews are retained.
@@ -262,10 +268,9 @@
       }
      }
      const direct=choice.qr&&(directMethod(order)===choice.qr||(qrAvailability.get(choice.qr)&&!order?.airwallexSessionId));
-     if(choice.id==='fps'&&fpsTest&&!direct){
-      warning.textContent=order?.airwallexSessionId
-       ?msg('此訂單已有付款連結。請先確認該筆付款的狀態。','This order already has a payment link. Check its status first.')
-       :msg('暫時未能開啟轉數快。請稍後重試。','FPS is temporarily unavailable. Please try again.');
+     if(choice.qr&&!direct){
+      warning.textContent=msg('暫時未能開啟掃碼付款。請稍後重試或選擇其他付款方式。',
+       'QR payment is temporarily unavailable. Try again or choose another payment method.');
       return;
      }
      await startAirwallexCheckout(choice.id,direct?order=>openQr(order,choice):undefined);

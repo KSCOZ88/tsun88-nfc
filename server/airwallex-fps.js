@@ -118,13 +118,15 @@ async function prepare(order,type='fps'){
 }
 
 async function cancel(order,type='fps'){
- if(!supportsQr(type))throw fail('Unsupported QR payment method.',422);
+ const hosted=type==='payment_link';
+ if(!hosted&&!supportsQr(type))throw fail('Unsupported payment method.',422);
+ if(hosted&&!order?.airwallexSessionId)throw fail('Missing the active payment link.',422);
  const s=summary(order), sql=db();
  await fpsSchema(sql);
  const attempt=order.airwallexFpsAttempt??0;
  if(!Number.isInteger(attempt)||attempt<0)throw fail('Invalid QR checkout.',422);
  // Fence a start request that has been sent but has not written its first row.
- await sql`INSERT INTO tsun_airwallex_orders
+ if(!hosted)await sql`INSERT INTO tsun_airwallex_orders
   (merchant_order_id,email,amount_cents,order_binding,order_snapshot,payment_kind,status,fps_attempt)
   SELECT ${s.orderId},${s.email},${s.totalCents},${s.binding},'{}'::jsonb,${type},'cancelled',1
   WHERE ${attempt}=0 AND ${order.airwallexSessionId??null}::text IS NULL
@@ -133,13 +135,16 @@ async function cancel(order,type='fps'){
   FROM tsun_airwallex_orders WHERE merchant_order_id=${s.orderId}`;
  if(!row||row.order_binding!==s.binding||row.payment_kind!==type||
     (order.airwallexSessionId&&order.airwallexSessionId!==row.payment_link_id)){
-  throw fail('QR checkout does not match this order.');
+  throw fail('Airwallex checkout does not match this order.');
  }
  if(row.status==='cancelled'&&row.fps_attempt===attempt+1)return {cancelled:true,attempt:row.fps_attempt};
  if(row.fps_attempt!==attempt)throw fail('This checkout has changed. Reopen the current order.');
  const id=row.payment_link_id;
  if(row.status==='paid')return {paid:true,id};
- if(id){
+ if(hosted){
+  const outcome=await require('./airwallex-payment-links').retire(id,s);
+  if(outcome)return outcome;
+ }else if(id){
   const config=configuration();
   let intent=await lookup(config,id);
   confirmBinding(intent,id,s,type);

@@ -1,7 +1,8 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {create,verify} = require('../server/airwallex-payment-links');
+const {create,verify,retire} = require('../server/airwallex-payment-links');
+const {summary} = require('../server/airwallex-checkout');
 const {createHash} = require('node:crypto');
 process.env.VERCEL_ENV = 'production';
 process.env.AIRWALLEX_API_KEY = 'test-key-not-real';
@@ -51,4 +52,30 @@ test('do not mark unpaid links as paid',async()=>{
 test('reject mismatch in amount even when marked paid',async()=>{
  mockFetch({amountOverride:301});
  await assert.rejects(()=>verify(link.id,order),/mismatch/i);
+});
+test('verify that a one-time link is inactive before switching payment methods',async()=>{
+ let deactivations=0;
+ let active=true;
+ global.fetch=async (url,opts)=>{
+  if(url.endsWith('/api/v1/authentication/login'))return {ok:true,json:async()=>({token:'mock_access_token'})};
+  if(url.endsWith('/deactivate')){
+   assert.equal(opts.method,'POST');
+   deactivations++;
+   active=false;
+  }
+  return {ok:true,json:async()=>({...link,status:'UNPAID',active,successful_payment_intent_count:0,latest_successful_payment_intent_id:null})};
+ };
+ assert.equal(await retire(link.id,summary(order)),null);
+ assert.equal(await retire(link.id,summary(order)),null);
+ assert.equal(deactivations,1);
+});
+test('a payment completed while deactivating a link still goes to confirmation',async()=>{
+ let paid=false;
+ global.fetch=async url=>{
+  if(url.endsWith('/api/v1/authentication/login'))return {ok:true,json:async()=>({token:'mock_access_token'})};
+  if(url.endsWith('/deactivate'))paid=true;
+  const result=paid?{...link,active:false}:{...link,status:'UNPAID',active:true,successful_payment_intent_count:0,latest_successful_payment_intent_id:null};
+  return {ok:true,json:async()=>result};
+ };
+ assert.deepEqual(await retire(link.id,summary(order)),{paid:true,id:link.id});
 });
