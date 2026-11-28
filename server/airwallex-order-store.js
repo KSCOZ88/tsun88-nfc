@@ -26,6 +26,14 @@ async function schema(sql){
  )`.catch(err=>{schemaPromise=null;throw err;});
  return schemaPromise;
 }
+let fpsSchemaPromise;
+async function fpsSchema(sql){
+ await schema(sql);
+ fpsSchemaPromise||=sql`ALTER TABLE tsun_airwallex_orders
+  ADD COLUMN IF NOT EXISTS payment_kind text NOT NULL DEFAULT 'payment_link',
+  ADD COLUMN IF NOT EXISTS fps_qr jsonb`.catch(error=>{fpsSchemaPromise=null;throw error;});
+ await fpsSchemaPromise;
+}
 function safeSnapshot(order){
  const result=JSON.parse(JSON.stringify(order));
  function strip(value,depth=0){
@@ -39,10 +47,14 @@ function safeSnapshot(order){
  if(Buffer.byteLength(JSON.stringify(result))>220000)throw fail('订单内容过大',413);
  return result;
 }
-async function begin(order){
+async function begin(order,kind='payment_link'){
  const s=summary(order),sql=db();await schema(sql);
  const snapshot=safeSnapshot(order);
- const inserted=await sql`INSERT INTO tsun_airwallex_orders
+ if(kind==='fps')await fpsSchema(sql);
+ const inserted=kind==='fps'?await sql`INSERT INTO tsun_airwallex_orders
+ (merchant_order_id,email,amount_cents,order_binding,order_snapshot,payment_kind)
+ VALUES (${s.orderId},${s.email},${s.totalCents},${s.binding},${JSON.stringify(snapshot)}::jsonb,'fps')
+ ON CONFLICT DO NOTHING RETURNING merchant_order_id`:await sql`INSERT INTO tsun_airwallex_orders
  (merchant_order_id,email,amount_cents,order_binding,order_snapshot)
  VALUES (${s.orderId},${s.email},${s.totalCents},${s.binding},${JSON.stringify(snapshot)}::jsonb)
  ON CONFLICT DO NOTHING RETURNING merchant_order_id`;
@@ -50,6 +62,11 @@ async function begin(order){
  const [existing]=await sql`SELECT merchant_order_id,email,amount_cents,order_binding,payment_link_id,payment_link_url,status
  FROM tsun_airwallex_orders WHERE merchant_order_id=${s.orderId}`;
  if(!existing||existing.order_binding!==s.binding||existing.amount_cents!==s.totalCents||existing.email.toLowerCase()!==s.email.toLowerCase())throw fail('该订单的金额或邮箱已改变，请联系商户',409);
+ if(kind==='fps'){
+  const [fps]=await sql`SELECT payment_kind,fps_qr FROM tsun_airwallex_orders WHERE merchant_order_id=${s.orderId}`;
+  if(fps?.payment_kind!=='fps')throw fail('Use the existing payment link for this order.',409);
+  return {s,sql,fresh:false,existing:{...existing,...fps}};
+ }
  if(existing.payment_link_id&&existing.payment_link_url&&existing.status==='pending')
   return {s,sql,fresh:false,existing};
  if(existing.status==='paid')throw fail('该订单已付款，请勿重复付款',409);

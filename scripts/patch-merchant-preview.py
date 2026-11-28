@@ -25,7 +25,7 @@ anchor = "if(PROFILE_PREVIEW_MODE||shouldResumeAirwallexOrder()||RESUME_STRIPE_O
 source = replace(source, anchor, "if(MERCHANT_ORDER_MODE||PROFILE_PREVIEW_MODE||shouldResumeAirwallexOrder()||RESUME_STRIPE_ON_STARTUP){")
 for fn in ("startPaypalCheckout", "startStripeCheckout", "startAirwallexCheckout",
            "handlePaypalReturn", "handleStripeReturn", "handleAirwallexReturn", "submitPostPaymentNfc"):
-    parameters = "preferredMethod" if fn == "startAirwallexCheckout" else ""
+    parameters = "preferredMethod,openFps" if fn == "startAirwallexCheckout" else ""
     anchor = f"async function {fn}({parameters}){{"
     source = replace(source, anchor, anchor + "\n  if(MERCHANT_ORDER_MODE)return;")
 anchor = "function handleCheckoutResume(){"

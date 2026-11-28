@@ -3,7 +3,7 @@
 const {randomUUID}=require('node:crypto');
 const {db}=require('./airwallex-order-store');
 const {configuration,summary,verifyToken}=require('./airwallex-checkout');
-const {verify}=require('./airwallex-payment-links');
+const {verify}=require('./airwallex-payment-verification');
 const {deliver}=require('./airwallex-order-mailer');
 let schemaPromise;
 

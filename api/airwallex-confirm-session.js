@@ -1,6 +1,6 @@
 // The old client sends sessionId; during Payment Links testing this carries a link ID.
 const {configuration,parseBody,summary,makeToken,handleError,method}=require('../server/airwallex-checkout');
-const {verify}=require('../server/airwallex-payment-links');
+const {verify}=require('../server/airwallex-payment-verification');
 const {recordPaid}=require('../server/airwallex-order-store');
 const {enqueue,processEvent}=require('../server/airwallex-webhook-queue');
 const {queueConfirmedReceipt}=require('../server/airwallex-confirmation-notifier');

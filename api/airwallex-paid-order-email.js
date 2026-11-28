@@ -1,6 +1,6 @@
 const {publishPaidReview} = require('../server/order-review');
 const {configuration,parseBody,summary,verifyToken,handleError,method}=require('../server/airwallex-checkout');
-const {verify}=require('../server/airwallex-payment-links');
+const {verify}=require('../server/airwallex-payment-verification');
 const {deliver}=require('../server/airwallex-order-mailer');
 const {deliveryOutcome}=require('../server/airwallex-mail-status');
 const {mailDatabase,productionPayload}=require('../server/airwallex-production-mail');

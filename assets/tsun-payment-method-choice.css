@@ -23,6 +23,9 @@
 #tsunSpecificPaymentMethods .tsun-method-option:disabled{opacity:.58;cursor:not-allowed}
 #tsunSpecificPaymentMethods .tsun-method-recover{display:block;width:100%;margin-top:10px}
 #tsunSpecificPaymentMethods .tsun-method-recover[hidden]{display:none}
+#tsunSpecificPaymentMethods .tsun-fps-qr{text-align:center;margin-top:14px;padding:12px;background:#fff;border:1px solid #d9e2de;border-radius:12px}
+#tsunSpecificPaymentMethods .tsun-fps-qr img{max-width:100%;height:auto}
+#tsunSpecificPaymentMethods .tsun-fps-qr p{font-size:13px;margin:7px 0}
 #tsunSpecificPaymentMethods .tsun-method-footnote{display:flex;align-items:center;justify-content:center;gap:7px;color:#687b75;font-size:11px;margin-top:11px}
 #tsunSpecificPaymentMethods #tsunMethodWarning:not(:empty){display:block;background:#fff5e8;border:1px solid #ead3b2;padding:9px 11px;border-radius:8px;font-size:12px;line-height:1.5;margin-top:12px}
 @media(max-width:600px){#tsunSpecificPaymentMethods .payment-code-box{padding:16px 13px;border-radius:14px}#tsunSpecificPaymentMethods button.tsun-method-option{padding:10px;gap:9px}#tsunSpecificPaymentMethods button.tsun-method-option[aria-checked=true]{padding:9px}#tsunSpecificPaymentMethods .tsun-method-logo{width:27px;height:24px}#tsunSpecificPaymentMethods .tsun-method-logo.tsun-single-logo{width:52px;height:28px}#tsunSpecificPaymentMethods .tsun-method-logos{gap:4px}}

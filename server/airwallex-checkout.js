@@ -119,4 +119,4 @@ function makeToken(config,sessionId,s){return createHmac('sha256',config.key).up
 function verifyToken(config,token,sessionId,s){return typeof token==='string'&&/^[a-f0-9]{64}$/.test(token)&&timingSafeEqual(Buffer.from(token,'hex'),Buffer.from(makeToken(config,sessionId,s),'hex'));}
 function handleError(res,error){return res.status(error.status||502).json({error:error.message||'Airwallex 操作暂时失败'});}
 function method(req,res){res.setHeader('Cache-Control','no-store');if(req.method==='OPTIONS')return res.status(204).end();if(req.method!=='POST')return res.status(405).json({error:'仅支持 POST'});return null;}
-module.exports={configuration,parseBody,summary,createSession,verifiedSession,makeToken,verifyToken,handleError,method};
+module.exports={configuration,auth,parseBody,summary,createSession,verifiedSession,makeToken,verifyToken,handleError,method};

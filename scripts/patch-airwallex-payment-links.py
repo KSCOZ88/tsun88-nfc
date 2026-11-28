@@ -4,7 +4,8 @@ p=Path("index.html")
 s=p.read_text(encoding="utf-8")
 test_checkout="""const AIRWALLEX_TEST_CHECKOUT=!PROFILE_PREVIEW_MODE && location.protocol==='https:'
   && location.hostname==='www.8tsun8.com' && location.pathname==='/'
-  && new URLSearchParams(location.search).get('airwallex_test')==='1';"""
+  && new URLSearchParams(location.search).get('airwallex_test')==='1';
+const AIRWALLEX_FPS_MERCHANT_TEST=new URLSearchParams(location.search).get('fps_direct')==='1';"""
 if test_checkout not in s:
     anchor='function shouldResumeAirwallexOrder(){'
     if s.count(anchor)!=1: raise SystemExit("Airwallex startup anchor changed")
@@ -18,7 +19,7 @@ start=s.find('async function startAirwallexCheckout(')
 end=s.find('\nfunction setPostPaymentCompletion(',start)
 if end<0: end=s.find('\nfunction preparePaidOrderScreen(',start)
 if start<0 or end<0: raise SystemExit("Checkout handler changed")
-replacement='''async function startAirwallexCheckout(preferredMethod){
+replacement='''async function startAirwallexCheckout(preferredMethod,openFps){
  if(!ensureCheckoutProfiles())return;
  if(currentOrder&&!validateOrderPhoneConfirmations(currentOrder.items||[captureTagDesign()]))return;
  if(LOCAL_FILE_REVIEW){openLocalPostPaymentPreview();return;}
@@ -31,7 +32,8 @@ replacement='''async function startAirwallexCheckout(preferredMethod){
   toast(zh?'請先核對此訂單原有的付款狀態。':'Check the payment status of this order before continuing.',9000);
   return;
  }
- const paymentTab=window.open('about:blank','_blank');
+ if(currentOrder.airwallexFpsStarted&&!openFps)return;
+ const paymentTab=openFps?null:window.open('about:blank','_blank');
  if(paymentTab)paymentTab.opener=null;
  if(button){button.disabled=true;button.textContent='Opening Airwallex…';}
  try{
@@ -50,6 +52,7 @@ replacement='''async function startAirwallexCheckout(preferredMethod){
   currentOrder.customerEmail=state.customerEmail;currentOrder.payMethod='Airwallex';
   currentOrder.status='等待付款';currentOrder.pricing=calculateOrderPricing(currentOrder.items||[]);
   updateStoredOrder(currentOrder);
+  if(openFps){await openFps(currentOrder);return;}
   let url=currentOrder.airwallexPaymentUrl;
   if(!currentOrder.airwallexSessionId||!url){
    const response=await fetch(AIRWALLEX_CREATE_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:currentOrder})});

@@ -1,7 +1,7 @@
 'use strict';
 // Durable webhook queue: acknowledge authenticated events before external payment lookup / SMTP.
 const {db,schema,recordPaid}=require('./airwallex-order-store');
-const {verify}=require('./airwallex-payment-links');
+const {verify}=require('./airwallex-payment-verification');
 const {sendGmail,GMAIL_ADDRESS}=require('./gmail-mailer');
 const {escape}=require('./email-template');
 const {createHash}=require('node:crypto');
