@@ -70,12 +70,12 @@ async function assetRow(provider,id,first=null,second=null){
 async function loadPaidProduction(provider,id,{includeDesigns=false}={}){
   const assets=await assetRow(provider,id);
   if(assets?.details){
-    return {delivery:deliveryFields(assets.details),quantity:assets.details.items?.length,
+    return {delivery:deliveryFields(assets.details),quantity:assets.details.items?.length,language:assets.details.language,
       printCount:Math.floor((assets.layers||0)/3)};
   }
   const {table,status}=paymentSources[provider];
   const [paid]=await db().query(
-    `SELECT email, jsonb_array_length(order_snapshot->'items') AS quantity,
+    `SELECT email, order_snapshot->>'language' AS language, jsonb_array_length(order_snapshot->'items') AS quantity,
        CASE WHEN $2::boolean THEN order_snapshot->'items' END AS designs
      FROM ${table} WHERE merchant_order_id=$1 AND ${status}='paid'`,[id,includeDesigns]);
   const designs=Array.isArray(paid?.designs)?paid.designs.map(item=>{
@@ -83,7 +83,15 @@ async function loadPaidProduction(provider,id,{includeDesigns=false}={}){
        !Array.isArray(item.decorItems?.front)||!Array.isArray(item.decorItems?.back))return null;
     return Object.fromEntries(designFields.filter(key=>Object.hasOwn(item,key)).map(key=>[key,item[key]]));
   }):[];
-  return {delivery:{customerEmail:paid?.email},quantity:paid?.quantity,printCount:0,designs};
+  return {delivery:{customerEmail:paid?.email},quantity:paid?.quantity,language:paid?.language,printCount:0,designs};
+}
+
+async function loadPaidProductionPayload(provider,id){
+  if(provider!=='stripe'&&provider!=='paypal')throw fail('order_missing',404);
+  const sql=await assetsDb();
+  const [row]=await sql`SELECT production_payload FROM tsun_paid_production_assets
+    WHERE merchant_order_id=${id} AND payment_provider=${provider}`;
+  return row?.production_payload;
 }
 
 async function loadPaidProductionImage(provider,id,tag,side){
@@ -123,4 +131,4 @@ async function recoverPaidProduction(provider,order,attachments,profileUrl){
   await savePaidProduction(provider,{...order,paidAmountCents,cloudProfile:{publicUrl:profileUrl}},attachments);
 }
 
-module.exports={deliveryFields,savePaidProduction,loadPaidProduction,loadPaidProductionImage,recoverPaidProduction};
+module.exports={deliveryFields,savePaidProduction,loadPaidProduction,loadPaidProductionPayload,loadPaidProductionImage,recoverPaidProduction};

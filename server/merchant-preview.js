@@ -1,6 +1,6 @@
 'use strict';
 
-const {createHash, createHmac, timingSafeEqual} = require('node:crypto');
+const {createHash, createHmac, randomUUID, timingSafeEqual} = require('node:crypto');
 const {escape, safeUrl} = require('./email-template');
 const {GMAIL_ADDRESS, sendGmail} = require('./gmail-mailer');
 const {historyPageSize, saveMerchantImages, loadMerchantPrintFiles, listReviews, loadReview, loadImage, printFiles} = require('./order-review');
@@ -242,14 +242,15 @@ function printDownloadNotice(id, origin) {
     `<a href="${escape(url.href)}">登入後下載原尺寸 PNG</a></p>`;
 }
 
-async function notifyReviewedOrder(sql, id, saved, origin, attachments, env = process.env, deliver = sendGmail) {
+async function notifyReviewedOrder(sql, id, saved, origin, attachments, env = process.env, deliver = sendGmail, resend = false) {
   const preview = env.VERCEL_ENV !== 'production';
   // A branch can deliver a test message only to its explicitly configured
   // merchant mailbox. Normal preview deployments capture the message locally.
   if (preview && env.MERCHANT_REVIEW_EMAIL_MODE !== 'smtp') {
     return captureNotice(sql, id, saved, origin, attachments);
   }
-  if (saved.notification_status === 'sent') return 'sent';
+  const previouslySent = saved.notification_status === 'sent';
+  if (previouslySent && !resend) return 'sent';
   const recipient = preview ? env.MERCHANT_REVIEW_TEST_RECIPIENT : GMAIL_ADDRESS;
   if (!recipient || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(recipient) || !env.SMTP_APP_PASSWORD) {
     return 'pending';
@@ -258,6 +259,25 @@ async function notifyReviewedOrder(sql, id, saved, origin, attachments, env = pr
   const addressLabel = await shippingLabelAttachment(order, {threeAcross: true});
   const message = buildMerchantMessage(id, order, profileLinks(saved, origin, preview), origin, preview, true);
   message.to = [recipient];
+  if (previouslySent) {
+    const [lease] = await sql`update public.tsun_merchant_orders set notification_lease_until = now() + interval '2 minutes'
+      where merchant_order_id = ${id} and notification_status = 'sent'
+      and (notification_lease_until is null or notification_lease_until < now())
+      returning notification_lease_until::text as lease`;
+    if (!lease) return 'sending';
+    try {
+      const last = selectPrintAttachments(attachments, 0, addressLabel?.content.length || 0);
+      const downloads = last < attachments.length ? printDownloadNotice(id, origin) : '';
+      const result = await deliver({...message,
+        html: message.html + (addressLabel ? shippingLabelPrintTip : '') + downloads,
+        attachments: [...attachments.slice(0,last), ...(addressLabel ? [addressLabel] : [])]
+      }, 'tsun-merchant-resend-' + randomUUID());
+      return result.sent ? 'sent' : 'pending';
+    } finally {
+      await sql`update public.tsun_merchant_orders set notification_lease_until = null
+        where merchant_order_id = ${id} and notification_lease_until = ${lease.lease}::timestamptz`;
+    }
+  }
   const [claim] = await sql`update public.tsun_merchant_orders
     set notification_status = 'sending', notification_lease_until = now() + interval '2 minutes',
         notification_message = ${JSON.stringify({...message, delivery:deliveryFields(order)})}::jsonb ||
@@ -313,17 +333,17 @@ async function createOrder(sql, input, origin, deferNotice, preview) {
   return receipt({...saved, merchant_order_id: id}, origin, status, preview);
 }
 
-async function finishReview(sql, id, origin, preview) {
+async function finishReview(sql, id, origin, preview, resend = false) {
   if (!validOrderId(id, preview)) throw failure(422, 'invalid_id');
   const [saved] = await sql`select * from public.tsun_merchant_orders where merchant_order_id = ${id}`;
   if (!saved) throw failure(404, 'order_missing');
-  if (saved.notification_status === 'sent') return receipt(saved, origin, 'sent', preview);
+  if (saved.notification_status === 'sent' && !resend) return receipt(saved, origin, 'sent', preview);
   const [images] = await sql`select count(*)::integer as total from public.tsun_order_review_images
     where merchant_order_id = ${id} and side in ('front', 'back')`;
   if (images.total !== saved.profile_slugs.length * 2) throw failure(409, 'images_incomplete');
   const attachments = await loadMerchantPrintFiles(sql, id, saved.order_details.items);
   saved.delivery = await completeHongKongAddress(await merchantOrderDelivery(sql, saved));
-  return receipt(saved, origin, await notifyReviewedOrder(sql, id, saved, origin, attachments), preview);
+  return receipt(saved, origin, await notifyReviewedOrder(sql, id, saved, origin, attachments, process.env, sendGmail, resend), preview);
 }
 
 async function merchantOrderDelivery(sql, order) {
@@ -343,6 +363,40 @@ async function loadProfile(sql, slug) {
     where exists (select 1 from public.tsun_merchant_orders where ${slug} = any(profile_slugs))`;
   if (!row?.profile) throw failure(404, 'profile_missing');
   return row.profile;
+}
+
+async function sendCustomerOrderCopy(sql, detail, origin) {
+  const {id, merchant, paid, images} = detail;
+  const data = merchant
+    ? {delivery:await merchantOrderDelivery(sql,merchant),language:merchant.order_details.language}
+    : await paidAssets.loadPaidProduction(detail.provider,id);
+  const delivery = data.delivery;
+  const to = delivery?.customerEmail;
+  const items = merchant?.items || paid?.items || [];
+  const profiles = merchant ? profileLinks({profile_slugs:merchant.profile_slugs,order_details:merchant.order_details},origin,false) : paid?.profiles;
+  if (!to || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(to)) throw failure(409,'customer_email_missing');
+  if (!items.length || !profiles?.some(profile=>safeUrl(profile.url))) throw failure(409,'order_details_missing');
+  const zh = data.language==='zh-Hant';
+  const title = zh ? '8TSUN8 訂單資料及寵物檔案' : '8TSUN8 Order details and pet profiles';
+  const profileLinksHtml = profiles.filter(profile=>safeUrl(profile.url)).map(profile=>
+    `<li><a href="${escape(safeUrl(profile.url))}">${escape(profile.name)}</a></li>`).join('');
+  const shipping = [delivery.shipName,delivery.shipPhone,delivery.shipAddress].filter(Boolean)
+    .map(value=>escape(value).replace(/\r?\n/g,'<br>')).join('<br>');
+  const attachments = [];
+  let size = 0;
+  for (const image of images) {
+    if (image.side!=='front' && image.side!=='back') continue;
+    if (size>=12*1024*1024) break;
+    const png = await loadImage(sql,id,String(image.tag_number),image.side);
+    size += png.length;
+    attachments.push({filename:`8TSUN8-${image.tag_number}-${image.side}.png`,
+      content:png.toString('base64'),content_type:'image/png'});
+  }
+  const payment = merchant ? (zh ? '此訂單無需付款。' : 'No payment is required for this order.')
+    : (zh ? '已確認付款。' : 'Payment confirmed.');
+  const html = `<h2>${title}</h2><p>${zh?'訂單編號':'Order number'}: ${escape(id)}<br>${zh?'狗牌數量':'Number of tags'}: ${items.length}</p><p>${payment}</p>${shipping?`<h3>${zh?'配送資料':'Delivery details'}</h3><p>${shipping}</p>`:''}<h3>NFC</h3><ul>${profileLinksHtml}</ul>`;
+  const result = await sendGmail({to:[to],subject:title+' | '+id,html,attachments},'tsun-customer-resend-'+randomUUID());
+  return {notificationStatus:result.sent?'sent':'pending'};
 }
 
 function makeHandler({getConfig = configuration, getDb = postgres} = {}) {
@@ -448,15 +502,31 @@ function makeHandler({getConfig = configuration, getDb = postgres} = {}) {
       if (action === 'resend-production-mail') {
         if (preview) throw failure(404, 'not_available');
         const detail = await loadReview(sql, orderId);
-        if (detail.provider !== 'airwallex' || !detail.paid?.profiles?.length) {
+        if (detail.provider === 'merchant') return res.status(200).json(await finishReview(sql,orderId,origin,false,true));
+        if (!detail.paid?.profiles?.length) {
           throw failure(409, 'production_assets_missing');
         }
         const legacy = req.body.legacy;
         if (legacy && Buffer.byteLength(JSON.stringify(legacy)) > 4 * 1024 * 1024) {
           throw failure(413, 'production_assets_too_large');
         }
-        const {resendProductionMail} = require('./airwallex-production-mail');
-        return res.status(200).json(await resendProductionMail(orderId, legacy, detail.paid.profiles[0].url));
+        if (detail.provider === 'airwallex') {
+          const {resendProductionMail} = require('./airwallex-production-mail');
+          return res.status(200).json(await resendProductionMail(orderId, legacy, detail.paid.profiles[0].url));
+        }
+        let payload = await paidAssets.loadPaidProductionPayload(detail.provider,orderId);
+        if (!payload && legacy?.order?.id === orderId) {
+          await paidAssets.recoverPaidProduction(detail.provider,legacy.order,legacy.attachments,detail.paid.profiles[0].url);
+          payload = await paidAssets.loadPaidProductionPayload(detail.provider,orderId);
+        }
+        if (!payload) throw failure(409,'production_assets_missing');
+        const {sendMerchantProduction} = require('./airwallex-order-mailer');
+        const sent = await sendMerchantProduction(payload.order,payload.attachments,'tsun-merchant-resend-'+randomUUID());
+        return res.status(200).json({notificationStatus:sent.sent?'sent':'pending'});
+      }
+      if (action === 'resend-customer-mail') {
+        if (preview) throw failure(404,'not_available');
+        return res.status(200).json(await sendCustomerOrderCopy(sql,await loadReview(sql,orderId),origin));
       }
       if (action === 'save-review-images' || action === 'save-print-images') {
         await saveMerchantImages(sql, orderId, tagNumber, previews, action === 'save-print-images');

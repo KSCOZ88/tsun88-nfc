@@ -189,7 +189,7 @@
     document.documentElement.dataset.merchantPreview = 'active';
     merchantNav.hidden = false;
     dialog.close();
-    if (isOrders) window.openMerchantOrderReview();
+    if (isOrders) window.openMerchantOrderReview(previewMode);
     else if (byId('home').classList.contains('active')) go('name');
   }
 

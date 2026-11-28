@@ -41,6 +41,7 @@
   status.setAttribute('role', 'status');
   const content = element('div');
   let result;
+  let previewMode = true;
   let statusMessage = ['', ''];
   let renderingPrint = false;
   const printUrls = new Set();
@@ -101,13 +102,13 @@
     return response.json();
   }
 
-  async function resendAirwallexProduction(orderId) {
+  async function resendMerchantProduction(orderId,provider) {
     const payload = {action: 'resend-production-mail', orderId};
     try {
       return await request('', payload);
     } catch (error) {
       if (error.code !== 'production_assets_missing') throw error;
-      const saved = savedProductionOrder(orderId, 'airwallex');
+      const saved = savedProductionOrder(orderId,provider);
       if (!saved) throw error;
       return request('', {...payload, legacy: await browserProductionAssets(saved)});
     }
@@ -422,15 +423,15 @@
     const actions = element('div');
     actions.className = 'merchant-order-actions';
     const orderLink = new URL(orderUrl(order.id),location.origin);
-    const copyLink = element('button', local('複製訂單連結', 'Copy order link'));
+    const copyLink = element('button', local('複製商家後台連結', 'Copy merchant dashboard link'));
     copyLink.type = 'button';
     copyLink.className = 'secondary';
     copyLink.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(orderLink.href);
-        report('已複製訂單連結。', 'Order link copied.');
+        report('已複製商家後台連結。', 'Merchant dashboard link copied.');
       } catch {
-        report('暫時未能複製。可在訂單連結上使用瀏覽器的複製功能。', 'Unable to copy. Use the browser’s copy-link action on the order link.');
+        report('暫時未能複製，請從瀏覽器網址列複製。', 'Unable to copy. Copy the link from your browser’s address bar.');
       }
     });
     actions.append(copyLink);
@@ -602,52 +603,44 @@
     const operations = element('section');
     operations.className = 'merchant-order-operations';
     operations.append(element('h2',local('郵件操作','Order email')));
-    if (order.provider === 'airwallex' && order.items.length && order.profiles.length) {
-      const resend = element('button', local('重發商家製作郵件', 'Resend merchant production email'));
-      resend.type = 'button';
-      resend.className = 'secondary';
-      resend.addEventListener('click', async () => {
-        resend.disabled = true;
-        report('正在寄送商家製作郵件…', 'Sending merchant production email…');
-        try {
-          const receipt = await resendAirwallexProduction(order.id);
-          if (receipt.notificationStatus === 'sent') report('商家製作郵件已寄出。', 'Merchant production email sent.');
-          else report('郵件待發送。請稍後重試。', 'Email is pending. Try again later.');
-        } catch (error) {
-          if (error.code === 'production_assets_missing') {
-            report('這筆舊訂單需在原付款瀏覽器登入商家後台，再重發郵件。',
-              'For this older order, sign in to the merchant dashboard from the original checkout browser and resend.');
-          } else if (error.code === 'production_mail_busy') {
-            report('郵件正在寄送，請稍後查看收件箱。', 'Email is already being sent. Check your inbox shortly.');
-          } else {
-            report('暫時無法發送商家製作郵件。', 'Unable to send the merchant production email.');
+    if (order.items.length && order.profiles.length && !previewMode) {
+      const buttons = element('div');
+      buttons.className = 'merchant-order-actions';
+      const status = element('p');
+      status.setAttribute('role','status');
+      const customer = element('button',local('重發顧客訂單電郵','Resend customer order email'));
+      const merchant = element('button',local('重發商家製作電郵','Resend merchant production email'));
+      for (const button of [customer,merchant]) {
+        button.type = 'button';
+        button.className = 'secondary';
+        button.addEventListener('click',async () => {
+          button.disabled = true;
+          const isCustomer = button === customer;
+          status.textContent = local('正在寄送…','Sending…');
+          try {
+            const result = isCustomer ? await request('',{action:'resend-customer-mail',orderId:order.id})
+              : await resendMerchantProduction(order.id,order.provider);
+            status.textContent = result.notificationStatus === 'sent'
+              ? isCustomer ? local('顧客訂單電郵已寄出。','Customer order email sent.')
+                : local('商家製作電郵已寄出。','Merchant production email sent.')
+              : result.notificationStatus === 'sending' ? local('電郵正在寄送。','Email is already being sent.')
+                : local('暫未寄出，請稍後重試。','Email could not be sent. Try again shortly.');
+          } catch(error) {
+            status.textContent = ({
+              customer_email_missing:local('此訂單未保存顧客電郵地址。','This order has no saved customer email address.'),
+              production_assets_missing:local('缺少製作圖或配送資料。舊單可在原下單瀏覽器補回資料後再試。',
+                'Production files or delivery details are missing. Restore them from the original checkout browser for an older order.'),
+              print_images_incomplete:local('請先保存透明製作圖。','Save the production images first.'),
+              images_incomplete:local('請先保存狗牌正反面預覽。','Save the front and back previews first.'),
+              production_mail_busy:local('電郵正在寄送。','Email is already being sent.')
+            })[error.code] || local('暫時無法寄送此電郵。','Unable to send this email.');
+          } finally {
+            button.disabled = false;
           }
-        } finally {
-          resend.disabled = false;
-        }
-      });
-      operations.append(resend);
-    }
-    if (order.provider === 'merchant' && ['pending', 'sending'].includes(order.notification_status)
-        && order.items.length && filesReady) {
-      const retry = element('button', local('完成訂單並寄送製作郵件', 'Finish order and send production email'));
-      retry.type = 'button';
-      retry.className = 'secondary';
-      retry.addEventListener('click', async () => {
-        retry.disabled = true;
-        try {
-          const receipt = await request('', {action: 'finish-review', orderId: order.id});
-          await load();
-          if (receipt.notificationStatus === 'sent') report('商家郵件已寄出。', 'Merchant email sent.');
-          else if (receipt.notificationStatus === 'captured') report('商家測試郵件已記錄。', 'Merchant test email captured.');
-          else report('郵件待發送。請稍後重試。', 'Email is pending. Try again later.');
-        } catch {
-          report('暫時無法發送商家郵件。', 'Unable to send the merchant email.');
-        } finally {
-          retry.disabled = false;
-        }
-      });
-      operations.append(retry);
+        });
+      }
+      buttons.append(customer,merchant);
+      operations.append(buttons,status);
     }
     if (operations.childElementCount>1) blocks.push(operations);
     content.replaceChildren(...blocks);
@@ -675,7 +668,8 @@
     }
   }
 
-  window.openMerchantOrderReview = () => {
+  window.openMerchantOrderReview = (preview) => {
+    previewMode = preview;
     page.hidden = false;
     render();
     load();
