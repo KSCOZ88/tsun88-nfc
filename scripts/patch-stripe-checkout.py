@@ -71,7 +71,7 @@ async function handleStripeReturn(){
   }catch(error){go('checkout');renderPaymentOrder(order);toast((error.message||'付款核验失败')+'。如果已经扣款，请不要重复支付，先联系客服核对。',10000);}
 }
 """
-    once("async function startAirwallexCheckout(){",stripe_handlers+"async function startAirwallexCheckout(){","Stripe checkout handlers")
+    once("async function startAirwallexCheckout(",stripe_handlers+"async function startAirwallexCheckout(","Stripe checkout handlers")
 if "const stripeButton=document.getElementById('stripePayBtn')" not in s:
     once("  const paypalButton=document.getElementById('paypalPayBtn');if(paypalButton&&!paypalButton.dataset.bound){paypalButton.dataset.bound='1';paypalButton.addEventListener('click',startPaypalCheckout);}",
          "  const paypalButton=document.getElementById('paypalPayBtn');if(paypalButton&&!paypalButton.dataset.bound){paypalButton.dataset.bound='1';paypalButton.addEventListener('click',startPaypalCheckout);}\n  const stripeButton=document.getElementById('stripePayBtn');if(stripeButton&&!stripeButton.dataset.bound){stripeButton.dataset.bound='1';stripeButton.addEventListener('click',startStripeCheckout);}",

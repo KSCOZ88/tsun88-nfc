@@ -14,10 +14,11 @@ if 'id="airwallexPaymentPanel"' not in s:
     if s.count(anchor)!=1: raise SystemExit("Checkout anchor changed")
     panel='''<div class="payment-panel" id="airwallexPaymentPanel" role="group" aria-label="Airwallex secure payment" style="margin-top:14px"><div class="payment-code-box" style="gap:12px"><b style="font-size:20px">Airwallex · Secure Checkout</b><small class="payment-scan-note" id="airwallexPaymentHelp">Payment opens in another tab. Return here to check payment status and enter delivery details.</small><button type="button" class="primary demo-pay-btn" id="airwallexPayBtn" style="background:#153e52;color:#fff">Pay with Airwallex</button><button type="button" class="secondary" id="airwallexRecoverBtn" hidden>Check Airwallex Payment Status</button></div></div>'''
     s=s.replace(anchor,panel+anchor)
-start=s.find('async function startAirwallexCheckout(){')
-end=s.find('\nfunction preparePaidOrderScreen(',start)
+start=s.find('async function startAirwallexCheckout(')
+end=s.find('\nfunction setPostPaymentCompletion(',start)
+if end<0: end=s.find('\nfunction preparePaidOrderScreen(',start)
 if start<0 or end<0: raise SystemExit("Checkout handler changed")
-replacement='''async function startAirwallexCheckout(){
+replacement='''async function startAirwallexCheckout(preferredMethod){
  if(!ensureCheckoutProfiles())return;
  if(currentOrder&&!validateOrderPhoneConfirmations(currentOrder.items||[captureTagDesign()]))return;
  if(LOCAL_FILE_REVIEW){openLocalPostPaymentPreview();return;}
@@ -25,15 +26,27 @@ replacement='''async function startAirwallexCheckout(){
  if(!currentOrder||!validateCustomerEmail())return;
  const button=document.getElementById('airwallexPayBtn');
  if(button?.disabled)return;
- if(currentOrder.paymentStatus==='paid'||currentOrder.paypalOrderId||
-   (currentOrder.stripeSessionId&&!currentOrder.stripeSessionRetired)){
+ if(currentOrder.paymentStatus==='paid'||currentOrder.paypalOrderId){
   const zh=window.TsunI18n?.locale==='zh-Hant';
   toast(zh?'請先核對此訂單原有的付款狀態。':'Check the payment status of this order before continuing.',9000);
   return;
  }
  const paymentTab=window.open('about:blank','_blank');
+ if(paymentTab)paymentTab.opener=null;
  if(button){button.disabled=true;button.textContent='Opening Airwallex…';}
  try{
+  if(currentOrder.stripeSessionId&&!currentOrder.stripeSessionRetired){
+   const response=await fetch('/api/create-checkout-session',{method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'retireStripeSession',order:currentOrder,sessionId:currentOrder.stripeSessionId})});
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok||!result.retired){
+    const zh=window.TsunI18n?.locale==='zh-Hant';
+    throw new Error(zh?'請先核對原 Stripe 付款的狀態。':'Check the earlier Stripe payment status before continuing.');
+   }
+   currentOrder.stripeSessionRetired=true;currentOrder.stripeCheckoutPending=false;
+   updateStoredOrder(currentOrder);
+  }
   currentOrder.customerEmail=state.customerEmail;currentOrder.payMethod='Airwallex';
   currentOrder.status='等待付款';currentOrder.pricing=calculateOrderPricing(currentOrder.items||[]);
   updateStoredOrder(currentOrder);
@@ -45,6 +58,7 @@ replacement='''async function startAirwallexCheckout(){
    if(!/^https:\\/\\/([a-z0-9-]+\\.)*airwallex\\.com\\//i.test(result.url))throw new Error('Invalid Airwallex payment URL');
    currentOrder.airwallexSessionId=result.id;currentOrder.airwallexPaymentUrl=result.url;
    currentOrder.airwallexCheckoutPending=true;currentOrder.airwallexCheckoutStartedAt=new Date().toISOString();
+   if(typeof preferredMethod==='string')currentOrder.airwallexSelectedMethod=preferredMethod;
    updateStoredOrder(currentOrder);url=result.url;
   }
   const recover=document.getElementById('airwallexRecoverBtn');if(recover)recover.hidden=false;

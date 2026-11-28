@@ -81,7 +81,7 @@ if "  handleCheckoutResume();" not in s:
     s=s.replace(needle,needle+"\n  handleCheckoutResume();")
 # Restore the customer email on Stripe's Back/cancel path too.
 start_return=s.find("async function handleStripeReturn(){")
-end_return=s.find("async function startAirwallexCheckout(){",start_return)
+end_return=s.find("async function startAirwallexCheckout(",start_return)
 if start_return<0 or end_return<0: raise SystemExit("Stripe return handler not found")
 return_block=s[start_return:end_return]
 saved_email="if(order.customerEmail)state.customerEmail=order.customerEmail;"
