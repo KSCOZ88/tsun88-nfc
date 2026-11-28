@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {create,verify,retire} = require('../server/airwallex-payment-links');
-const {summary} = require('../server/airwallex-checkout');
+const {configuration,createSession,verifiedSession,summary} = require('../server/airwallex-checkout');
 const {createHash} = require('node:crypto');
 process.env.VERCEL_ENV = 'production';
 process.env.AIRWALLEX_API_KEY = 'test-key-not-real';
@@ -78,4 +78,35 @@ test('a payment completed while deactivating a link still goes to confirmation',
   return {ok:true,json:async()=>result};
  };
  assert.deepEqual(await retire(link.id,summary(order)),{paid:true,id:link.id});
+});
+test('UnionPay checkout permits only UnionPay and verifies the captured card network',async()=>{
+ const config=configuration();
+ const url='https://checkout.airwallex.com/pay?session_id=session_test123';
+ const allowed={payment_method_types:['card'],allowed_card_networks:['unionpay']};
+ let options=allowed;
+ let brand='union pay';
+ const shared={id:'session_test123',url,account_id:config.accountId,mode:'PAYMENT',
+  currency:'HKD',metadata:meta,customer_data:{email:order.customerEmail}};
+ global.fetch=async (endpoint,opts)=>{
+  if(endpoint.endsWith('/authentication/login'))return Response.json({token:'mock_access_token'});
+  if(endpoint.endsWith('/checkout_sessions/create')){
+   const payload=JSON.parse(opts.body);
+   assert.deepEqual(payload.payment_options,{...allowed,auto_capture:true,payment_method_save:{mode:'DISABLED'}});
+   assert.equal(payload.line_items.reduce((total,line)=>total+line.price.unit_amount*line.quantity,0),302);
+   return Response.json({...shared,status:'ACTIVE',payment_options:options});
+  }
+  if(endpoint.endsWith('/checkout_sessions/'+shared.id)){
+   return Response.json({...shared,status:'COMPLETED',payment_intent_id:'int_union123',payment_options:options});
+  }
+  assert.match(endpoint,/\/payment_intents\/int_union123$/);
+  return Response.json({id:'int_union123',status:'SUCCEEDED',amount:302,currency:'HKD',merchant_order_id:order.id,
+   latest_payment_attempt:{captured_amount:302,payment_method:{type:'card',card:{brand}}}});
+ };
+ const req={headers:{origin:'https://www.8tsun8.com'}};
+ assert.deepEqual(await createSession(config,req,order,0),{id:shared.id,url});
+ assert.equal((await verifiedSession(shared.id,order)).paymentIntentId,'int_union123');
+ brand='visa';
+ await assert.rejects(()=>verifiedSession(shared.id,order),{status:409});
+ options={...allowed,allowed_card_networks:['unionpay','visa']};
+ await assert.rejects(()=>createSession(config,req,order,0),{status:502});
 });

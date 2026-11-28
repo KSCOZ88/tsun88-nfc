@@ -1,5 +1,5 @@
 // Compatibility route for the existing website. Store the order before creating a Payment Link.
-const {createSession,configuration,parseBody,handleError,method}=require('../server/airwallex-checkout');
+const {createSession,reopenSession,configuration,parseBody,handleError,method}=require('../server/airwallex-checkout');
 const {create}=require('../server/airwallex-payment-links');
 const {begin,complete,abort}=require('../server/airwallex-order-store');
 module.exports=async function(req,res){
@@ -16,7 +16,7 @@ module.exports=async function(req,res){
      const existing=lease.existing;
      if(existing?.status==='paid')return res.status(200).json({id:existing.payment_link_id,kind:'unionpay',paid:true});
      const session=existing?.payment_link_id
-       ? {id:existing.payment_link_id,url:existing.payment_link_url}
+       ? await reopenSession(config,existing.payment_link_id,lease.s)
        : await createSession(config,req,order,lease.attempt);
      if(!existing?.payment_link_id)await complete(lease,{paymentLinkId:session.id,url:session.url});
      return res.status(200).json({...session,kind:'unionpay',totalCents:lease.s.totalCents});

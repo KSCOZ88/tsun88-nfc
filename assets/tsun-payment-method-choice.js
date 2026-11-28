@@ -6,11 +6,11 @@
   {id:'apple',en:'Apple Pay',zh:'Apple Pay',subEn:'Shown by Stripe when supported',subZh:'Stripe 僅於支援時顯示',logos:['applepay'],stripe:'card'},
   {id:'google',en:'Google Pay',zh:'Google Pay',subEn:'Shown by Stripe when supported',subZh:'Stripe 僅於支援時顯示',logos:['googlepay'],stripe:'card'},
   {id:'paypal',en:'PayPal',zh:'PayPal',subEn:'Secure PayPal checkout',subZh:'使用 PayPal 安全付款',logos:['paypal'],provider:'paypal'},
-  {id:'alipay',en:'Alipay',zh:'支付寶（內地版）',subEn:'Mainland wallet · Airwallex',subZh:'內地錢包 · Airwallex',logos:['alipay'],provider:'airwallex',qr:'alipaycn'},
   {id:'alipayhk',en:'AlipayHK',zh:'AlipayHK 支付寶香港',subEn:'Hong Kong wallet · Airwallex',subZh:'香港錢包 · Airwallex',logos:['alipayhk'],provider:'airwallex',qr:'alipayhk'},
-  {id:'wechat',en:'WeChat Pay',zh:'微信支付 WeChat Pay',subEn:'Mainland and Hong Kong wallets · Airwallex',subZh:'內地及香港錢包 · Airwallex',logos:['wechatpay'],provider:'airwallex',qr:'wechatpay'},
   {id:'fps',en:'FPS',zh:'FPS 轉數快',subEn:'Hong Kong bank app · Airwallex',subZh:'香港銀行 App · Airwallex',logos:['fps'],provider:'airwallex',qr:'fps'},
   {id:'unionpay',en:'UnionPay',zh:'銀聯 UnionPay',subEn:'UnionPay card · Airwallex',subZh:'銀聯卡 · Airwallex',logos:['unionpay'],provider:'airwallex'},
+  {id:'alipay',en:'Alipay',zh:'支付寶（內地版）',subEn:'Mainland wallet · Airwallex',subZh:'內地錢包 · Airwallex',logos:['alipay'],provider:'airwallex',qr:'alipaycn'},
+  {id:'wechat',en:'WeChat Pay',zh:'微信支付 WeChat Pay',subEn:'Mainland and Hong Kong wallets · Airwallex',subZh:'內地及香港錢包 · Airwallex',logos:['wechatpay'],provider:'airwallex',qr:'wechatpay'},
  ];
  function zh(){return String(window.TsunI18n?.locale||document.documentElement.lang||'en').toLowerCase().startsWith('zh');}
  function msg(a,b){return zh()?a:b;}
@@ -18,7 +18,11 @@
  function preview(){return location.hostname.endsWith('.vercel.app');}
  function checkoutOrder(){return typeof currentOrder==='undefined'?null:currentOrder;}
  function directMethod(order){return order?.airwallexQrMethod||(order?.airwallexFpsStarted?'fps':null);}
- function pendingAirwallex(order){return Boolean((order?.airwallexSessionId||directMethod(order))&&order.paymentStatus!=='paid');}
+ function pendingAirwallex(order){return Boolean((order?.airwallexSessionId||order?.airwallexSessionKind||directMethod(order))&&order.paymentStatus!=='paid');}
+ function matchesActiveMethod(order,choice){
+  const qr=directMethod(order);
+  return qr?choice.qr===qr:order?.airwallexSessionKind==='unionpay'&&!order.airwallexSessionExpired&&choice.id==='unionpay';
+ }
  function init(){
   if(document.getElementById('tsunSpecificPaymentMethods'))return;
   const paypal=document.getElementById('paypalPaymentPanel');
@@ -80,8 +84,7 @@
    copy.append(name,detail);b.append(indicator,copy,marks);buttons.append(b);nodes.push({choice,b,name,detail});
    b.addEventListener('click',()=>{
     const order=checkoutOrder();
-    const active=directMethod(order);
-    if(pendingAirwallex(order)&&(active?choice.qr!==active:choice.id!=='unionpay')){
+    if(pendingAirwallex(order)&&!matchesActiveMethod(order,choice)){
      void switchPayment(choice.id);
      return;
     }
@@ -100,7 +103,10 @@
    continueButton.textContent=msg('確認付款','Continue to payment');
    if(choice?.provider==='airwallex'){
     subtitle.textContent=msg('在 Airwallex 付款頁選擇 '+choice.en+'.','Choose '+choice.en+' on the Airwallex payment page.');
-    if(choice.id==='unionpay')subtitle.textContent=msg('在 Airwallex 付款頁輸入銀聯卡資料。','Enter your UnionPay card on the Airwallex payment page.');
+    if(choice.id==='unionpay'){
+     subtitle.textContent=msg('於銀聯付款頁輸入銀聯卡資料。','Enter your card details on the UnionPay payment page.');
+     continueButton.textContent=msg('使用銀聯付款','Pay with UnionPay');
+    }
    }
    if(active||(choice?.qr&&qrAvailability.get(choice.qr)!==false&&!pending&&!preview())){
     subtitle.textContent=choice.qr==='fps'
@@ -112,11 +118,15 @@
    }else if(pending){
     subtitle.textContent=msg('此訂單已有付款連結。更換付款方式時，系統會先核對並關閉原連結。',
       'This order has a payment link. We’ll check and close it before you switch payment methods.');
-    if(choice?.id==='unionpay')continueButton.textContent=msg('重新開啟付款頁','Reopen payment page');
-    else if(choice?.qr)continueButton.textContent=msg('顯示付款二維碼','Show '+choice.en+' QR code');
+    if(choice?.id==='unionpay'&&order.airwallexSessionKind==='unionpay'){
+     subtitle.textContent=order.airwallexSessionExpired
+      ?msg('銀聯付款頁已過期。可重新開啟銀聯付款。','The UnionPay payment page expired. You can start UnionPay again.')
+      :msg('此訂單已有銀聯付款頁。可繼續銀聯付款或更換付款方式。',
+       'This order has a UnionPay payment page. Continue with UnionPay or change payment methods.');
+    }else if(choice?.qr)continueButton.textContent=msg('顯示付款二維碼','Show '+choice.en+' QR code');
    }
    if(recover){
-    recover.hidden=!pending||Boolean(active);
+    recover.hidden=!pending||Boolean(active)||!order.airwallexSessionId;
     recover.disabled=openingPayment;
     recover.textContent=msg('查詢 Airwallex 付款狀態','Check Airwallex payment status');
    }
@@ -163,7 +173,7 @@
   async function switchPayment(next){
    const order=checkoutOrder();
    if(!pendingAirwallex(order)||openingPayment||preview())return false;
-   const method=directMethod(order)||'payment_link';
+   const method=directMethod(order)||order.airwallexSessionKind||'payment_link';
    openingPayment=true;
    warning.textContent=msg('正在核對並取消原付款…','Checking and cancelling the previous payment…');
    refresh();
@@ -184,6 +194,8 @@
     if(!response.ok||!result.cancelled||!Number.isInteger(result.attempt))throw Error();
     clearTimeout(qrTimer);
     delete order.airwallexSessionId;
+    delete order.airwallexSessionKind;
+    delete order.airwallexSessionExpired;
     delete order.airwallexPaymentUrl;
     delete order.airwallexFpsStarted;
     delete order.airwallexQrMethod;
@@ -239,8 +251,8 @@
    const order=checkoutOrder();
    if(!choice||openingPayment||stripeBtn.disabled||paypalBtn.disabled||airwallexBtn?.disabled)return;
    if(order?.paymentStatus==='paid'){warning.textContent=msg('此訂單已付款，無需再次支付。','This order is already paid.');return;}
-   if(pendingAirwallex(order)&&!directMethod(order)&&choice.id!=='unionpay'){
-    if(!await switchPayment(choice.id)||!choice.qr)return;
+   if(pendingAirwallex(order)&&!matchesActiveMethod(order,choice)){
+    if(!await switchPayment(choice.id)||(!choice.qr&&choice.id!=='unionpay'))return;
    }
    if(pendingAirwallex(order)&&choice.provider!=='airwallex')return;
    if(choice.stripe){

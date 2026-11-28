@@ -33,7 +33,9 @@ replacement='''async function startAirwallexCheckout(preferredMethod,openFps){
   return;
  }
  if((currentOrder.airwallexFpsStarted||currentOrder.airwallexQrMethod)&&!openFps)return;
- const paymentTab=openFps?null:window.open('about:blank','_blank');
+ const unionpay=preferredMethod==='unionpay';
+ if(unionpay&&currentOrder.airwallexSessionId&&currentOrder.airwallexSessionKind!=='unionpay')return;
+ const paymentTab=openFps||unionpay?null:window.open('about:blank','_blank');
  if(paymentTab)paymentTab.opener=null;
  if(button){button.disabled=true;button.textContent='Opening Airwallex…';}
  try{
@@ -53,16 +55,40 @@ replacement='''async function startAirwallexCheckout(preferredMethod,openFps){
   currentOrder.status='等待付款';currentOrder.pricing=calculateOrderPricing(currentOrder.items||[]);
   updateStoredOrder(currentOrder);
   if(openFps){await openFps(currentOrder);return;}
+  if(unionpay){
+   currentOrder.airwallexSessionKind='unionpay';
+   currentOrder.airwallexSelectedMethod='unionpay';
+   updateStoredOrder(currentOrder);
+  }
   let url=currentOrder.airwallexPaymentUrl;
-  if(!currentOrder.airwallexSessionId||!url){
-   const response=await fetch(AIRWALLEX_CREATE_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:currentOrder})});
+  if(unionpay||!currentOrder.airwallexSessionId||!url){
+   const endpoint=AIRWALLEX_CREATE_ENDPOINT+(unionpay?'?channel=unionpay':'');
+   const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:currentOrder})});
    const result=await response.json().catch(()=>({}));
-   if(!response.ok||!result.url||!result.id||result.kind!=='payment_link')throw new Error(result.error||'Airwallex payment is not available');
+   if(!response.ok||!result.id||result.kind!==(unionpay?'unionpay':'payment_link'))throw new Error(result.error||'Airwallex payment is not available');
+   if(unionpay&&result.paid){
+    currentOrder.airwallexSessionId=result.id;
+    updateStoredOrder(currentOrder);
+    location.assign('/?recover=1&order_id='+encodeURIComponent(currentOrder.id));
+    return;
+   }
+   if(unionpay&&result.expired){
+    currentOrder.airwallexSessionId=result.id;
+    currentOrder.airwallexSessionExpired=true;
+    updateStoredOrder(currentOrder);
+    throw new Error(window.TsunI18n?.locale==='zh-Hant'?'銀聯付款頁已過期。請重新點選銀聯付款。':'The UnionPay payment page expired. Choose Pay with UnionPay again.');
+   }
+   if(typeof result.url!=='string'||!result.url)throw new Error('Airwallex is temporarily unavailable');
    if(!/^https:\\/\\/([a-z0-9-]+\\.)*airwallex\\.com\\//i.test(result.url))throw new Error('Invalid Airwallex payment URL');
    currentOrder.airwallexSessionId=result.id;currentOrder.airwallexPaymentUrl=result.url;
    currentOrder.airwallexCheckoutPending=true;currentOrder.airwallexCheckoutStartedAt=new Date().toISOString();
    if(typeof preferredMethod==='string')currentOrder.airwallexSelectedMethod=preferredMethod;
    updateStoredOrder(currentOrder);url=result.url;
+  }
+  if(unionpay){
+   history.replaceState({},document.title,'/?recover=1&order_id='+encodeURIComponent(currentOrder.id));
+   location.assign(url);
+   return;
   }
   const recover=document.getElementById('airwallexRecoverBtn');if(recover)recover.hidden=false;
   toast('After payment, return to this tab and check Airwallex payment status.',9000);

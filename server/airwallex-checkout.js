@@ -103,9 +103,14 @@ async function createSession(config,req,order,attempt){
   });
   if(typeof data.id!=='string'||!sessionIdPattern.test(data.id))throw fail('Airwallex 没有返回有效订单编号',502);
   checkSession(config,data,data.id,s);
-  const url=URL.parse(String(data.url||''));
-  if(data.status!=='ACTIVE'||url?.protocol!=='https:'||!(url.hostname==='airwallex.com'||url.hostname.endsWith('.airwallex.com')))throw fail('Airwallex 没有返回有效付款链接',502);
-  return {id:data.id,url:url.href};
+  if(data.status!=='ACTIVE')throw fail('Airwallex 没有返回有效付款链接',502);
+  return {id:data.id,url:sessionUrl(data)};
+}
+function sessionUrl(session){
+  let url;
+  try{url=new URL(session.url);}catch{throw fail('Airwallex 没有返回有效付款链接',502);}
+  if(url.protocol!=='https:'||!(url.hostname==='airwallex.com'||url.hostname.endsWith('.airwallex.com')))throw fail('Airwallex 没有返回有效付款链接',502);
+  return url.href;
 }
 function checkSession(config,session,sessionId,s){
   if(session.id!==sessionId||session.mode!=='PAYMENT'||session.account_id!==config.accountId||session.currency!=='HKD')throw fail('銀聯付款帳戶或幣種不匹配',409);
@@ -119,6 +124,13 @@ async function lookupSession(config,id,s){
   const session=await request(config,sessionPath+encodeURIComponent(id));
   checkSession(config,session,id,s);
   return session;
+}
+async function reopenSession(config,id,s){
+  const session=await lookupSession(config,id,s);
+  if(session.status==='COMPLETED')return {id,paid:true};
+  if(['CANCELLED','EXPIRED'].includes(session.status))return {id,expired:true};
+  if(session.status!=='ACTIVE')throw fail('銀聯付款狀態尚未確認',409);
+  return {id,url:sessionUrl(session)};
 }
 async function verifiedSession(id,order){
   const config=configuration(),s=summary(order);
@@ -152,4 +164,4 @@ function makeToken(config,sessionId,s){return createHmac('sha256',config.key).up
 function verifyToken(config,token,sessionId,s){return typeof token==='string'&&/^[a-f0-9]{64}$/.test(token)&&timingSafeEqual(Buffer.from(token,'hex'),Buffer.from(makeToken(config,sessionId,s),'hex'));}
 function handleError(res,error){return res.status(error.status||502).json({error:error.message||'Airwallex 操作暂时失败'});}
 function method(req,res){res.setHeader('Cache-Control','no-store');if(req.method==='OPTIONS')return res.status(204).end();if(req.method!=='POST')return res.status(405).json({error:'仅支持 POST'});return null;}
-module.exports={configuration,auth,parseBody,summary,createSession,verifiedSession,retireSession,makeToken,verifyToken,handleError,method};
+module.exports={configuration,auth,parseBody,summary,createSession,reopenSession,verifiedSession,retireSession,makeToken,verifyToken,handleError,method};
