@@ -2,6 +2,13 @@
 from pathlib import Path
 p=Path("index.html")
 s=p.read_text(encoding="utf-8")
+test_checkout="""const AIRWALLEX_TEST_CHECKOUT=!PROFILE_PREVIEW_MODE && location.protocol==='https:'
+  && location.hostname==='www.8tsun8.com' && location.pathname==='/'
+  && new URLSearchParams(location.search).get('airwallex_test')==='1';"""
+if test_checkout not in s:
+    anchor='function shouldResumeAirwallexOrder(){'
+    if s.count(anchor)!=1: raise SystemExit("Airwallex startup anchor changed")
+    s=s.replace(anchor,test_checkout+'\n'+anchor)
 anchor='<div class="action-row"><button type="button" class="secondary" data-go="petProfile">'
 if 'id="airwallexPaymentPanel"' not in s:
     if s.count(anchor)!=1: raise SystemExit("Checkout anchor changed")
@@ -17,6 +24,13 @@ replacement='''async function startAirwallexCheckout(){
  if(PROFILE_PREVIEW_MODE){openOriginalProfilePreview();return;}
  if(!currentOrder||!validateCustomerEmail())return;
  const button=document.getElementById('airwallexPayBtn');
+ if(button?.disabled)return;
+ if(currentOrder.paymentStatus==='paid'||currentOrder.paypalOrderId||
+   (currentOrder.stripeSessionId&&!currentOrder.stripeSessionRetired)){
+  const zh=window.TsunI18n?.locale==='zh-Hant';
+  toast(zh?'請先核對此訂單原有的付款狀態。':'Check the payment status of this order before continuing.',9000);
+  return;
+ }
  const paymentTab=window.open('about:blank','_blank');
  if(button){button.disabled=true;button.textContent='Opening Airwallex…';}
  try{
@@ -54,6 +68,8 @@ recovery = r'''<script id="tsun-airwallex-return-check">
  let lastAttempt=0;
  let pendingTimer=null;
  function check(){
+   // The live test leaves confirmation to the tester after checking Webhook delivery.
+   if(AIRWALLEX_TEST_CHECKOUT||new URLSearchParams(location.search).get('recover')==='1')return;
    if(document.visibilityState!=='visible')return;
    const button=document.getElementById('airwallexRecoverBtn');
    if(!button||button.hidden||button.disabled)return;

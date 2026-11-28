@@ -20,6 +20,13 @@
   const paypalBtn=document.getElementById('paypalPayBtn');
   const stripeBtn=document.getElementById('stripePayBtn');
   if(!paypal||!stripe||!paypalBtn||!stripeBtn)return;
+  paypal.hidden=true;stripe.hidden=true;paypal.style.display='none';stripe.style.display='none';
+  const airwallex=document.getElementById('airwallexPaymentPanel');
+  const order=typeof currentOrder!=='undefined'?currentOrder:null;
+  const airwallexPending=Boolean(order?.airwallexSessionId&&order.paymentStatus!=='paid');
+  const airwallexTest=typeof AIRWALLEX_TEST_CHECKOUT!=='undefined'&&AIRWALLEX_TEST_CHECKOUT;
+  if(airwallex&&(airwallexTest||airwallexPending))return;
+  if(airwallex){airwallex.hidden=true;airwallex.style.display='none';}
   if(!document.getElementById('tsunSpecificPaymentMethodsStyle')){
    const link=el('link');link.id='tsunSpecificPaymentMethodsStyle';link.rel='stylesheet';link.href='/assets/tsun-payment-method-choice.css';document.head.append(link);
   }
@@ -32,9 +39,6 @@
   const foot=el('div','tsun-method-footnote');
   wrap.append(heading,subtitle,buttons,warning,continueButton,foot);
   paypal.parentNode.insertBefore(panel,paypal);
-  paypal.hidden=true;stripe.hidden=true;paypal.style.display='none';stripe.style.display='none';
-  const airwallex=document.getElementById('airwallexPaymentPanel');
-  if(airwallex){const pending=typeof currentOrder!=='undefined'&&currentOrder?.airwallexSessionId&&currentOrder?.paymentStatus!=='paid';if(!pending){airwallex.hidden=true;airwallex.style.display='none';}}
   let selected='card';
   const nodes=[];
   for(const choice of choices){
