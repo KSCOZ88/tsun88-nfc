@@ -9,7 +9,7 @@ function parseEventEnvelope(event){
  const marker=event.data?.object?.metadata?.checkout_method;
  const qrPaid=event.name==='payment_intent.succeeded'&&typeof marker==='string'&&
   marker.startsWith('8tsun8_')&&supportsQr(marker.slice(7));
- if(event.name!=='payment_link.paid'&&!qrPaid)return {kind:'ignored'};
+ if(event.name!=='payment_link.paid'&&event.name!=='checkout_session.completed'&&!qrPaid)return {kind:'ignored'};
  const eventId=typeof event.id==='string'?event.id:'';
  const linkId=typeof event.data?.object?.id==='string'?event.data.object.id:'';
  if(!ID.test(eventId)||!ID.test(linkId))return {kind:'invalid-identifiers'};

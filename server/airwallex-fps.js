@@ -1,7 +1,7 @@
 'use strict';
 
 const {createHash}=require('node:crypto');
-const {auth,configuration,summary}=require('./airwallex-checkout');
+const {auth,configuration,summary,retireSession}=require('./airwallex-checkout');
 const {begin,complete,db,fpsSchema}=require('./airwallex-order-store');
 
 const qrMethods=Object.freeze({
@@ -118,15 +118,15 @@ async function prepare(order,type='fps'){
 }
 
 async function cancel(order,type='fps'){
- const hosted=type==='payment_link';
- if(!hosted&&!supportsQr(type))throw fail('Unsupported payment method.',422);
- if(hosted&&!order?.airwallexSessionId)throw fail('Missing the active payment link.',422);
+ const legacyLink=type==='payment_link';
+ if(!legacyLink&&type!=='unionpay'&&!supportsQr(type))throw fail('Unsupported payment method.',422);
+ if(legacyLink&&!order?.airwallexSessionId)throw fail('Missing the active payment link.',422);
  const s=summary(order), sql=db();
  await fpsSchema(sql);
  const attempt=order.airwallexFpsAttempt??0;
  if(!Number.isInteger(attempt)||attempt<0)throw fail('Invalid QR checkout.',422);
  // Fence a start request that has been sent but has not written its first row.
- if(!hosted)await sql`INSERT INTO tsun_airwallex_orders
+ if(!legacyLink)await sql`INSERT INTO tsun_airwallex_orders
   (merchant_order_id,email,amount_cents,order_binding,order_snapshot,payment_kind,status,fps_attempt)
   SELECT ${s.orderId},${s.email},${s.totalCents},${s.binding},'{}'::jsonb,${type},'cancelled',1
   WHERE ${attempt}=0 AND ${order.airwallexSessionId??null}::text IS NULL
@@ -141,8 +141,11 @@ async function cancel(order,type='fps'){
  if(row.fps_attempt!==attempt)throw fail('This checkout has changed. Reopen the current order.');
  const id=row.payment_link_id;
  if(row.status==='paid')return {paid:true,id};
- if(hosted){
+ if(legacyLink){
   const outcome=await require('./airwallex-payment-links').retire(id,s);
+  if(outcome)return outcome;
+ }else if(id&&type==='unionpay'){
+  const outcome=await retireSession(id,s);
   if(outcome)return outcome;
  }else if(id){
   const config=configuration();

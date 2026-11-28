@@ -1,7 +1,9 @@
 // Airwallex-hosted Checkout Sessions: secrets only on server. API version 2026-05-29+.
-const {createHash,createHmac,timingSafeEqual,randomUUID}=require('node:crypto');
+const {createHash,createHmac,timingSafeEqual}=require('node:crypto');
 const EMAIL=/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 let cache={token:'',until:0,mode:''};
+const sessionPath='/api/v1/checkout/checkout_sessions/';
+const sessionIdPattern=/^[A-Za-z0-9_-]{6,120}$/;
 const fail=(message,status=422)=>Object.assign(new Error(message),{status});
 function configuration(){
   const mode=process.env.VERCEL_ENV==='production'?'live':'sandbox';
@@ -56,7 +58,7 @@ async function auth(config){
 async function request(config,path,method='GET',payload){
   const token=await auth(config);
   let response;
-  try{response=await fetch(config.base+path,{method,headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json','x-api-version':'2026-05-29'},...(payload?{body:JSON.stringify(payload)}:{}),signal:AbortSignal.timeout(20000)});}catch{throw fail('Airwallex 网络暂时无法连接，请稍后再试',503)}
+  try{response=await fetch(config.base+path,{method,headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json','x-api-version':'2026-05-29'},...(payload?{body:JSON.stringify(payload)}:{}),signal:AbortSignal.timeout(13000)});}catch{throw fail('Airwallex 网络暂时无法连接，请稍后再试',503)}
   const body=await response.json().catch(()=>({}));
   if(!response.ok){
 
@@ -84,39 +86,70 @@ console.error('[Airwallex Checkout Error]', {
   return body;
 }
 function expectedMeta(s){return {order_id:s.orderId,order_binding:s.binding,item_count:String(s.itemCount),decor_count:String(s.decorCount),total_cents:String(s.totalCents)};}
-async function createSession(config,req,order){
+async function createSession(config,req,order,attempt){
   const s=summary(order),origin=siteBase(req);
+  if(s.orderId.length>64)throw fail('Invalid order number.');
   const qs='&order_id='+encodeURIComponent(s.orderId);
+  const requestId=createHash('sha256').update(JSON.stringify(['unionpay',s.binding,attempt])).digest('hex');
   const lineItems=[{price:{currency:'HKD',unit_amount:299,pricing_model:'PER_UNIT',product:{name:'8TSUN8 NFC Pet Tag'}},quantity:s.itemCount}];
   if(s.decorCount)lineItems.push({price:{currency:'HKD',unit_amount:3,pricing_model:'PER_UNIT',product:{name:'8TSUN8 Tag Charms'}},quantity:s.decorCount});
-  const data=await request(config,'/api/v1/checkout/checkout_sessions/create','POST',{
-    account_id:config.accountId,request_id:randomUUID(),mode:'PAYMENT',ui_mode:'HOSTED',currency:'HKD',
-    line_items:lineItems,metadata:expectedMeta(s),customer_data:{email:s.email,type:'INDIVIDUAL'},
-    payment_intent_data:{merchant_order_id:s.orderId.slice(0,64)},
-    payment_options:{auto_capture:true,payment_method_save:{mode:'DISABLED'},payment_method_types:['card','applepay','googlepay','alipayhk','airwallex_pay','fps']},
+  const data=await request(config,sessionPath+'create','POST',{
+    account_id:config.accountId,request_id:requestId,mode:'PAYMENT',ui_mode:'HOSTED',currency:'HKD',
+    line_items:lineItems,metadata:expectedMeta(s),customer_data:{email:s.email,country_code:'HK',type:'INDIVIDUAL'},
+    payment_intent_data:{merchant_order_id:s.orderId},
+    payment_options:{auto_capture:true,payment_method_save:{mode:'DISABLED'},payment_method_types:['card'],allowed_card_networks:['unionpay']},
     success_url:origin+'/?airwallex_return=success'+qs,
-    back_url:origin+'/?airwallex_return=cancelled'+qs
+    back_url:origin+'/?recover=1'+qs
   });
-  if(!/^cs_|^ch_|^cko_|^cse_/.test(data.id||'')){
-    // Some accounts use different checkout-session id prefixes; validate generically.
-    if(!/^[a-zA-Z0-9_-]{6,120}$/.test(data.id||''))throw fail('Airwallex 没有返回有效订单编号',502);
-  }
-  const url=new URL(String(data.url||''));
-  if(url.protocol!=='https:'||!(url.hostname==='airwallex.com'||url.hostname.endsWith('.airwallex.com')))throw fail('Airwallex 没有返回有效付款链接',502);
-  return {id:data.id,url:data.url,mode:config.mode,totalCents:s.totalCents};
+  if(typeof data.id!=='string'||!sessionIdPattern.test(data.id))throw fail('Airwallex 没有返回有效订单编号',502);
+  checkSession(config,data,data.id,s);
+  const url=URL.parse(String(data.url||''));
+  if(data.status!=='ACTIVE'||url?.protocol!=='https:'||!(url.hostname==='airwallex.com'||url.hostname.endsWith('.airwallex.com')))throw fail('Airwallex 没有返回有效付款链接',502);
+  return {id:data.id,url:url.href};
 }
-async function verifiedSession(config,sessionId,order){
-  const s=summary(order);
-  if(!/^[A-Za-z0-9_-]{6,120}$/.test(sessionId||''))throw fail('Airwallex 付款编号无效');
-  const session=await request(config,'/api/v1/checkout/checkout_sessions/'+encodeURIComponent(sessionId));
-  if(session.status!=='COMPLETED'||session.mode!=='PAYMENT'||!session.payment_intent_id)throw fail('Airwallex 尚未确认付款完成，请不要重复付款',409);
-  if(session.account_id!==config.accountId||String(session.currency||'').toUpperCase()!=='HKD')throw fail('收款账户或币种不匹配',409);
+function checkSession(config,session,sessionId,s){
+  if(session.id!==sessionId||session.mode!=='PAYMENT'||session.account_id!==config.accountId||session.currency!=='HKD')throw fail('銀聯付款帳戶或幣種不匹配',409);
   for(const [key,value] of Object.entries(expectedMeta(s))){if(String(session.metadata?.[key]||'')!==value)throw fail('订单编号、金额或商品资料不一致',409);}
   if(session.customer_data?.email&&session.customer_data.email.toLowerCase()!==s.email.toLowerCase())throw fail('付款邮箱与订单邮箱不一致',409);
-  return {session,summary:s};
+  const {payment_method_types:types,allowed_card_networks:networks}=session.payment_options||{};
+  if(types?.length!==1||types[0]!=='card'||networks?.length!==1||networks[0]!=='unionpay')throw fail('Airwallex 未能限制此付款頁只收銀聯卡',502);
+}
+async function lookupSession(config,id,s){
+  if(typeof id!=='string'||!sessionIdPattern.test(id))throw fail('Airwallex 付款编号无效');
+  const session=await request(config,sessionPath+encodeURIComponent(id));
+  checkSession(config,session,id,s);
+  return session;
+}
+async function verifiedSession(id,order){
+  const config=configuration(),s=summary(order);
+  const session=await lookupSession(config,id,s);
+  const paymentIntentId=session.payment_intent_id;
+  if(session.status!=='COMPLETED'||typeof paymentIntentId!=='string'||!sessionIdPattern.test(paymentIntentId))throw fail('銀聯付款尚未確認',409);
+  const intent=await request(config,'/api/v1/pa/payment_intents/'+encodeURIComponent(paymentIntentId));
+  const attempt=intent.latest_payment_attempt;
+  const method=attempt?.payment_method;
+  if(intent.id!==paymentIntentId||intent.status!=='SUCCEEDED'||intent.currency!=='HKD'||intent.merchant_order_id!==s.orderId||
+     Math.round(Number(intent.amount)*100)!==s.totalCents||
+     Math.round(Number(attempt?.captured_amount??intent.captured_amount)*100)!==s.totalCents||
+     method?.type!=='card'||String(method.card?.brand||'').toLowerCase().replace(/\s+/g,'')!=='unionpay'){
+    throw fail('銀聯付款方式或已收金額尚未確認',409);
+  }
+  return {paid:true,paymentIntentId,amountCents:s.totalCents,currency:'HKD',mode:config.mode};
+}
+async function retireSession(id,s){
+  const config=configuration();
+  let session=await lookupSession(config,id,s);
+  if(session.status==='ACTIVE'){
+    let cancellationError;
+    try{await request(config,sessionPath+encodeURIComponent(id)+'/cancel','POST');}catch(error){cancellationError=error;}
+    session=await lookupSession(config,id,s);
+    if(cancellationError&&session.status==='ACTIVE')throw cancellationError;
+  }
+  if(session.status==='COMPLETED')return {paid:true,id};
+  return ['CANCELLED','EXPIRED'].includes(session.status)?null:{pending:true,id};
 }
 function makeToken(config,sessionId,s){return createHmac('sha256',config.key).update([config.mode,config.accountId,sessionId,s.binding,s.orderId,s.email.toLowerCase()].join('|')).digest('hex');}
 function verifyToken(config,token,sessionId,s){return typeof token==='string'&&/^[a-f0-9]{64}$/.test(token)&&timingSafeEqual(Buffer.from(token,'hex'),Buffer.from(makeToken(config,sessionId,s),'hex'));}
 function handleError(res,error){return res.status(error.status||502).json({error:error.message||'Airwallex 操作暂时失败'});}
 function method(req,res){res.setHeader('Cache-Control','no-store');if(req.method==='OPTIONS')return res.status(204).end();if(req.method!=='POST')return res.status(405).json({error:'仅支持 POST'});return null;}
-module.exports={configuration,auth,parseBody,summary,createSession,verifiedSession,makeToken,verifyToken,handleError,method};
+module.exports={configuration,auth,parseBody,summary,createSession,verifiedSession,retireSession,makeToken,verifyToken,handleError,method};
