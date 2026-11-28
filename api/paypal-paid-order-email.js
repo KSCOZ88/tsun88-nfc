@@ -1,6 +1,7 @@
 const {publishPaidReview} = require('../server/order-review');
 const p=require('../server/paypal-orders');
 const {deliver}=require('../server/airwallex-order-mailer');
+const {savePaidProduction}=require('../server/paid-production-assets');
 const STAGES=new Set(['payment_received','order_completed','in_production','shipped']);
 module.exports=async(req,res)=>{
   if(!p.post(req,res))return;
@@ -10,7 +11,10 @@ module.exports=async(req,res)=>{
     const order=body.order||{},id=String(order.id||'');
     const {row,sql}=await p.verifiedPaid(id,String(body.paypalOrderId||''),String(body.orderToken||''),order);
     const mailOrder={...order,payMethod:'PayPal',paymentStatus:'paid',paymentTransactionId:row.capture_id,paidAmountCents:row.amount_cents};
-    if(stage==='order_completed')await publishPaidReview('paypal',mailOrder,body.previews);
+    if(stage==='order_completed'){
+      await publishPaidReview('paypal',mailOrder,body.previews);
+      if(process.env.VERCEL_ENV==='production')await savePaidProduction('paypal',mailOrder,body.attachments);
+    }
     if(!process.env.SMTP_APP_PASSWORD)return res.status(503).json({error:'邮件服务尚未设置'});
     await sql`INSERT INTO tsun_paypal_mail(merchant_order_id,stage) VALUES (${id},${stage}) ON CONFLICT DO NOTHING`;
     const claimed=await sql`UPDATE tsun_paypal_mail SET processing_until=now()+interval '4 minutes'

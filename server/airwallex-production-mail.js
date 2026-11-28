@@ -26,8 +26,8 @@ async function mailDatabase(){
 }
 
 function productionPayload(order,attachments){
- if(!Array.isArray(attachments)||attachments.length!==order.items.length*3||
-    !attachments.every(file=>typeof file?.data==='string'&&file.data.startsWith('data:image/png;base64,'))||
+ if(!Array.isArray(order?.items)||!order.items.length||!Array.isArray(attachments)||attachments.length!==order.items.length*3||
+    !attachments.every(file=>typeof file?.data==='string'&&/^data:image\/png;base64,iVBORw0KGg[A-Za-z0-9+/]+={0,2}$/.test(file.data))||
     ![order.shipName,order.shipPhone,order.shipAddress,order.cloudProfile?.publicUrl].every(value=>typeof value==='string'&&value.trim())){
   return null;
  }

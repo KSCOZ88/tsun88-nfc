@@ -187,7 +187,8 @@ async function loadReview(sql, orderId) {
   checkOrderId(orderId);
   const [row] = await listReviews(sql, orderId);
   if (!row) throw fail(404, 'order_missing');
-  const [merchant] = row.provider === 'merchant' ? await sql`select profile_slugs, order_details->'items' as items
+  const [merchant] = row.provider === 'merchant' ? await sql`select profile_slugs, order_details->'items' as items,
+    order_details, notification_message->'delivery' as delivery
     from public.tsun_merchant_orders where merchant_order_id = ${orderId}` : [];
   const [paid] = row.provider !== 'merchant' ? await sql`select profiles, items
     from public.tsun_order_reviews where merchant_order_id = ${orderId}` : [];

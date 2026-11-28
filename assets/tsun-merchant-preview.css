@@ -251,6 +251,33 @@ html[data-merchant-preview="locked"] body > :not(#merchantLogin):not(script):not
   margin: 1.25rem 0 2rem;
 }
 
+.merchant-order-details dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid #dce8eb;
+  border-radius: .75rem;
+  background: white;
+}
+
+.merchant-order-details dt {
+  font-weight: 700;
+}
+
+.merchant-order-details dd {
+  margin: .25rem 0 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.merchant-order-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .75rem 1rem;
+}
+
 .merchant-tag-gallery {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));

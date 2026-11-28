@@ -8,6 +8,8 @@ const {postgres} = require('./postgres');
 const {salesSummary} = require('./merchant-sales');
 const {shippingLabelAttachment, shippingLabelPrintTip} = require('./shipping-label');
 const {completeHongKongAddress} = require('./hong-kong-district');
+const paidAssets = require('./paid-production-assets');
+const {deliveryFields} = paidAssets;
 const {namedPath} = require('../assets/tsun-profile-url');
 
 const COOKIE = '__Host-tsun_merchant_preview';
@@ -211,7 +213,7 @@ async function captureNotice(sql, id, saved, origin, attachments = []) {
   const files = addressLabel ? [...attachments, addressLabel] : attachments;
   if (files.length) message.attachments = files.map(({filename, content_type}) => ({filename, content_type}));
   await sql`update public.tsun_merchant_orders
-    set notification_status = 'captured', notification_message = ${JSON.stringify(message)}::jsonb
+    set notification_status = 'captured', notification_message = ${JSON.stringify({...message, delivery:deliveryFields(order)})}::jsonb
     where merchant_order_id = ${id} and notification_status = 'pending'`;
   return 'captured';
 }
@@ -258,7 +260,7 @@ async function notifyReviewedOrder(sql, id, saved, origin, attachments, env = pr
   message.to = [recipient];
   const [claim] = await sql`update public.tsun_merchant_orders
     set notification_status = 'sending', notification_lease_until = now() + interval '2 minutes',
-        notification_message = ${JSON.stringify(message)}::jsonb ||
+        notification_message = ${JSON.stringify({...message, delivery:deliveryFields(order)})}::jsonb ||
           jsonb_build_object('sent_attachment_count', coalesce(notification_message->'sent_attachment_count', '0'::jsonb))
     where merchant_order_id = ${id} and (notification_status in ('pending', 'captured')
       or (notification_status = 'sending' and notification_lease_until < now()))
@@ -320,13 +322,19 @@ async function finishReview(sql, id, origin, preview) {
     where merchant_order_id = ${id} and side in ('front', 'back')`;
   if (images.total !== saved.profile_slugs.length * 2) throw failure(409, 'images_incomplete');
   const attachments = await loadMerchantPrintFiles(sql, id, saved.order_details.items);
+  saved.delivery = await completeHongKongAddress(await merchantOrderDelivery(sql, saved));
+  return receipt(saved, origin, await notifyReviewedOrder(sql, id, saved, origin, attachments), preview);
+}
+
+async function merchantOrderDelivery(sql, order) {
+  if(order.delivery) return order.delivery;
+  if(!order.order_details) return {};
   const profiles = await sql`select profile->>'location' as location, profile->>'owner_name' as owner_name,
       profile->>'owner_phone' as owner_phone
-    from unnest(${saved.profile_slugs}::text[]) with ordinality as slugs(slug, tag_number)
+    from unnest(${order.profile_slugs}::text[]) with ordinality as slugs(slug, tag_number)
     cross join lateral (select public.get_pet_profile(slug) as profile offset 0) as pet
     order by tag_number`;
-  saved.delivery = await completeHongKongAddress(merchantDeliveryDetails(saved.order_details, profiles));
-  return receipt(saved, origin, await notifyReviewedOrder(sql, id, saved, origin, attachments), preview);
+  return merchantDeliveryDetails(order.order_details, profiles);
 }
 
 async function loadProfile(sql, slug) {
@@ -351,24 +359,51 @@ function makeHandler({getConfig = configuration, getDb = postgres} = {}) {
           if (!authenticated) throw failure(401, 'sign_in_required');
           return res.status(200).json(await loadProfile(getDb(config.connection), req.query.profile));
         }
-        if (req.query?.reviews === '1' || req.query?.sales === '1' || req.query?.review || req.query?.image) {
+        if (req.query?.reviews === '1' || req.query?.sales === '1' || req.query?.review || req.query?.image || req.query?.addressPdf) {
           if (!authenticated) throw failure(401, 'sign_in_required');
           const sql = getDb(config.connection);
           if (req.query.image) {
-            const image = await loadImage(sql, req.query.image, req.query.tag, req.query.side);
+            const {image: id, tag, side} = req.query;
+            const printing = printFiles.includes(side);
+            const detail = printing && !preview ? await loadReview(sql, id) : null;
+            const image = detail && detail.provider !== 'merchant'
+              ? await paidAssets.loadPaidProductionImage(detail.provider,id,tag,side)
+              : await loadImage(sql,id,tag,side);
             res.setHeader('Content-Type', 'image/png');
             res.setHeader('X-Content-Type-Options', 'nosniff');
-            if (printFiles.includes(req.query.side)) {
-              res.setHeader('Content-Disposition', `attachment; filename="8TSUN8-${req.query.tag}-${req.query.side}.png"`);
+            if (printing) {
+              res.setHeader('Content-Disposition', `attachment; filename="8TSUN8-${id}-${tag}-${side}.png"`);
             }
             return res.status(200).send(image);
+          }
+          if (req.query.addressPdf) {
+            const id = req.query.addressPdf;
+            const detail = await loadReview(sql,id);
+            const delivery = detail.merchant ? await merchantOrderDelivery(sql,detail.merchant)
+              : !preview ? (await paidAssets.loadPaidProduction(detail.provider,id)).delivery : {};
+            const file = await shippingLabelAttachment(delivery,{threeAcross:true});
+            if (!file) throw failure(404,'shipping_label_missing');
+            res.setHeader('Content-Type','application/pdf');
+            res.setHeader('X-Content-Type-Options','nosniff');
+            res.setHeader('Content-Disposition',`attachment; filename="8TSUN8-${id}-address.pdf"`);
+            return res.status(200).send(Buffer.from(file.content,'base64'));
           }
           if (req.query.review) {
             const detail = await loadReview(sql, req.query.review);
             const {merchant, paid, ...review} = detail;
             const profiles = merchant ? profileLinks({profile_slugs: merchant.profile_slugs,
               order_details: {items: merchant.items}}, origin, preview) : paid?.profiles || [];
-            return res.status(200).json({...review, profiles, items: merchant?.items || paid?.items || []});
+            const items = merchant?.items || paid?.items || [];
+            let production = {};
+            if (merchant) production.delivery = deliveryFields(await merchantOrderDelivery(sql,merchant));
+            else if (!preview) {
+              try {production = await paidAssets.loadPaidProduction(review.provider,review.id);}
+              catch(error) {
+                console.warn('[Merchant order] production data unavailable',{code: /^[a-z0-9_]{1,48}$/i.test(error?.code || '') ? error.code : 'unknown'});
+                production = {productionUnavailable:true};
+              }
+            }
+            return res.status(200).json({...review, profiles, items,...production,quantity:production.quantity||items.length||null});
           }
           if (req.query.sales === '1') return res.status(200).json(await salesSummary(sql, req.query));
           const requested = req.query.page ?? '1';
@@ -399,6 +434,15 @@ function makeHandler({getConfig = configuration, getDb = postgres} = {}) {
       if (!authenticated) throw failure(401, 'sign_in_required');
       const sql = getDb(config.connection);
       const {action, order, review, orderId, tagNumber, previews} = req.body || {};
+      if (action === 'recover-production-assets') {
+        if (preview) throw failure(404,'not_available');
+        const detail = await loadReview(sql,orderId);
+        const {legacy} = req.body;
+        if(legacy?.order?.id!==orderId||!detail.paid?.profiles?.[0]?.url)throw failure(422,'invalid_production_order');
+        if(Buffer.byteLength(JSON.stringify(legacy))>4*1024*1024)throw failure(413,'production_assets_too_large');
+        await paidAssets.recoverPaidProduction(detail.provider,legacy.order,legacy.attachments,detail.paid.profiles[0].url);
+        return res.status(200).json({saved:true});
+      }
       if (action === 'resend-production-mail') {
         if (preview) throw failure(404, 'not_available');
         const detail = await loadReview(sql, orderId);

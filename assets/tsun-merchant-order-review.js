@@ -105,24 +105,37 @@
       return await request('', payload);
     } catch (error) {
       if (error.code !== 'production_assets_missing') throw error;
-      // Only this signed-in order can use a completed checkout still on this browser.
-      let saved;
-      try {
-        saved = JSON.parse(localStorage.getItem('tsun88_orders_v1') || '[]').find(order =>
-          order.id === orderId && order.status === '资料已完善' && order.paymentStatus === 'paid' &&
-          order.airwallexOrderToken && order.airwallexSessionId);
-      } catch {}
+      const saved = savedProductionOrder(orderId, 'airwallex');
       if (!saved) throw error;
-      const files = await prepareProductionFiles(saved);
-      const attachments = await Promise.all(Object.values(files).map(async file =>
-        ({name: file.name, data: await blobToDataUrl(file.blob)})));
-      const {id, items, customerEmail, language, shipName, shipPhone, shipAddress,
-        airwallexOrderToken, airwallexSessionId} = saved;
-      return request('', {...payload, legacy: {attachments, order: {
-        id, items: items.map(({petName, decorItems}) => ({petName, decorItems})),
-        customerEmail, language, shipName, shipPhone, shipAddress, airwallexOrderToken, airwallexSessionId
-      }}});
+      return request('', {...payload, legacy: await browserProductionAssets(saved)});
     }
+  }
+
+  function savedProductionOrder(id, provider) {
+    const credentials = {
+      airwallex: ['airwallexOrderToken','airwallexSessionId'],
+      stripe: ['stripeOrderToken','stripeSessionId'],
+      paypal: ['paypalOrderToken','paypalOrderId']
+    }[provider];
+    if (!credentials) return;
+    try {
+      return JSON.parse(localStorage.getItem('tsun88_orders_v1') || '[]').find(order =>
+        order.id === id && order.status === '资料已完善' && order.paymentStatus === 'paid' &&
+        credentials.every(field => order[field]));
+    } catch {}
+  }
+
+  async function browserProductionAssets(saved) {
+    const files = await prepareProductionFiles(saved);
+    const attachments = await Promise.all(Object.values(files).map(async file =>
+      ({name: file.name, data: await blobToDataUrl(file.blob)})));
+    const {id, items, customerEmail, language, shipName, shipPhone, shipAddress,
+      airwallexOrderToken, airwallexSessionId, stripeOrderToken, stripeSessionId, paypalOrderToken, paypalOrderId} = saved;
+    return {attachments, order: {
+      id, items: items.map(({petName, decorItems}) => ({petName, decorItems})),
+      customerEmail, language, shipName, shipPhone, shipAddress,
+      airwallexOrderToken, airwallexSessionId, stripeOrderToken, stripeSessionId, paypalOrderToken, paypalOrderId
+    }};
   }
 
   function providerName(provider) {
@@ -335,8 +348,44 @@
     const info = element('p', orderNumber(order) + ' · ');
     info.append(orderTime(order.created_at), ' ' + local('（香港時間）', '(HKT)'),
       ' · ' + providerName(order.provider) + ' · ' + queueStatus(order.queue_status));
-    const reference = element('p', local('訂單參考號 ', 'Order reference ') + order.id);
-    reference.className = 'merchant-order-reference';
+    const delivery = order.delivery || {};
+    const details = element('section');
+    details.className = 'merchant-order-details';
+    details.append(element('h2', local('訂單及配送資料', 'Order and delivery details')));
+    const fields = element('dl');
+    for (const [label,value] of [
+      [local('訂單編號', 'Order number'), order.id],
+      [local('狗牌數量', 'Number of tags'), order.quantity || order.items.length || null],
+      [local('客戶電郵', 'Customer email'), delivery.customerEmail],
+      [local('收件人', 'Recipient'), delivery.shipName],
+      [local('配送電話', 'Delivery phone'), delivery.shipPhone],
+      [local('配送地址', 'Delivery address'), delivery.shipAddress]
+    ]) {
+      const field = element('div');
+      field.append(element('dt',label),element('dd',value ? String(value) : '—'));
+      fields.append(field);
+    }
+    details.append(fields);
+    const actions = element('div');
+    actions.className = 'merchant-order-actions';
+    const orderLink = link(orderUrl(order.id), local('商家後台訂單連結', 'Merchant dashboard order link'));
+    const copyLink = element('button', local('複製訂單連結', 'Copy order link'));
+    copyLink.type = 'button';
+    copyLink.className = 'secondary';
+    copyLink.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(orderLink.href);
+        report('已複製訂單連結。', 'Order link copied.');
+      } catch {
+        report('暫時未能複製。可在訂單連結上使用瀏覽器的複製功能。', 'Unable to copy. Use the browser’s copy-link action on the order link.');
+      }
+    });
+    actions.append(orderLink,copyLink);
+    if (delivery.shipName && delivery.shipAddress) {
+      actions.append(link(endpoint + '&addressPdf=' + encodeURIComponent(order.id),
+        local('下載 A4 三聯地址 PDF', 'Download A4 address PDF (3 copies)')));
+    }
+    details.append(actions);
     const profiles = element('section');
     profiles.append(element('h2', local('NFC 寵物檔案', 'NFC pet profiles')));
     const links = element('ul');
@@ -401,23 +450,48 @@
       ['print_front', local('正面底板', 'Front plate')], ['print_back', local('完整背面', 'Full back')],
       ['print_dog', local('狗狗頭像', 'Dog portrait')], ['print_combined', local('正反面並排', 'Front and back')]
     ];
-    if (order.provider === 'merchant') {
-      for (const [index, tag] of order.items.entries()) {
-        const number = index + 1;
-        const ready = printLabels.slice(0, 3).every(([side]) => haveImages.has(number + ':' + side));
-        if (!ready) continue;
-        const item = element('li');
-        item.append(element('strong', tag.petName || local('狗牌 ' + number, 'Tag ' + number)));
-        for (const [side, label] of printLabels) {
-          const url = endpoint + '&image=' + encodeURIComponent(order.id) + '&tag=' + number + '&side=' + side;
-          item.append(' · ', link(url, label));
-        }
-        printList.append(item);
+    for (const [index, tag] of order.items.entries()) {
+      const number = index + 1;
+      const ready = order.provider === 'merchant'
+        ? printLabels.slice(0, 3).every(([side]) => haveImages.has(number + ':' + side))
+        : number <= order.printCount;
+      if (!ready) continue;
+      const item = element('li');
+      item.append(element('strong', tag.petName || local('狗牌 ' + number, 'Tag ' + number)));
+      for (const [side, label] of printLabels) {
+        const url = endpoint + '&image=' + encodeURIComponent(order.id) + '&tag=' + number + '&side=' + side;
+        item.append(' · ', link(url, label));
+      }
+      printList.append(item);
+    }
+    if (printList.childElementCount) print.append(printList);
+    else print.append(element('p', order.productionUnavailable
+      ? local('暫時未能讀取製作檔案。', 'Production files are temporarily unavailable.')
+      : local('這筆訂單尚無可下載的製作圖片。', 'There are no saved production images for this order yet.')));
+    if (order.profiles.length && !order.productionUnavailable && !order.printCount) {
+      const saved = savedProductionOrder(order.id,order.provider);
+      if (saved) {
+        const restore = element('button',local('載入這個瀏覽器已保存的製作資料','Restore production files from this browser'));
+        restore.type = 'button';
+        restore.className = 'secondary';
+        restore.addEventListener('click',async () => {
+          restore.disabled = true;
+          report('正在還原製作資料…','Restoring production files…');
+          try {
+            const legacy = await browserProductionAssets(saved);
+            await request('',{action:'recover-production-assets',orderId:order.id,legacy});
+            await load();
+            report('製作資料已還原。','Production files restored.');
+          } catch {
+            report('暫時未能還原此訂單的製作資料。','Could not restore the production files for this order.');
+          } finally {
+            restore.disabled = false;
+          }
+        });
+        print.append(restore);
       }
     }
-    print.append(printList);
-    const blocks = [info, reference, profiles, tags];
-    if (printList.childElementCount) blocks.push(print);
+    const blocks = [info, details, profiles, tags, print];
     if (order.provider === 'airwallex' && order.items.length && order.profiles.length) {
       const resend = element('button', local('重發商家製作郵件', 'Resend merchant production email'));
       resend.type = 'button';

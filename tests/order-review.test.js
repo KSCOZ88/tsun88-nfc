@@ -223,14 +223,22 @@ test('oversized merchant orders send one mail with the PDF, complete tag images 
   assert.match(attempts[1].html, /merchant\/orders\?order=[^"#]+#merchant-print-files/);
 });
 
-test('order listing, sales analytics, detail and images require a merchant session before accessing SQL', async () => {
+test('order details and production downloads require a merchant session before accessing SQL', async () => {
   const config = {key: 'a'.repeat(64), signingKey: 'b'.repeat(64), connection: 'test'};
+  const delivery = {customerEmail:'merchant-fixture@example.test',shipName:'Fixture Recipient',
+    shipPhone:'51234567',shipAddress:'2 Tim Mei Avenue, Hong Kong'};
   let opened = 0;
   const handler = makeHandler({getConfig: () => config, getDb: () => {
     opened++;
-    return async strings => strings.join('').includes("side in ('print_front', 'print_back')")
-      ? ['print_front', 'print_back'].map(side => ({side, image_png: Buffer.from(png.split(',')[1], 'base64')}))
-      : [{image_png: Buffer.from('test')}];
+    return async strings => {
+      const statement = strings.join('');
+      if (statement.includes('with entries')) return [{id,provider:'merchant'}];
+      if (statement.includes('select profile_slugs')) return [{profile_slugs:['ABCDEF012345'],items:[{petName:'Lucky'}],delivery}];
+      if (statement.includes('select tag_number')) return [];
+      if (statement.includes("side in ('print_front', 'print_back')"))
+        return ['print_front', 'print_back'].map(side => ({side, image_png: Buffer.from(png.split(',')[1], 'base64')}));
+      return [{image_png: Buffer.from('test')}];
+    };
   }});
   const respond = async (query, cookie, body) => {
     const result = {headers: {}};
@@ -244,7 +252,7 @@ test('order listing, sales analytics, detail and images require a merchant sessi
     return result;
   };
   const download = {image: id, tag: '1', side: 'print_combined'};
-  for (const query of [{reviews: '1'}, {sales: '1'}, {review: id}, {image: id, tag: '1', side: 'front'}, download]) {
+  for (const query of [{reviews: '1'}, {sales: '1'}, {review: id}, {image: id, tag: '1', side: 'front'}, download, {addressPdf:id}]) {
     assert.deepEqual((await respond(query)).body, {error: 'sign_in_required'});
   }
   assert.deepEqual((await respond({}, undefined, {action: 'resend-production-mail', orderId: id})).body,
@@ -256,8 +264,15 @@ test('order listing, sales analytics, detail and images require a merchant sessi
   assert.equal(image.headers['Cache-Control'], 'private, no-store');
   const file = await respond(download, signIn(config.key, config));
   assert.equal(file.status, 200);
-  assert.equal(file.headers['Content-Disposition'], 'attachment; filename="8TSUN8-1-print_combined.png"');
+  assert.equal(file.headers['Content-Disposition'], `attachment; filename="8TSUN8-${id}-1-print_combined.png"`);
   assert.ok(PNG.sync.read(file.body).width > 3);
+  const detail = await respond({review:id},signIn(config.key,config));
+  assert.deepEqual(detail.body.delivery,delivery);
+  assert.equal(detail.body.quantity,1);
+  const label = await respond({addressPdf:id},signIn(config.key,config));
+  assert.equal(label.status,200);
+  assert.equal(label.headers['Content-Type'],'application/pdf');
+  assert.equal(label.body.subarray(0,5).toString(),'%PDF-');
 });
 
 test('the enabled production merchant route uses its own role and generates live IDs', () => {
